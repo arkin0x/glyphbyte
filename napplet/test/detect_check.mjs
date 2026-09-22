@@ -8,6 +8,7 @@ let cells = 0, jsFound = 0, pyFound = 0, kindOk = 0, kindN = 0, agreeFrames = 0,
 for (const it of items) {
   const { W, H, gray } = readPGM(`${dir}/scene_${String(it.i).padStart(2, '0')}.pgm`);
   const t = Date.now(); const det = detect(gray, W, H); ms += Date.now() - t;
+  const sc = det.scale; for (const f of det.frames) { f.center = [f.center[0] / sc, f.center[1] / sc]; f.size /= sc; }
   cells += it.truth.length;
   for (const tr of it.truth) {
     const fj = det.frames.find(f => near(f.center, tr.center, 0.35 * tr.size) && f.size > 0.6 * tr.size && f.size < 1.5 * tr.size);

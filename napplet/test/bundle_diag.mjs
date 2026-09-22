@@ -8,6 +8,7 @@ let countOk = 0, allOk = 0, n = 0, sym = 0, rot = 0, fill = 0, frame = 0, byteOk
 for (const it of items) {
   const { W, H, gray } = readPGM(`${dir}/scene_${String(it.i).padStart(2, '0')}.pgm`);
   const r = S.readImage(gray, W, H, model); const truth = it.truth.map(t => t.byte);
+  const sc = r.detection.scale; for (const f of r.detection.frames) { f.center = [f.center[0] / sc, f.center[1] / sc]; f.size /= sc; }
   // align by position: match each read frame to the nearest truth cell
   for (const rd of r.reads) {
     const f = r.detection.frames[rd.index]; const t = it.truth.find(t => Math.hypot(f.center[0] - t.center[0], f.center[1] - t.center[1]) < 0.35 * t.size);
