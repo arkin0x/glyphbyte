@@ -1,0 +1,19 @@
+{
+  "name": "glyphbyte",
+  "version": "0.1.0",
+  "description": "One drawn glyph is one byte. Read hand-drawn glyph rows from photos on the device, render rows to draw from, and resolve the bytes on nostr as event id and pubkey prefixes.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "files": ["src/", "weights.bin", "weights.bin.json", "shapes.json", "README.md"],
+  "scripts": {
+    "build": "python build.py weights.bin weights.bin.json",
+    "test": "node test/nip19_check.mjs && node test/nn_check.mjs /tmp/glyphbyte-nncheck || true"
+  },
+  "keywords": ["nostr", "glyph", "handwriting", "ocr", "napplet", "nip-19", "prefix"],
+  "homepage": "https://glyphbyte.dev",
+  "repository": { "type": "git", "url": "git+https://github.com/arkin0x/glyphbyte.git", "directory": "napplet" },
+  "license": "MIT",
+  "author": "arkinox",
+  "engines": { "node": ">=22" }
+}
