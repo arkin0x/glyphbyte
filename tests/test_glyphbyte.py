@@ -79,3 +79,31 @@ def test_end_to_end_clean(hand):
     row = render_row(data, cell=110, hand=hand, rng=np.random.default_rng(11))
     res = read_image(cv2.cvtColor(row.canvas, cv2.COLOR_GRAY2BGR))
     assert res.best == data, res.to_dict()
+
+
+def test_spec_vectors_match_implementation():
+    import json
+    from glyphbyte.symbols import unpack
+    spec = os.path.join(os.path.dirname(__file__), "..", "spec", "test-vectors.json")
+    v = json.load(open(spec))
+    assert v["symbols"] == SYMBOLS
+    assert len(v["bytes"]) == 256
+    for entry in v["bytes"]:
+        g = unpack(entry["byte"])
+        assert entry["text"] == g.describe()
+        assert entry["symbol"] == g.name and entry["rotation_deg"] == g.rotation * 90
+        assert entry["fill"] == ("filled" if g.fill else "outline") and entry["frame"] == ("circle" if g.frame else "square")
+    for seq in v["sequences"]:
+        assert seq["glyphs"] == [unpack(b).describe() for b in bytes.fromhex(seq["hex"])]
+
+
+@pytest.mark.skipif(not os.path.exists(MODEL), reason="model not trained")
+def test_spec_photo_vectors():
+    import json
+    from glyphbyte.pipeline import read_image
+    spec_dir = os.path.join(os.path.dirname(__file__), "..", "spec")
+    v = json.load(open(os.path.join(spec_dir, "test-vectors.json")))
+    for ph in v["photos"]:
+        img = cv2.imread(os.path.join(spec_dir, ph["image"]))
+        res = read_image(img)
+        assert any(b.hex() == ph["expected"] for b, _ in res.sequences), res.to_dict()

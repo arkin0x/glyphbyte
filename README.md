@@ -1,6 +1,6 @@
 # glyphbyte
 
-One drawn glyph is one byte. (Developed under the working name *symple* on 2026-09-22.)
+One drawn glyph is one byte. The specification with test vectors is in [`spec/GLYPHBYTE.md`](spec/GLYPHBYTE.md). (Developed under the working name *symple* on 2026-09-22.)
 
 Hand-drawn symbols to bytes, offline. Draw a row of **glyphbyte** symbols on a wall, a
 notebook, a sticker or a whiteboard, photograph it, and `glyphbyte decode` returns the
