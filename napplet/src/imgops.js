@@ -34,18 +34,26 @@ export function resizeGray(g, W, H, nw, nh) {
   return out;
 }
 
-// ink = src <= localMean - C, local mean over a block x block window (clamped at the border)
-export function adaptiveThreshold(gray, W, H, block, C, invert) {
-  const src = invert ? gray.map(v => 255 - v) : gray;
-  const S = integral(src, W, H), r = block >> 1, out = new Uint8Array(W * H);
+function boxMean(img, W, H, r) {
+  const S = integral(img, W, H), out = new Float32Array(W * H);
   for (let y = 0; y < H; y++) {
     const y0 = Math.max(0, y - r), y1 = Math.min(H, y + r + 1);
     for (let x = 0; x < W; x++) {
       const x0 = Math.max(0, x - r), x1 = Math.min(W, x + r + 1);
-      const mean = boxSum(S, W, x0, y0, x1, y1) / ((x1 - x0) * (y1 - y0));
-      out[y * W + x] = src[y * W + x] <= mean - C ? 1 : 0;
+      out[y * W + x] = boxSum(S, W, x0, y0, x1, y1) / ((x1 - x0) * (y1 - y0));
     }
   }
+  return out;
+}
+
+// ink = src <= localMean - C. OpenCV's ADAPTIVE_THRESH_GAUSSIAN_C weights the block window with a
+// Gaussian of sigma 0.3*((block-1)*0.5-1)+0.8; three box passes of the matching radius approximate it.
+export function adaptiveThreshold(gray, W, H, block, C, invert) {
+  const src = invert ? gray.map(v => 255 - v) : gray;
+  const sigma = 0.3 * ((block - 1) * 0.5 - 1) + 0.8, r = Math.max(1, Math.round(Math.sqrt(sigma * sigma * 12 / 3 + 1) / 2 - 0.5));
+  let m = boxMean(src, W, H, r); m = boxMean(m, W, H, r); m = boxMean(m, W, H, r);
+  const out = new Uint8Array(W * H);
+  for (let i = 0; i < out.length; i++) out[i] = src[i] <= m[i] - C ? 1 : 0;
   return out;
 }
 
@@ -152,14 +160,17 @@ export function gaussianBlur(img, W, H, sigma) {
 
 // sample src (gray) at dst pixels through the 3x3 matrix M (dst -> src), bilinear, border replicate
 export function warp(gray, W, H, M, ow, oh) {
-  const out = new Float32Array(ow * oh);
-  for (let y = 0; y < oh; y++) for (let x = 0; x < ow; x++) {
-    const den = M[6] * x + M[7] * y + M[8];
-    let sx = (M[0] * x + M[1] * y + M[2]) / den, sy = (M[3] * x + M[4] * y + M[5]) / den;
+  const out = new Float32Array(ow * oh), offs = [-0.25, 0.25];
+  const sample = (px, py) => {
+    const den = M[6] * px + M[7] * py + M[8];
+    let sx = (M[0] * px + M[1] * py + M[2]) / den, sy = (M[3] * px + M[4] * py + M[5]) / den;
     sx = Math.min(Math.max(sx, 0), W - 1); sy = Math.min(Math.max(sy, 0), H - 1);
-    const x0 = Math.floor(sx), y0 = Math.floor(sy), x1 = Math.min(x0 + 1, W - 1), y1 = Math.min(y0 + 1, H - 1);
-    const fx = sx - x0, fy = sy - y0;
-    out[y * ow + x] = (gray[y0 * W + x0] * (1 - fx) + gray[y0 * W + x1] * fx) * (1 - fy) + (gray[y1 * W + x0] * (1 - fx) + gray[y1 * W + x1] * fx) * fy;
+    const x0 = Math.floor(sx), y0 = Math.floor(sy), x1 = Math.min(x0 + 1, W - 1), y1 = Math.min(y0 + 1, H - 1), fx = sx - x0, fy = sy - y0;
+    return (gray[y0 * W + x0] * (1 - fx) + gray[y0 * W + x1] * fx) * (1 - fy) + (gray[y1 * W + x0] * (1 - fx) + gray[y1 * W + x1] * fx) * fy;
+  };
+  for (let y = 0; y < oh; y++) for (let x = 0; x < ow; x++) {
+    let s = 0; for (const dy of offs) for (const dx of offs) s += sample(x + dx, y + dy);
+    out[y * ow + x] = s / 4;
   }
   return out;
 }

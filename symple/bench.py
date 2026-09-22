@@ -92,6 +92,7 @@ def run_bench(directory: str, model: str | None = None, max_sequences: int = 8, 
         lines += ["", "| truth | read as | count |", "|---|---|---|"] + [f"| {SYMBOLS[i]} | {SYMBOLS[j]} | {c} |" for c, i, j in pairs]
     rep["markdown"] = "\n".join(lines)
     if out:
+        os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
         with open(out, "w") as f:
             json.dump(rep, f, indent=1)
     return rep
