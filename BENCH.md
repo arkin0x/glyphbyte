@@ -18,11 +18,11 @@ The whole row is always inside the picture.
 
 ## Results, 2026-09-22
 
-Suite : 200 scenes, 996 symbols, seed 1. "Whole sequence exact" means every
+Suite `bench/synth/v1`: 200 scenes, 996 symbols, seed 1. "Whole sequence exact" means every
 symbol of the row read right, in order, as the top-1 answer. "Aligned" metrics count only rows
 where the number of detected frames matched, so the reading could be compared symbol by symbol.
 
-### Python, big reference model (, channels 32-64-128-192)
+### Python, big reference model (`symple/data/model.onnx`, channels 32-64-128-192)
 
 | metric | value |
 |---|---|
@@ -56,7 +56,7 @@ where the number of detected frames matched, so the reading could be compared sy
 | pacman | drop | 1 |
 | pacman | house | 1 |
 
-### Python, small napplet model (, channels 16-32-64-96)
+### Python, small napplet model (`symple/data/model-small.onnx`, channels 16-32-64-96)
 
 | metric | value |
 |---|---|
