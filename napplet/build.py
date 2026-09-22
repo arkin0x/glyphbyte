@@ -49,7 +49,7 @@ def build(weights_path, manifest_path, out_path):
     open(out_path, "w").write(html)
     # a core-only script for headless tests (no DOM)
     with open(os.path.join(os.path.dirname(out_path), "symple-core.js"), "w") as f:
-        f.write(core + "\nconst SHAPES = " + json.dumps(shapes) + ";\nglobalThis.Symple = { toGray, readImage, detect, describe, unpack, SYMBOLS, loadWeights, classify, SHAPES, lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay, npub, note, nevent, naddr };\n")
+        f.write(core + "\nconst SHAPES = " + json.dumps(shapes) + ";\nglobalThis.Symple = { toGray, readImage, detect, describe, unpack, SYMBOLS, loadWeights, classify, SHAPES, lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay, npub, note, nevent, naddr, decodeEntity };\n")
     print(f"wrote {out_path} ({os.path.getsize(out_path) / 1e6:.2f} MB)")
 
 

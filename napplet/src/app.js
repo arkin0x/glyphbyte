@@ -3,8 +3,29 @@ const $ = id => document.getElementById(id);
 const hexClean = s => s.trim().replace(/[^0-9a-fA-F]/g, '').toLowerCase();
 const toBytes = h => { const out = []; for (let i = 0; i + 1 < h.length; i += 2) out.push(parseInt(h.slice(i, i + 2), 16)); return out; };
 
+// what the box holds: raw hex, or a NIP-19 entity (npub, note, nevent, nprofile, naddr), optionally nostr:-prefixed
+function parseEntry(raw) {
+  const v = raw.trim().replace(/^nostr:/i, '');
+  if (/^(npub|note|nevent|nprofile|naddr)1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+$/i.test(v)) {
+    try { const d = decodeEntity(v); return { hex: d.hex, entity: d }; } catch (e) { return { hex: '', entity: null, error: `${v.slice(0, 6)}…: ${e.message}` }; }
+  }
+  return { hex: hexClean(v), entity: null };
+}
+function nBytes() { const r = document.querySelector('input[name=nbytes]:checked'); return r ? +r.value : 6; }
+function currentPrefix() {
+  const { hex } = parseEntry($('hex').value); const n = nBytes();
+  return n ? hex.slice(0, 2 * n) : hex;
+}
 function renderEncode() {
-  const h = hexClean($('hex').value);
+  const { hex, entity, error } = parseEntry($('hex').value); const n = nBytes(), h = n ? hex.slice(0, 2 * n) : hex;
+  const note = $('entity');
+  if (error) { note.className = 'warn'; note.textContent = error; }
+  else if (entity) {
+    const what = entity.type === 'npub' || entity.type === 'nprofile' ? 'pubkey' : entity.type === 'naddr' ? "author's pubkey (an naddr has no event id)" : 'event id';
+    note.className = 'muted';
+    note.innerHTML = `${entity.type}: ${what} <code>${esc(hex.slice(0, 16))}…</code>, drawing the first ${h.length / 2} bytes` + (entity.relays.length ? ` · relay hint <button id="useHint" data-relay="${esc(entity.relays[0])}">${esc(entity.relays[0])}</button>` : '');
+    const b = $('useHint'); if (b) b.addEventListener('click', () => { $('relay').value = b.dataset.relay; $('relay').dispatchEvent(new Event('input')); });
+  } else { note.className = 'muted'; note.textContent = hex.length > 2 * n && n ? `drawing the first ${n} of ${hex.length / 2} bytes` : ''; }
   if (h.length < 2) { $('row').hidden = true; $('describe').innerHTML = ''; return; }
   const bytes = toBytes(h);
   drawRow($('row'), SHAPES, bytes, 140); $('row').hidden = false;
@@ -53,7 +74,8 @@ function show(d, ms) {
 let lastCandidates = [], profiles = {};
 const nappletRelay = () => (typeof window !== 'undefined' && window.napplet && window.napplet.relay) ? window.napplet.relay : null;
 const relayUrl = () => $('relay').value.trim();
-$('lookupHexBtn').addEventListener('click', () => { const h = hexClean($('hex').value); if (h.length >= 2) runLookup([h]); });
+$('lookupHexBtn').addEventListener('click', () => { const h = currentPrefix(); if (h.length >= 2) runLookup([h]); });
+for (const r of document.querySelectorAll('input[name=nbytes]')) r.addEventListener('change', renderEncode);
 
 function placeRelaySection(hasResult) {
   const sec = $('relaySection'), first = document.querySelector('main section');

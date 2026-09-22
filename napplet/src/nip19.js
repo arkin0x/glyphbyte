@@ -26,3 +26,34 @@ export function naddr(kind, pubkey, d, { relays = [] } = {}) {
   return bech32Encode('naddr', tlv(items));
 }
 export const isAddressable = kind => kind >= 30000 && kind < 40000;
+
+// ---------------------------------------------------------------- decoding
+function fromWords(words) { const out = []; let acc = 0, bits = 0; for (const w of words) { acc = (acc << 5) | w; bits += 5; while (bits >= 8) { bits -= 8; out.push((acc >> bits) & 255); } } return Uint8Array.from(out); }
+export function bech32Decode(str) {
+  const s = str.toLowerCase(), pos = s.lastIndexOf('1');
+  if (pos < 1 || pos + 7 > s.length) throw new Error('not bech32');
+  const hrp = s.slice(0, pos), data = [];
+  for (const c of s.slice(pos + 1)) { const v = CHARSET.indexOf(c); if (v < 0) throw new Error('bad character'); data.push(v); }
+  if (polymod(hrpExpand(hrp).concat(data)) !== 1) throw new Error('bad checksum');
+  return { hrp, bytes: fromWords(data.slice(0, -6)) };
+}
+const hex = b => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+function parseTLV(bytes) { const out = []; let i = 0; while (i + 1 < bytes.length) { const t = bytes[i], l = bytes[i + 1], v = bytes.subarray(i + 2, i + 2 + l); if (v.length < l) break; out.push([t, v]); i += 2 + l; } return out; }
+// Returns {type, hex, relays, kind, d, author} for npub, note, nprofile, nevent, naddr; throws otherwise.
+export function decodeEntity(str) {
+  const { hrp, bytes } = bech32Decode(str.trim().replace(/^nostr:/i, ''));
+  if (hrp === 'npub' || hrp === 'note') { if (bytes.length !== 32) throw new Error('wrong length'); return { type: hrp, hex: hex(bytes), relays: [] }; }
+  if (hrp === 'nprofile' || hrp === 'nevent' || hrp === 'naddr') {
+    const out = { type: hrp, hex: null, relays: [], kind: null, d: null, author: null };
+    for (const [t, v] of parseTLV(bytes)) {
+      if (t === 0) out.hex = hrp === 'naddr' ? null : hex(v), out.d = hrp === 'naddr' ? new TextDecoder().decode(v) : null;
+      else if (t === 1) out.relays.push(new TextDecoder().decode(v));
+      else if (t === 2) out.author = hex(v);
+      else if (t === 3 && v.length === 4) out.kind = (v[0] << 24 | v[1] << 16 | v[2] << 8 | v[3]) >>> 0;
+    }
+    if (hrp === 'naddr') out.hex = out.author;   // no event id in an naddr: the author's pubkey is the best prefix we have
+    if (!out.hex) throw new Error('missing data');
+    return out;
+  }
+  throw new Error('unsupported: ' + hrp);
+}

@@ -34,7 +34,8 @@
   <h1>symple <small>hand-drawn symbols, one byte each</small></h1>
   <section>
     <h2>Bytes to symbols</h2>
-    <input id="hex" type="text" placeholder="hex, e.g. 8a3a3a6609eb" autocomplete="off" spellcheck="false">
+    <input id="hex" type="text" placeholder="hex, npub, note, nevent, nprofile or naddr" autocomplete="off" spellcheck="false" autocapitalize="off">
+    <div class="row"><span class="muted">bytes to draw:</span><label><input type="radio" name="nbytes" value="4"> 4</label><label><input type="radio" name="nbytes" value="6" checked> 6</label><label><input type="radio" name="nbytes" value="8"> 8</label><label><input type="radio" name="nbytes" value="0"> all</label><span id="entity" class="muted"></span></div>
     <canvas id="row" class="render" hidden></canvas>
     <ol id="describe" class="symbols"></ol>
     <div class="row"><button id="sheetBtn">reference sheet</button><button id="lookupHexBtn">look up on relay</button></div>
