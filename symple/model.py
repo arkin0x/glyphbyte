@@ -120,8 +120,9 @@ def train(out_path: str, backdrops_dir: str | None = None, epochs: int = 8, per_
                 v_n += len(x)
         log(f"epoch {ep + 1}/{epochs} loss {tot / n:.4f} train sym {n_ok_s / n:.4f} fill {n_ok_f / n:.4f} "
             f"| val sym {v_ok_s / v_n:.4f} fill {v_ok_f / v_n:.4f} | {time.time() - t0:.0f}s")
-    export_onnx(model, out_path)
+    # weights first: an export failure must never cost the training run
     torch.save(model.state_dict(), os.path.splitext(out_path)[0] + ".pt")
+    export_onnx(model, out_path)
     return out_path
 
 

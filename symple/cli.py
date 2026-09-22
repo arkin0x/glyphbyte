@@ -104,6 +104,11 @@ def cmd_train(a):
     print(f"wrote {a.out}")
 
 
+def cmd_serve(a):
+    from .web import serve
+    serve(host=a.host, port=a.port, model_path=a.model)
+
+
 def cmd_backdrops(a):
     import urllib.request
     os.makedirs(a.out, exist_ok=True)
@@ -176,6 +181,12 @@ def main(argv=None):
     t.add_argument("--workers", type=int, default=8)
     t.add_argument("--seed", type=int, default=0)
     t.set_defaults(fn=cmd_train)
+
+    w = sub.add_parser("serve", help="run the web app: bytes to symbols, photo to bytes")
+    w.add_argument("--host", default="127.0.0.1")
+    w.add_argument("--port", type=int, default=8765)
+    w.add_argument("--model", default=None)
+    w.set_defaults(fn=cmd_serve)
 
     k = sub.add_parser("backdrops", help="download public-domain photos from picsum.photos for synth/bench")
     k.add_argument("--out", default="bench/backdrops")

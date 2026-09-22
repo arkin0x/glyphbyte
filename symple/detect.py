@@ -422,14 +422,34 @@ def _dot_evidence(ink, dist, pa, pb, med):
         x0, x1 = max(0, x - r), min(ink.shape[1], x + r + 1)
         return float(dist[y0:y1, x0:x1].max()) if y1 > y0 and x1 > x0 else 0.0
 
+    def roundness_near(p, radius):
+        """ink area around the thickest point over the disc area that thickness implies:
+        about 1 for a dot (plus a bit of line), well above 2 for crossing strokes."""
+        x, y = int(round(p[0])), int(round(p[1]))
+        r = int(radius)
+        y0, y1 = max(0, y - r), min(ink.shape[0], y + r + 1)
+        x0, x1 = max(0, x - r), min(ink.shape[1], x + r + 1)
+        win = dist[y0:y1, x0:x1]
+        if win.size == 0 or win.max() <= 0:
+            return 9.0
+        iy, ix = np.unravel_index(int(win.argmax()), win.shape)
+        rr = float(win.max())
+        k = int(1.6 * rr) + 1
+        cy, cx = y0 + iy, x0 + ix
+        blob = ink[max(0, cy - k):cy + k + 1, max(0, cx - k):cx + k + 1]
+        return float(blob.sum()) / max(1.0, math.pi * rr * rr)
+
     mids = [thickness_near(pa + (pb - pa) * t, max(2, 0.04 * med)) for t in np.linspace(0.25, 0.75, 9)]
     line_half = max(1.0, float(np.median(mids)))
     ra = thickness_near(pa, 0.22 * med) / line_half
     rb = thickness_near(pb, 0.22 * med) / line_half
     hi, lo = max(ra, rb), min(ra, rb)
+    fat = pa if ra > rb else pb
+    rd = roundness_near(fat, 0.22 * med)
     if _DEBUG:
-        print("[baseline] line_half", round(line_half, 2), "ratio a", round(ra, 2), "b", round(rb, 2))
-    if hi >= 1.6 and hi >= 1.25 * lo:
+        print("[baseline] line_half", round(line_half, 2), "ratio a", round(ra, 2), "b", round(rb, 2), "roundness", round(rd, 2))
+    # a start dot is one fat, round end and one thin end; texture is fat at both ends
+    if hi >= 1.8 and lo <= 1.6 and hi >= 1.5 * lo and rd <= 2.2:
         return (0 if ra > rb else 1), hi
     return None, hi
 
@@ -500,7 +520,8 @@ def find_baseline(ink: np.ndarray, frames: list[Frame]):
             continue
         pa, pb, d2, nrm2 = r
         start, strength = _dot_evidence(ink, dist, pa, pb, med)
-        scored.append(((start is not None, round(cov, 1), -abs(off) / med), off, cov, pa, pb, d2, nrm2, start))
+        near = 0.55 <= abs(off) / med <= 1.4      # where an underline actually sits
+        scored.append(((start is not None, near, round(cov, 1), -abs(off) / med), off, cov, pa, pb, d2, nrm2, start))
     if not scored:
         return None
     scored.sort(key=lambda t: t[0], reverse=True)

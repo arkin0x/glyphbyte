@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>symple</title>
+<style>
+  :root { --bg:#f6f4ee; --ink:#151515; --muted:#6b6b6b; --card:#ffffff; --line:#d9d5cc; --accent:#1f5fbf; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141414; --ink:#ececec; --muted:#9a9a9a; --card:#1e1e1e; --line:#333; --accent:#7aa7ff; } }
+  * { box-sizing:border-box }
+  body { margin:0; font:16px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--ink) }
+  main { max-width:900px; margin:0 auto; padding:16px }
+  h1 { font-size:22px; margin:8px 0 2px } h1 small { color:var(--muted); font-weight:400; font-size:14px; margin-left:8px }
+  h2 { font-size:17px; margin:0 0 10px }
+  section { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:16px 0 }
+  input[type=text] { width:100%; font:18px ui-monospace, monospace; padding:10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink) }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0 }
+  button, label.btn { font:15px system-ui; padding:10px 14px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); cursor:pointer }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent) }
+  img.render { width:100%; background:#fff; border:1px solid var(--line); border-radius:8px }
+  ol.symbols { padding-left:22px } ol.symbols li { margin:4px 0 } code { font:14px ui-monospace, monospace; background:var(--bg); padding:1px 5px; border-radius:4px }
+  .seq { display:flex; gap:8px; flex-wrap:wrap } .seq button { font:16px ui-monospace, monospace }
+  .muted { color:var(--muted); font-size:14px }
+  .warn { color:#b5651d; font-size:14px }
+  .alts { font-size:14px; color:var(--muted) }
+  details summary { cursor:pointer; color:var(--muted) }
+  #busy { display:none }
+</style>
+</head>
+<body>
+<main>
+  <h1>symple <small>hand-drawn symbols, one byte each</small></h1>
+
+  <section>
+    <h2>Bytes to symbols</h2>
+    <input id="hex" type="text" placeholder="hex, e.g. 8a3a3a6609eb" autocomplete="off" spellcheck="false">
+    <div class="row">
+      <label class="muted"><input id="hand" type="checkbox"> show a sloppy version</label>
+      <a id="dl" class="btn" download="symple-row.png"><button>download PNG</button></a>
+      <a href="/api/sheet.png" target="_blank"><button>reference sheet</button></a>
+    </div>
+    <img id="render" class="render" alt="" hidden>
+    <ol id="describe" class="symbols"></ol>
+    <p class="muted">Draw each symbol inside its frame, underline the row, and put a fat dot at the start of the underline (about a quarter of a symbol across). Filled means scribble it in.</p>
+  </section>
+
+  <section>
+    <h2>Photo to bytes</h2>
+    <div class="row">
+      <label class="btn">take or choose a photo <input id="file" type="file" accept="image/*" capture="environment" hidden></label>
+      <label class="muted"><input id="debug" type="checkbox"> show what was detected</label>
+      <span id="busy" class="muted">reading…</span>
+    </div>
+    <div id="result"></div>
+  </section>
+
+  <p class="muted">Runs entirely on this server: no third-party API. <a href="/api/symbols">bit layout</a></p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let t;
+$('hex').addEventListener('input', () => { clearTimeout(t); t = setTimeout(encode, 250); });
+$('hand').addEventListener('change', encode);
+async function encode() {
+  const hex = $('hex').value.trim().replace(/[^0-9a-fA-F]/g, '');
+  if (hex.length < 2 || hex.length % 2) { $('render').hidden = true; $('describe').innerHTML = ''; return; }
+  const url = `/api/encode.png?hex=${hex}&hand=${$('hand').checked ? 0.7 : 0}&cell=140`;
+  $('render').src = url; $('render').hidden = false; $('dl').href = url;
+  const r = await fetch(`/api/describe?hex=${hex}`); const d = await r.json();
+  $('describe').innerHTML = d.symbols.map(s => `<li><code>${s.hex}</code> ${s.name}, rotated ${s.rotation}°, ${s.fill}, ${s.frame} frame</li>`).join('');
+}
+$('file').addEventListener('change', async () => {
+  const f = $('file').files[0]; if (!f) return;
+  $('busy').style.display = 'inline'; $('result').innerHTML = '';
+  const fd = new FormData(); fd.append('image', f);
+  try {
+    const r = await fetch(`/api/decode?debug=${$('debug').checked}`, { method: 'POST', body: fd });
+    const d = await r.json(); show(d);
+  } catch (e) { $('result').innerHTML = `<p class="warn">${e}</p>`; }
+  $('busy').style.display = 'none';
+});
+function show(d) {
+  let h = '';
+  if (!d.sequences || !d.sequences.length) { h += `<p class="warn">no symbols found</p>`; }
+  else {
+    h += `<p>Most likely: <code style="font-size:18px">${d.best}</code></p>`;
+    if (d.sequences.length > 1) h += `<p class="muted">Not sure about some symbols. Pick the reading that matches what you see, or query all of them:</p>`;
+    h += `<div class="seq">` + d.sequences.map(s => `<button onclick="navigator.clipboard.writeText('${s.hex}');this.textContent='${s.hex} ✓'">${s.hex} <span class="muted">${Math.round(s.p*100)}%</span></button>`).join('') + `</div>`;
+    h += `<ol class="symbols">` + d.symbols.map(s => {
+      const alts = s.candidates.slice(1).map(c => `${c.glyph} (${Math.round(c.p*100)}%)`).join('; ');
+      return `<li><code>${s.byte.toString(16).padStart(2,'0')}</code> ${s.glyph} <span class="muted">${Math.round(s.p*100)}%</span>${alts ? `<div class="alts">or ${alts}</div>` : ''}</li>`; }).join('') + `</ol>`;
+  }
+  if (d.warnings && d.warnings.length) h += d.warnings.map(w => `<p class="warn">${w}</p>`).join('');
+  if (d.debug_png) h += `<details open><summary>detection</summary><img class="render" src="${d.debug_png}"></details>`;
+  $('result').innerHTML = h;
+}
+</script>
+</body>
+</html>
