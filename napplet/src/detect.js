@@ -2,7 +2,7 @@
 import { resizeGray, adaptiveThreshold, morphClose3, removeSpecks, labelComponents, distanceTransform, dilate, warp, normalizePatch } from './imgops.js';
 import { convexHull, polygonArea, polygonPerimeter, polygonCentroid, pointInPolygon, approxPolyDP, maxInscribedQuad, eigen2, homography, mat3mul, mat3inv } from './geom.js';
 
-export const PATCH = 64, PATCH_MARGIN = 0.12, MAX_SIDE = 1600, JUNK_TOP_K = 24;
+export const PATCH = 64, PATCH_MARGIN = 0.12, MAX_SIDE = 1280, JUNK_TOP_K = 24;
 export const FRAME_SQUARE = 0, FRAME_CIRCLE = 1;
 
 export function prepare(gray, W, H) {
