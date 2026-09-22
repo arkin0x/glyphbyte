@@ -43,6 +43,7 @@ class Frame:
     quad_ratio: float = 0.0        # confidence of the square/circle decision, 0..1
     stroke: float = 0.0
     quality: float = 1.0           # how much this looks like a drawn frame with a glyph in it
+    light_ink: bool = False        # polarity this frame was found in
 
 
 @dataclass
@@ -215,11 +216,15 @@ def find_frames(ink: np.ndarray) -> list[Frame]:
             off_c = np.hypot(xs.mean() + x0 - center[0], ys.mean() + y0 - center[1]) / size
         else:
             off_c = 1.0
+        # a glyph is one blob (two for an outline with an inner loop); texture is confetti
+        n_cc, _, cc_stats, _ = cv2.connectedComponentsWithStats(inside.astype(np.uint8), connectivity=8)
+        share = float(cc_stats[1:, cv2.CC_STAT_AREA].max()) / max(1, int(inside.sum())) if n_cc > 1 else 0.0
         q = 1.0
         q *= 1.0 if 0.04 <= frac <= 0.5 else 0.5
         q *= 1.0 if 0.02 <= stroke / size <= 0.10 else 0.5
         q *= 0.5 + 0.5 * conf
         q *= 1.0 if off_c <= 0.22 else 0.5
+        q *= 1.0 if share >= 0.5 else (0.6 if share >= 0.3 else 0.3)
         if kind == FRAME_CIRCLE:
             size = math.sqrt(px / math.pi) * 2
         fr = Frame(kind=kind, center=center, size=size, outer=ring_outer if ring_outer is not None else hull,
@@ -390,9 +395,24 @@ def _refine_line(ink, ink_d, p0, d, nrm, med, t_lo, t_hi):
     return pa, pb, d, nrm
 
 
+def _fill_small_holes(ink: np.ndarray, max_area: float) -> np.ndarray:
+    """The local threshold hollows out filled blobs wider than its window (the start dot,
+    filled glyphs). Filling holes below max_area restores them; frame interiors stay."""
+    cnts, hier = cv2.findContours(ink, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    out = ink.copy()
+    if hier is None:
+        return out
+    small = [c for c, h in zip(cnts, hier[0]) if h[3] != -1 and cv2.contourArea(c) < max_area]
+    if small:
+        cv2.fillPoly(out, small, 1)
+    return out
+
+
 def _dot_evidence(ink, dist, pa, pb, med):
     """(start_index 0|1 or None, strength). The start dot makes one end of the line much
     thicker than the line itself."""
+    ink = _fill_small_holes(ink, (0.35 * med) ** 2)
+    dist = cv2.distanceTransform(ink, cv2.DIST_L2, 3)
 
     def thickness_near(p, radius):
         x, y = int(round(p[0])), int(round(p[1]))
@@ -551,17 +571,30 @@ def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, lig
 
 def detect(image: np.ndarray) -> Detection:
     gray, scale = prepare(image)
-    best = None
+    # frames from both polarities go into one pool; the row then decides which polarity
+    # the drawing has. strokes are sparse, so a polarity that inks most of the picture
+    # has binarized the paper and its frames are penalized.
+    inks = {}
+    pool: list[Frame] = []
     for light in (False, True):
         ink = binarize(gray, light)
+        inks[light] = ink
         coverage = float(ink.mean())
-        frames = find_frames(ink)
-        frames, warns = filter_row(frames)
-        # strokes are sparse: heavy coverage means we binarized the paper, not the ink
-        score = sum(f.quality for f in frames) - 3.0 * max(0.0, coverage - 0.2)
-        if best is None or score > best[0]:
-            best = (score, light, ink, frames, warns)
-    _, light_ink, ink, frames, warnings = best
+        penalty = 1.0 - min(0.9, 3.0 * max(0.0, coverage - 0.2))
+        for f in find_frames(ink):
+            f.light_ink = light
+            f.quality *= penalty
+            pool.append(f)
+    pool.sort(key=lambda f: -f.quality)
+    merged: list[Frame] = []
+    for f in pool:
+        if any(np.linalg.norm(f.center - g.center) < 0.35 * g.size and 0.6 < f.size / g.size < 1.6 for g in merged):
+            continue
+        merged.append(f)
+    frames, warnings = filter_row(merged)
+    votes = sum(1 if f.light_ink else -1 for f in frames)
+    light_ink = votes > 0
+    ink = inks[light_ink]
 
     up = np.array([0.0, -1.0])
     d = np.array([1.0, 0.0])

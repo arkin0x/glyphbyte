@@ -23,7 +23,7 @@ dev = ["pytest>=7"]
 symple = "symple.cli:main"
 
 [tool.setuptools]
-packages = ["symple"]
+packages = ["symple", "symple.data"]
 
 [tool.setuptools.package-data]
 symple = ["data/*.json", "data/*.onnx"]

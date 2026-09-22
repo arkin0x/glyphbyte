@@ -1,0 +1,132 @@
+# symple-cli
+
+Hand-drawn symbols to bytes, offline. Draw a row of **symple** symbols on a wall, a
+notebook, a sticker or a whiteboard, photograph it, and `symple decode` returns the
+bytes. It was built to carry partial nostr event ids attached to physical places,
+where a wrong read costs one extra relay query and nothing else.
+
+```
+$ symple decode photo.jpg
+8a3a3a6609eb
+$ symple decode photo.jpg -v
+8a3a3a6609eb
+  8a3a3a6609eb  p=0.91
+  8a3a3a6609e3  p=0.06
+  [0] arrow rotated 180 deg, filled, square frame (0.99)
+  [5] trapezoid rotated 180 deg, filled, circle frame (0.71)  or trapezoid rotated 0 deg, filled, circle frame (0.22)
+```
+
+No network at runtime. Dependencies: numpy, OpenCV, onnxruntime.
+
+## The code: one symbol, one byte
+
+| bits | what | values |
+|---|---|---|
+| 7..4 | which symbol | 16 symbols, sheet order below |
+| 3..2 | rotation | quarter turns clockwise: 0, 90, 180, 270 |
+| 1 | fill | 0 outline, 1 filled in |
+| 0 | frame | 0 square around the symbol, 1 circle around it |
+
+16 x 4 x 2 x 2 = 256, so every byte has exactly one drawing and every drawing is one byte.
+
+| # | name | how to draw it |
+|---|---|---|
+| 0 | house | a square with a pointed roof |
+| 1 | chevron | a house whose base is cut by a chevron, an upward notch |
+| 2 | bookmark | a rectangle with a chevron cut into the bottom |
+| 3 | crown | a rectangle with three points on top |
+| 4 | drop | a teardrop, point up |
+| 5 | tee | the letter T, in block form |
+| 6 | u | the letter U, in block form |
+| 7 | mountain | a triangle whose apex is split into two peaks |
+| 8 | arrow | a chevron head on a shaft, pointing up |
+| 9 | heart | a heart |
+| 10 | crescent | a thick crescent lying like a bowl, horns up |
+| 11 | cloud | a dome with three scallops underneath |
+| 12 | snowman | a small circle merged onto a larger circle, small one on top |
+| 13 | l | the letter L, in block form |
+| 14 | trapezoid | narrow top, wide bottom |
+| 15 | pacman | a disc with a wedge bitten out of the top |
+
+Every symbol is distinct from every other symbol in all four rotations, and stays
+distinct when filled. `symple sheet` renders the whole set for printing.
+
+Four symbols from the original 2026-09-22 sheet were retired because they differed from
+another symbol only by a small feature that handwriting loses first: **spade** (an
+upside-down heart plus a stem), **clover** (a heart plus one bump), **shield** (a cloud
+without its scallops when upside down) and **ring dot** (its rotation cue vanishes when
+filled). They live in `symple/data/retired.json`; the sheet is in `assets/`.
+
+## How to write a row
+
+1. Draw the symbols left to right, each inside its frame, roughly the same size,
+   with a gap of about a third of a symbol between frames.
+2. Underline the whole row with one stroke, and put a **fat dot at the start** of the
+   underline, about a quarter of a symbol across. The line tells the reader which way is
+   up, the dot tells it where to start. Without them a photo taken sideways has every
+   rotation bit wrong, and `symple` will say so in its warnings.
+3. Fill means fill: scribble the whole inside. Outline means a single stroke.
+
+`symple encode 8a3a3a6609eb --out row.png` renders a row to copy from, and
+`--hand 0.7` shows what a sloppy one still looks like.
+
+## Uncertainty is forked, not hidden
+
+When a symbol could be one of two things, the decoder keeps both. The result carries
+ranked candidates per symbol and the most probable whole sequences, so a client can
+query all of them (cheap on nostr) and show the alternatives to the person holding the
+phone. `--fork-ratio` sets how likely an alternative must be, relative to the best
+read, to be kept; `--max-sequences` caps the list. If the start dot is missing, the
+reversed reading is offered too. There is no checksum by design: for an id prefix of
+eight bytes, a wrong candidate simply matches nothing.
+
+## How it works
+
+| stage | method |
+|---|---|
+| binarize | local threshold at both polarities (dark ink on light, light ink on dark), specks removed |
+| frames | interiors of ink rings that hold a compact blob of ink; rings with a pen gap are recovered from their convex hull; a stroke-width check by ray marching rejects paper regions and thick texture |
+| square or circle | area of the largest quadrilateral inscribed in the interior's hull over the hull area: 1 for a quadrilateral, 2/pi for an ellipse, in any perspective |
+| the row | the set of frames sharing a line and a smooth size trend with the highest total quality, so tiles and windows in the backdrop lose |
+| baseline and start | parallel offsets scored by ink coverage in the gaps between frames; each candidate line is refined and tested for a fat end; a line with a dot beats a lined-paper line |
+| rectify | squares by homography from their corners, circles by mapping the fitted ellipse to a circle, both rotated so the baseline is horizontal |
+| classify | a 4-block CNN (about 0.9M parameters) on 64x64 contrast-normalized patches, two heads: symbol x rotation (64 classes) and fill; polarity-invariant; ONNX on CPU |
+| decode | joint probability over the 256 bytes per cell from the two heads and the frame decision, then a beam over cells |
+
+The classifier is trained only on synthetic data rendered from the canonical shapes:
+wobble, stroke breathing, pen gaps, scribbled fills, perspective, lighting, shadows,
+blur, noise, JPEG, on photographs and procedural surfaces. See `symple train`.
+
+## Commands
+
+| command | does |
+|---|---|
+| `symple decode IMG... [-v] [--json] [--debug out.png]` | read a photo; `--json` gives candidates and warnings; `--debug` writes the detection overlay |
+| `symple encode HEX --out row.png [--hand 0.7]` | render bytes as a row |
+| `symple sheet --out sheet.png` | the reference sheet, all symbols, rotations and fills |
+| `symple synth --out DIR --n 200 --backdrops DIR` | generate photo-like test scenes with ground truth |
+| `symple bench DIR` | decode a synth directory and report accuracy |
+| `symple backdrops --out bench/backdrops` | fetch public-domain photos from picsum.photos for synth |
+| `symple train --backdrops DIR` | retrain the classifier (needs the `train` extra: torch) |
+
+## Install
+
+```
+git clone https://embassy.local:52248/arkin0x/symple-cli.git   # or your mirror
+cd symple-cli
+pip install .            # runtime: numpy, opencv-python-headless, onnxruntime
+pip install '.[train]'   # to retrain
+```
+
+Python 3.10 or newer. The bundled model is `symple/data/model.onnx`.
+
+## Benchmark
+
+See `BENCH.md` for the current numbers on the synthetic suite and how to reproduce
+them. Real handwriting on real walls has not been measured yet: photograph some, put
+the truth in a `truth.jsonl` next to the images, and `symple bench` scores it the same
+way.
+
+## License
+
+MIT
