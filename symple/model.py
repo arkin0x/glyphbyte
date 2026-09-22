@@ -13,7 +13,11 @@ JUNK = 64            # class index for "not a symbol"
 N_CLASSES = 65
 
 
-def build_model():
+BIG = (32, 64, 128, 192)      # reference model for the Python package
+SMALL = (16, 32, 64, 96)      # napplet model: runs in plain JavaScript on a phone
+
+
+def build_model(channels=BIG):
     import torch
     import torch.nn as nn
 
@@ -32,12 +36,14 @@ def build_model():
     class SympleNet(nn.Module):
         """1x64x64 normalized patch -> (65 logits: symbol*rotation plus junk, 2 fill logits)."""
 
-        def __init__(self):
+        def __init__(self, channels=channels):
             super().__init__()
-            self.features = nn.Sequential(Block(1, 32), Block(32, 64), Block(64, 128), Block(128, 192))
+            c1, c2, c3, c4 = channels
+            self.channels = channels
+            self.features = nn.Sequential(Block(1, c1), Block(c1, c2), Block(c2, c3), Block(c3, c4))
             self.pool = nn.AdaptiveAvgPool2d(1)
-            self.head_sym = nn.Sequential(nn.Dropout(0.2), nn.Linear(192, N_CLASSES))
-            self.head_fill = nn.Sequential(nn.Dropout(0.2), nn.Linear(192, 2))
+            self.head_sym = nn.Sequential(nn.Dropout(0.2), nn.Linear(c4, N_CLASSES))
+            self.head_fill = nn.Sequential(nn.Dropout(0.2), nn.Linear(c4, 2))
 
         def forward(self, x):
             f = self.pool(self.features(x)).flatten(1)
@@ -77,12 +83,12 @@ class PatchDataset:
 
 
 def train(out_path: str, backdrops_dir: str | None = None, epochs: int = 8, per_epoch: int = 40000,
-          batch: int = 128, workers: int = 12, lr: float = 2e-3, seed: int = 0, log=print) -> str:
+          batch: int = 128, workers: int = 12, lr: float = 2e-3, seed: int = 0, log=print, channels=BIG) -> str:
     import torch
     import torch.nn.functional as F
 
     torch.manual_seed(seed)
-    model = build_model()
+    model = build_model(channels)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     steps = epochs * (per_epoch // batch)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=lr, total_steps=steps, pct_start=0.15)
@@ -133,3 +139,40 @@ def export_onnx(model, out_path: str) -> None:
     torch.onnx.export(model, dummy, out_path, input_names=["patch"], output_names=["sym_rot", "fill"],
                       dynamic_axes={"patch": {0: "n"}, "sym_rot": {0: "n"}, "fill": {0: "n"}},
                       opset_version=17, dynamo=False)
+
+
+def export_weights(state_dict_path: str, out_path: str, channels=SMALL) -> dict:
+    """Fold batch-norm into the convolutions and write a flat float16 blob plus a JSON
+    manifest, for the JavaScript inference in the napplet."""
+    import json
+    import torch
+    sd = torch.load(state_dict_path, map_location="cpu")
+    blobs, manifest = [], {"channels": list(channels), "layers": [], "n_classes": N_CLASSES, "patch": PATCH}
+    offset = 0
+
+    def add(name, arr):
+        nonlocal offset
+        a = np.ascontiguousarray(arr.detach().numpy().astype(np.float16))
+        blobs.append(a)
+        manifest["layers"].append({"name": name, "shape": list(a.shape), "offset": offset, "size": int(a.size)})
+        offset += int(a.size)
+
+    for bi in range(4):
+        for ci, (conv_idx, bn_idx) in enumerate(((0, 1), (3, 4))):
+            pre = f"features.{bi}.net."
+            w = sd[pre + f"{conv_idx}.weight"]
+            g, b, m, v = (sd[pre + f"{bn_idx}.{k}"] for k in ("weight", "bias", "running_mean", "running_var"))
+            scale = g / torch.sqrt(v + 1e-5)
+            add(f"conv{bi}_{ci}_w", w * scale[:, None, None, None])
+            add(f"conv{bi}_{ci}_b", b - m * scale)
+    add("sym_w", sd["head_sym.1.weight"])
+    add("sym_b", sd["head_sym.1.bias"])
+    add("fill_w", sd["head_fill.1.weight"])
+    add("fill_b", sd["head_fill.1.bias"])
+    flat = np.concatenate([b.ravel() for b in blobs]).astype(np.float16)
+    with open(out_path, "wb") as f:
+        f.write(flat.tobytes())
+    with open(out_path + ".json", "w") as f:
+        json.dump(manifest, f)
+    manifest["bytes"] = int(flat.nbytes)
+    return manifest

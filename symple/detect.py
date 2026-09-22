@@ -27,6 +27,7 @@ from .symbols import FRAME_CIRCLE, FRAME_SQUARE
 from .synth import PATCH, normalize_patch, patch_target_quad, rectify
 
 MAX_SIDE = 1600
+JUNK_TOP_K = 24      # candidates offered to the classifier's junk check
 _DEBUG = bool(__import__("os").environ.get("SYMPLE_DEBUG"))
 
 
@@ -98,13 +99,12 @@ def max_inscribed_quad(hull: np.ndarray) -> tuple[np.ndarray | None, float]:
         pts = pts[idx]
     if len(pts) < 4:
         return None, 0.0
-    best, best_area = None, 0.0
-    for combo in itertools.combinations(range(len(pts)), 4):
-        q = pts[list(combo)]
-        area = 0.5 * abs(np.dot(q[:, 0], np.roll(q[:, 1], -1)) - np.dot(q[:, 1], np.roll(q[:, 0], -1)))
-        if area > best_area:
-            best, best_area = q, area
-    return best, best_area
+    combos = np.array(list(itertools.combinations(range(len(pts)), 4)))
+    q = pts[combos]                                   # K x 4 x 2, vertices in hull order
+    x, y = q[..., 0], q[..., 1]
+    area = 0.5 * np.abs((x * np.roll(y, -1, axis=1)).sum(axis=1) - (y * np.roll(x, -1, axis=1)).sum(axis=1))
+    k = int(np.argmax(area))
+    return q[k], float(area[k])
 
 
 # ----------------------------------------------------------------------------- frames
@@ -372,8 +372,9 @@ def _refine_line(ink, ink_d, p0, d, nrm, med, t_lo, t_hi):
     if len(pts) >= 10:
         pts = np.array(pts, np.float64)
         c = pts.mean(axis=0)
-        _, _, vt = np.linalg.svd(pts - c)
-        d2 = vt[0]
+        cov = np.cov((pts - c).T)
+        evals, evecs = np.linalg.eigh(cov)
+        d2 = evecs[:, int(np.argmax(evals))]
         if d2 @ d < 0:
             d2 = -d2
         d, p0 = d2, c
@@ -617,7 +618,10 @@ def detect(image: np.ndarray, junk_fn=None) -> Detection:
             continue
         merged.append(f)
     if junk_fn is not None and merged:
-        # provisional rectification with the image axes: junk is junk in any rotation
+        # provisional rectification with the image axes: junk is junk in any rotation.
+        # only the best-looking candidates are worth the network's time (the same cap
+        # keeps the JavaScript port usable on a phone)
+        merged = merged[:JUNK_TOP_K]
         provisional = [rectify_frame(gray, f, np.array([1.0, 0.0]), np.array([0.0, -1.0]), f.light_ink) for f in merged]
         p_junk = np.asarray(junk_fn(provisional), dtype=np.float64)
         for f, pj in zip(merged, p_junk):
