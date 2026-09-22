@@ -1,0 +1,91 @@
+<section class="hero">
+  <h1>One drawn glyph is one byte.</h1>
+  <p class="lead">Draw the first bytes of a nostr event id or pubkey on any surface with any pen. The alphabet has sixteen glyphs; each one sits in a square or a circle, outline or filled, in one of four rotations, so every byte is exactly one drawing and every drawing is one byte. A phone reads the row back on the device, and a relay resolves the bytes to the event or the profile they name.</p>
+  <div class="row"><a class="btn primary" href="/app/">Open the reader</a><a class="btn" href="/spec/">Read the spec</a></div>
+</section>
+
+<section>
+  <h2>How it works</h2>
+  <ol class="steps">
+    <li>
+      <h3>Draw</h3>
+      <p>Take the first six bytes of an id or a pubkey. Each byte names one glyph, a rotation, outline or filled, and a square or a circle frame. Draw them left to right, each in its own frame, underline the whole row, and put a fat dot at the start of the line.</p>
+      <figure>
+        <img class="rowimg" src="/img/row-{{ROW_HEX}}.png" width="{{ROW_W}}" height="{{ROW_H}}" alt="Six framed glyphs in a row above an underline that starts with a fat dot">
+        <figcaption><code>{{ROW_HEX}}</code> as the reference renderer draws it, one byte per frame:</figcaption>
+      </figure>
+      <ol class="glyphs">{{ROW_GLYPHS}}</ol>
+    </li>
+    <li>
+      <h3>Read</h3>
+      <div class="split">
+        <div>
+          <p>Open the reader on a phone and take a photo. It finds the frames, the underline and the dot, straightens each frame, and classifies the glyph, its rotation and its fill with a small neural network, all in JavaScript on the device. The underline tells it which way is up, so a photo taken sideways reads the same.</p>
+          <p>Where a glyph is unclear the reader keeps the alternatives instead of guessing, and returns the most probable whole readings, ranked. A missing glyph is never dropped silently, because that would shift every byte after it.</p>
+        </div>
+        <figure>
+          <a href="/spec/vectors/photo-01.jpg"><img class="photo" src="/img/photo-01.jpg" width="{{PHOTO_W}}" height="{{PHOTO_H}}" alt="A marker drawing of six glyphs on a dot-grid notebook page"></a>
+          <figcaption>a marker on a notebook page: read as <code>{{PHOTO_HEX}}</code> on a phone in under a second</figcaption>
+        </figure>
+      </div>
+    </li>
+    <li>
+      <h3>Look up</h3>
+      <p>The bytes are a prefix. The reader asks a relay for every candidate reading at once, as an event id prefix and as a pubkey prefix, and shows what comes back with the author's profile. You confirm which one you meant. A wrong candidate matches nothing, which is why there is no checksum.</p>
+    </li>
+  </ol>
+  <h3>How well does it work</h3>
+  <p>On the synthetic benchmark in <a href="https://github.com/arkin0x/glyphbyte/blob/main/BENCH.md">BENCH.md</a> (200 scenes, 996 symbols, random handwriting severity, perspective, lighting, blur and JPEG on photographed backdrops) the reference reader finds 0.862 of the frames, reads 0.922 of the symbol bytes correctly where the frame count matched, and gets the whole row right as its first answer 0.535 of the time. Missing frames, not misread glyphs, are the main loss. The classifier alone scores 98.6% on held-out patches, 97.6% for the smaller model that ships in the reader. Real handwriting has one measurement so far: the notebook photo above, which the reader returns exactly.</p>
+</section>
+
+<section>
+  <h2>The alphabet</h2>
+  <figure>
+    <img class="sheet" src="/sheet.svg" width="704" height="1160" alt="The GlyphByte sheet: sixteen rows of glyphs, eight columns of rotations and fills, in square and circle frames">
+    <figcaption>Rows are the 16 glyphs, top to bottom in index order. Columns are the four rotations, 0, 90, 180 and 270 degrees clockwise, first as outlines and then filled, in alternating square and circle frames.</figcaption>
+  </figure>
+  <div class="table-wrap"><table>
+    <thead><tr><th>bits</th><th>field</th><th>values</th></tr></thead>
+    <tbody>
+      <tr><td>7..4</td><td>symbol</td><td>index 0 to 15, the row on the sheet</td></tr>
+      <tr><td>3..2</td><td>rotation</td><td>quarter turns clockwise from upright: 0, 90, 180, 270 degrees</td></tr>
+      <tr><td>1</td><td>fill</td><td>0 outline, 1 filled</td></tr>
+      <tr><td>0</td><td>frame</td><td>0 square, 1 circle</td></tr>
+    </tbody>
+  </table></div>
+  <p><code>byte = symbol &lt;&lt; 4 | rotation &lt;&lt; 2 | fill &lt;&lt; 1 | frame</code>, so 16 x 4 x 2 x 2 = 256. All 256 drawings are listed in the spec's <a href="/spec/test-vectors.json">test vectors</a>.</p>
+  <div class="row"><a class="btn" href="/sheet.svg">Print the sheet</a></div>
+</section>
+
+<section>
+  <h2>Draw a row</h2>
+  <ul>
+    <li><b>Frame first.</b> Draw a square or a circle. Keep the frames about the same size along the row, with a gap of roughly a third of a frame between them.</li>
+    <li><b>Glyph inside.</b> Draw it in the middle of the frame at about six tenths of the frame's width, without touching the frame, rotated as the byte requires.</li>
+    <li><b>Filled means scribbled solid.</b> Fill the whole inside so it reads as a blob. An outline is one clean stroke. A filled glyph keeps its silhouette.</li>
+    <li><b>Keep points pointy.</b> The house's roof, the crown's points and the mountain's peaks are what separate them from a square or a rectangle; make points at least a third of the glyph tall.</li>
+    <li><b>Snowman:</b> the head must be clearly smaller than the body, about half its diameter, or it reads as a pac-man.</li>
+    <li><b>Underline the row</b> with one stroke a little below the frames, extending past the first and last frame. The line tells the reader which way is up.</li>
+    <li><b>Fat start dot:</b> a solid dot at the start end of the underline, about a quarter of a frame across. The dot tells the reader where to begin; without it the row has two readings, forward and reversed.</li>
+    <li><b>Six bytes</b> is the recommended length for an event id or pubkey prefix; eight for something meant to stay unambiguous for years; four only where the relay is small.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Look it up</h2>
+  <p>The reader sends every candidate reading in one request, as an <code>ids</code> prefix and as an <code>authors</code> prefix for kind 0 profiles:</p>
+<pre><code>["REQ", "gb", {"ids": ["{{PHOTO_HEX}}"]}, {"authors": ["{{PHOTO_HEX}}"], "kinds": [0]}]</code></pre>
+  <p>Prefix matching in <code>ids</code> and <code>authors</code> was part of the first NIP-01 and was later removed from the text, so it needs a relay that still supports it. As of 2026-09 <b>grain</b> honours prefixes of any length in both fields; <b>strfry</b> and <b>khatru</b> currently do not (strfry answers <code>CLOSED</code>, khatru returns nothing). The reader defaults to <code>wss://wheat.oslim.dev</code>, a grain relay, and tests whichever relay you enter once, by fetching one event and asking for it again by an 8-character prefix, then tells you when a relay rejects or ignores partial queries.</p>
+  <p>Results show the author's profile and which candidate they matched, and the person confirms which one they meant. A prefix is a pointer, not a proof: the resolved full id or pubkey is the reference, never the drawn bytes.</p>
+</section>
+
+<section>
+  <h2>Get it</h2>
+  <ul>
+    <li><a href="/spec/">The specification</a>, with the 256 test vectors, the glyph polygons and the printable sheet.</li>
+    <li><a href="https://github.com/arkin0x/glyphbyte">github.com/arkin0x/glyphbyte</a>: the Python reference implementation, the JavaScript reader and this site.</li>
+    <li>JavaScript: <a href="https://www.npmjs.com/package/glyphbyte"><code>glyphbyte</code> on npm</a>, dependency-free. <code>npm install glyphbyte</code> gives you the reader, the row renderer and the relay lookup.</li>
+    <li>Python: <code>pip install git+https://github.com/arkin0x/glyphbyte</code> for now (numpy, OpenCV, onnxruntime). <code>glyphbyte decode photo.jpg</code> prints the bytes; <code>glyphbyte encode HEX --out row.png</code> renders a row to copy from.</li>
+  </ul>
+  <p>The whole reader runs in the browser: the detector, the network weights and the glyph shapes are inline in one page, and nothing leaves the device except the relay queries you can see on the page. The same file is also a napplet (NIP-5D) that a nostr shell can load in a sandboxed iframe.</p>
+</section>

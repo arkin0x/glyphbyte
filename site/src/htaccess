@@ -1,0 +1,7 @@
+# glyphbyte.dev on DreamHost shared hosting (Apache). Copied to site/dist/.htaccess by site/build.py.
+DirectoryIndex index.html
+ErrorDocument 404 /404.html
+AddDefaultCharset UTF-8
+AddType image/svg+xml .svg
+AddType application/json .json
+AddType application/wasm .wasm
