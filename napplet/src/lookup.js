@@ -52,7 +52,7 @@ async function viaNapplet(relayApi, url, filters, timeoutMs) {
   } catch (e) { return { events: [], notices: [], error: String(e), via: 'napplet' }; }
 }
 
-export async function lookup(prefixes, { relay = 'wss://wheat.happytavern.co', timeoutMs = 8000, nappletRelay = null } = {}) {
+export async function lookup(prefixes, { relay = 'wss://wheat.oslim.dev', timeoutMs = 8000, nappletRelay = null } = {}) {
   const filters = buildFilters(prefixes);
   if (!filters.length) return { events: [], notices: [], error: 'no prefixes', via: 'none' };
   if (nappletRelay) return viaNapplet(nappletRelay, relay, filters, timeoutMs);
@@ -68,7 +68,7 @@ export function matchPrefix(ev, prefixes) {
 
 
 // fetch kind 0 for full pubkeys (the authors of id-matched events)
-export async function fetchProfiles(pubkeys, { relay = 'wss://wheat.happytavern.co', timeoutMs = 6000, nappletRelay = null } = {}) {
+export async function fetchProfiles(pubkeys, { relay = 'wss://wheat.oslim.dev', timeoutMs = 6000, nappletRelay = null } = {}) {
   const pks = Array.from(new Set(pubkeys)).filter(p => /^[0-9a-f]{64}$/.test(p));
   if (!pks.length) return {};
   const filters = [{ authors: pks, kinds: [0] }];
