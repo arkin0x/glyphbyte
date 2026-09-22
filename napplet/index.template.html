@@ -15,7 +15,7 @@
   button, label.btn { font:15px system-ui; padding:10px 14px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); cursor:pointer }
   canvas.render { width:100%; background:#fff; border:1px solid var(--line); border-radius:8px }
   ol.symbols { padding-left:22px } ol.symbols li { margin:4px 0 } code { font:14px ui-monospace, monospace; background:var(--bg); padding:1px 5px; border-radius:4px } code.big { font-size:18px }
-  .seq { display:flex; gap:8px; flex-wrap:wrap } .seq button { font:16px ui-monospace, monospace } .muted { color:var(--muted); font-size:14px } .warn { color:#b5651d; font-size:14px } .alts { font-size:14px; color:var(--muted) }
+  .seq { display:flex; gap:8px; flex-wrap:wrap } .card { display:flex; gap:12px; align-items:center; border:1px solid var(--line); border-radius:10px; padding:10px; margin:8px 0 } .card img { width:56px; height:56px; border-radius:50%; object-fit:cover; background:var(--bg) } .card .who { font-weight:600 } .hit { color:#00a152; font-size:13px } .seq button { font:16px ui-monospace, monospace } .muted { color:var(--muted); font-size:14px } .warn { color:#b5651d; font-size:14px } .alts { font-size:14px; color:var(--muted) }
 </style>
 </head>
 <body>
@@ -26,7 +26,7 @@
     <input id="hex" type="text" placeholder="hex, e.g. 8a3a3a6609eb" autocomplete="off" spellcheck="false">
     <canvas id="row" class="render" hidden></canvas>
     <ol id="describe" class="symbols"></ol>
-    <div class="row"><button id="sheetBtn">reference sheet</button></div>
+    <div class="row"><button id="sheetBtn">reference sheet</button><button id="lookupHexBtn">look up on relay</button></div>
     <canvas id="sheet" class="render" hidden></canvas>
     <p class="muted">Draw each symbol inside its frame, underline the row, and put a fat dot at the start of the underline, about a quarter of a symbol across. Filled means scribble it in.</p>
   </section>
@@ -35,6 +35,12 @@
     <div class="row"><label class="btn">take or choose a photo <input id="file" type="file" accept="image/*" capture="environment" hidden></label><span id="busy" class="muted" hidden>reading…</span></div>
     <div id="result"></div>
     <canvas id="photo" class="render" hidden></canvas>
+  </section>
+  <section>
+    <h2>On the relay</h2>
+    <div class="row"><input id="relay" type="text" value="wss://wheat.happytavern.co" spellcheck="false" style="font-size:15px"></div>
+    <p class="muted">Every candidate reading is queried at once as an event id prefix and as a pubkey prefix (kind 0). Prefix matching needs a relay that supports it; grain does.</p>
+    <div id="lookup"></div>
   </section>
   <p class="muted">Everything runs on this device. Nothing leaves the page.</p>
 </main>

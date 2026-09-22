@@ -5,12 +5,12 @@ usage: python build.py <weights.bin> <weights.bin.json> [out=dist/index.html]
 import base64, json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ORDER = ["imgops.js", "geom.js", "nn.js", "detect.js", "pipeline.js", "render.js"]
+ORDER = ["imgops.js", "geom.js", "nn.js", "detect.js", "pipeline.js", "render.js", "lookup.js"]
 
 
 def strip_module(src: str) -> str:
     src = re.sub(r"^import .*?;\s*$", "", src, flags=re.M)
-    src = re.sub(r"^export (const|function|let|class) ", r"\1 ", src, flags=re.M)
+    src = re.sub(r"^export (async function|const|function|let|class) ", r"\1 ", src, flags=re.M)
     return src
 
 
@@ -43,7 +43,7 @@ def build(weights_path, manifest_path, out_path):
     open(out_path, "w").write(html)
     # a core-only script for headless tests (no DOM)
     with open(os.path.join(os.path.dirname(out_path), "symple-core.js"), "w") as f:
-        f.write(core + "\nconst SHAPES = " + json.dumps(shapes) + ";\nglobalThis.Symple = { toGray, readImage, detect, describe, unpack, SYMBOLS, loadWeights, classify, SHAPES };\n")
+        f.write(core + "\nconst SHAPES = " + json.dumps(shapes) + ";\nglobalThis.Symple = { toGray, readImage, detect, describe, unpack, SYMBOLS, loadWeights, classify, SHAPES, lookup, buildFilters, matchPrefix };\n")
     print(f"wrote {out_path} ({os.path.getsize(out_path) / 1e6:.2f} MB)")
 
 
