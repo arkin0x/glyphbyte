@@ -12,8 +12,9 @@ from .synth import PATCH
 
 @dataclass
 class PatchScores:
-    sym_rot: np.ndarray   # 64 probabilities, index = symbol * 4 + rotation
+    sym_rot: np.ndarray   # 64 probabilities over symbol * 4 + rotation, renormalized without junk
     fill: np.ndarray      # 2 probabilities
+    junk: float = 0.0     # probability that the patch is not a symbol at all (0 for 64-way models)
 
 
 def _softmax(x: np.ndarray) -> np.ndarray:
@@ -40,12 +41,20 @@ class Classifier:
         variants = [x]
         if tta:
             variants.append(1.0 - x)  # the model is polarity invariant; averaging both views steadies it
-        sym = np.zeros((len(patches), 64), np.float64)
+        sym = None
         fill = np.zeros((len(patches), 2), np.float64)
         for v in variants:
             ls, lf = self.session.run(None, {self.input_name: v})
-            sym += _softmax(ls)
+            sym = _softmax(ls) if sym is None else sym + _softmax(ls)
             fill += _softmax(lf)
         sym /= len(variants)
         fill /= len(variants)
-        return [PatchScores(sym_rot=sym[i], fill=fill[i]) for i in range(len(patches))]
+        out = []
+        for i in range(len(patches)):
+            junk = float(sym[i, 64]) if sym.shape[1] > 64 else 0.0
+            real = sym[i, :64] / max(sym[i, :64].sum(), 1e-12)
+            out.append(PatchScores(sym_rot=real, fill=fill[i], junk=junk))
+        return out
+
+    def junk_probabilities(self, patches: list[np.ndarray]) -> np.ndarray:
+        return np.array([s.junk for s in self.predict(patches, tta=False)])

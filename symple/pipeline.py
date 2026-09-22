@@ -99,11 +99,11 @@ def _sequences(reads: list[SymbolRead], max_sequences: int) -> list[tuple[bytes,
 
 def read_image(image: np.ndarray, classifier: Classifier | None = None, max_sequences: int = 8,
                fork_ratio: float = 0.2, max_per_symbol: int = 4) -> Result:
-    det = detect(image)
+    classifier = classifier or Classifier()
+    det = detect(image, junk_fn=classifier.junk_probabilities)
     warnings = list(det.warnings)
     if not det.frames:
         return Result(reads=[], sequences=[], warnings=warnings + ["no symbols found"], detection=det)
-    classifier = classifier or Classifier()
     scores = classifier.predict(det.patches)
     reads = []
     for i, (f, sc) in enumerate(zip(det.frames, scores)):

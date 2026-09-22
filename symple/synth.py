@@ -231,6 +231,48 @@ def make_patch(rng: np.random.Generator, backdrops: list[np.ndarray], byte: int 
     return PatchSample(image=patch, byte=g, sym_rot=(g >> 4) * 4 + ((g >> 2) & 3), fill=(g >> 1) & 1, frame=g & 1)
 
 
+def make_junk_patch(rng: np.random.Generator, backdrops: list[np.ndarray]) -> np.ndarray:
+    """A normalized patch that is not a symbol: backdrop texture, an empty frame, or a
+    piece of a row that is not centred on a cell. Used for the classifier's junk class."""
+    kind = rng.random()
+    cell = int(rng.integers(90, 200))
+    pad = int(cell * 0.45)
+    W = H = cell + 2 * pad
+    if kind < 0.5:
+        canvas = np.full((H, W), 255, np.uint8)          # nothing drawn: pure backdrop
+    elif kind < 0.65:
+        canvas = np.full((H, W), 255, np.uint8)          # a frame with nothing inside
+        from .render import draw_frame
+        draw_frame(canvas, int(rng.integers(0, 2)), (W / 2, H / 2), cell, cell * rng.uniform(0.025, 0.08), 0,
+                   rng, float(rng.uniform(0, 1)))
+    else:
+        # a row fragment off-centre: between cells, on the baseline, on the start dot
+        data = bytes(rng.integers(0, 256, size=int(rng.integers(2, 5))).tolist())
+        row = render_row(data, cell=cell, thickness=cell * rng.uniform(0.03, 0.07), hand=float(rng.uniform(0, 1)),
+                         rng=rng, baseline=True)
+        rh, rw = row.canvas.shape
+        for _ in range(20):
+            cx = rng.uniform(0, rw)
+            cy = rng.uniform(0, rh)
+            if all(np.hypot(cx - c.center[0], cy - c.center[1]) > 0.85 * cell for c in row.cells):
+                break
+        x0, y0 = int(cx - W / 2), int(cy - H / 2)
+        canvas = np.full((H, W), 255, np.uint8)
+        sx0, sy0 = max(0, x0), max(0, y0)
+        sx1, sy1 = min(rw, x0 + W), min(rh, y0 + H)
+        if sx1 > sx0 and sy1 > sy0:
+            canvas[sy0 - y0:sy1 - y0, sx0 - x0:sx1 - x0] = row.canvas[sy0:sy1, sx0:sx1]
+    bgr, light_ink = composite_ink(canvas, random_backdrop(rng, backdrops, H, W), rng)
+    Hm = random_homography(rng, W, H, rng.uniform(0, 0.22))
+    warped = photometric(cv2.warpPerspective(bgr, Hm, (W, H), borderMode=cv2.BORDER_REFLECT), rng)
+    gray = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
+    h = cell / 2
+    corners = np.array([[W / 2 - h, H / 2 - h], [W / 2 + h, H / 2 - h], [W / 2 + h, H / 2 + h], [W / 2 - h, H / 2 + h]], np.float32)
+    corners = cv2.perspectiveTransform(corners.reshape(-1, 1, 2), Hm).reshape(4, 2)
+    corners = corners.mean(axis=0) + (corners - corners.mean(axis=0)) * rng.uniform(0.7, 1.3)
+    return normalize_patch(rectify(gray, corners.astype(np.float32)), light_ink)
+
+
 # ----------------------------------------------------------------------------- scenes
 
 @dataclass
@@ -263,18 +305,30 @@ def make_scene(rng: np.random.Generator, backdrops: list[np.ndarray], data: byte
     ox, oy = int(rng.integers(0, W - rw + 1)), int(rng.integers(0, H - rh + 1))
     big[oy:oy + rh, ox:ox + rw] = row.canvas
     bgr, light_ink = composite_ink(big, random_backdrop(rng, backdrops, H, W), rng)
-    Hm = random_homography(rng, W, H, perspective)
-    # global rotation of the photo: the camera can be held any way
-    ang = rng.uniform(-180, 180) if rng.random() < 0.5 else rng.uniform(-15, 15)
-    R = cv2.getRotationMatrix2D((W / 2, H / 2), ang, 1.0)
-    R3 = np.vstack([R, [0, 0, 1]])
-    M = R3 @ Hm
+
+    def proj_with(M, pts):
+        p = np.asarray(pts, np.float32).reshape(-1, 1, 2) + [ox, oy]
+        return cv2.perspectiveTransform(p, M.astype(np.float32)).reshape(-1, 2)
+
+    # pick a camera pose that keeps the whole row in the picture: a row cut off by the
+    # edge is not a recognition problem, it is a photographer problem
+    must_see = [c.corners for c in row.cells]
+    if row.baseline:
+        must_see.append(np.array(row.baseline))
+    must_see = np.vstack(must_see)
+    for _ in range(12):
+        Hm = random_homography(rng, W, H, perspective)
+        ang = rng.uniform(-180, 180) if rng.random() < 0.5 else rng.uniform(-15, 15)
+        R = cv2.getRotationMatrix2D((W / 2, H / 2), ang, 1.0)
+        M = np.vstack([R, [0, 0, 1]]) @ Hm
+        q = proj_with(M, must_see)
+        if (q[:, 0] > 4).all() and (q[:, 1] > 4).all() and (q[:, 0] < W - 4).all() and (q[:, 1] < H - 4).all():
+            break
     warped = cv2.warpPerspective(bgr, M, (W, H), borderMode=cv2.BORDER_REFLECT)
     warped = photometric(warped, rng)
 
     def proj(pts):
-        p = np.asarray(pts, np.float32).reshape(-1, 1, 2) + [ox, oy]
-        return cv2.perspectiveTransform(p, M.astype(np.float32)).reshape(-1, 2)
+        return proj_with(M, pts)
 
     cells = [{"byte": c.byte, "corners": proj(c.corners)} for c in row.cells]
     bl = proj(np.array(row.baseline)) if row.baseline else None

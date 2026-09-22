@@ -44,6 +44,7 @@ class Frame:
     stroke: float = 0.0
     quality: float = 1.0           # how much this looks like a drawn frame with a glyph in it
     light_ink: bool = False        # polarity this frame was found in
+    junk: float = 0.0              # classifier's probability that this is not a symbol
 
 
 @dataclass
@@ -454,7 +455,7 @@ def find_baseline(ink: np.ndarray, frames: list[Frame]):
     sizes = np.array([frames[i].size for i in order])
     frame_iv = [(a - 0.55 * s, a + 0.55 * s) for a, s in zip(along, sizes)]
     t_lo, t_hi = along[0] - 1.6 * med, along[-1] + 1.6 * med
-    ink_d = cv2.dilate(ink, np.ones((3, 3), np.uint8))
+    ink_d = cv2.dilate(ink, np.ones((5, 5), np.uint8))
     offs, covs = [], []
     for off in np.linspace(-2.4 * med, 2.4 * med, int(4.8 * med / 2) + 1):
         if abs(off) < 0.6 * med:
@@ -480,7 +481,7 @@ def find_baseline(ink: np.ndarray, frames: list[Frame]):
     # local maxima of coverage
     cands = []
     for i in range(len(offs)):
-        if covs[i] < 0.45:
+        if covs[i] < 0.3:
             continue
         lo_, hi_ = max(0, i - 3), min(len(offs), i + 4)
         if covs[i] >= covs[lo_:hi_].max():
@@ -569,7 +570,10 @@ def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, lig
 
 # ----------------------------------------------------------------------------- entry
 
-def detect(image: np.ndarray) -> Detection:
+def detect(image: np.ndarray, junk_fn=None) -> Detection:
+    """junk_fn(list of patches) -> array of probabilities that each patch is not a symbol.
+    When given, candidates are scored by it before the row is chosen, so texture that
+    looks like a frame geometrically does not get to outvote the real row."""
     gray, scale = prepare(image)
     # frames from both polarities go into one pool; the row then decides which polarity
     # the drawing has. strokes are sparse, so a polarity that inks most of the picture
@@ -591,6 +595,14 @@ def detect(image: np.ndarray) -> Detection:
         if any(np.linalg.norm(f.center - g.center) < 0.35 * g.size and 0.6 < f.size / g.size < 1.6 for g in merged):
             continue
         merged.append(f)
+    if junk_fn is not None and merged:
+        # provisional rectification with the image axes: junk is junk in any rotation
+        provisional = [rectify_frame(gray, f, np.array([1.0, 0.0]), np.array([0.0, -1.0]), f.light_ink) for f in merged]
+        p_junk = np.asarray(junk_fn(provisional), dtype=np.float64)
+        for f, pj in zip(merged, p_junk):
+            f.junk = float(pj)
+            f.quality *= max(0.05, 1.0 - float(pj))
+        merged = [f for f in merged if f.junk < 0.9]
     frames, warnings = filter_row(merged)
     votes = sum(1 if f.light_ink else -1 for f in frames)
     light_ink = votes > 0

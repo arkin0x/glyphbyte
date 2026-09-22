@@ -7,7 +7,10 @@ import time
 
 import numpy as np
 
-from .synth import PATCH, load_backdrops, make_patch
+from .synth import PATCH, load_backdrops, make_junk_patch, make_patch
+
+JUNK = 64            # class index for "not a symbol"
+N_CLASSES = 65
 
 
 def build_model():
@@ -27,13 +30,13 @@ def build_model():
             return self.net(x)
 
     class SympleNet(nn.Module):
-        """1x64x64 normalized patch -> (64 symbol*rotation logits, 2 fill logits)."""
+        """1x64x64 normalized patch -> (65 logits: symbol*rotation plus junk, 2 fill logits)."""
 
         def __init__(self):
             super().__init__()
             self.features = nn.Sequential(Block(1, 32), Block(32, 64), Block(64, 128), Block(128, 192))
             self.pool = nn.AdaptiveAvgPool2d(1)
-            self.head_sym = nn.Sequential(nn.Dropout(0.2), nn.Linear(192, 64))
+            self.head_sym = nn.Sequential(nn.Dropout(0.2), nn.Linear(192, N_CLASSES))
             self.head_fill = nn.Sequential(nn.Dropout(0.2), nn.Linear(192, 2))
 
         def forward(self, x):
@@ -46,10 +49,11 @@ def build_model():
 class PatchDataset:
     """Infinite synthetic patches; each worker gets its own RNG stream."""
 
-    def __init__(self, backdrops_dir: str | None, length: int, seed: int):
+    def __init__(self, backdrops_dir: str | None, length: int, seed: int, junk_share: float = 0.15):
         self.backdrops_dir = backdrops_dir
         self.length = length
         self.seed = seed
+        self.junk_share = junk_share
         self._backdrops = None
 
     def __len__(self):
@@ -62,10 +66,14 @@ class PatchDataset:
         info = torch.utils.data.get_worker_info()
         wid = info.id if info else 0
         rng = np.random.default_rng([self.seed, wid, i])
-        s = make_patch(rng, self._backdrops)
-        img = s.image if rng.random() < 0.5 else 255 - s.image   # polarity invariance
+        if rng.random() < self.junk_share:
+            img, sym_rot, fill = make_junk_patch(rng, self._backdrops), JUNK, 0
+        else:
+            s = make_patch(rng, self._backdrops)
+            img, sym_rot, fill = s.image, s.sym_rot, s.fill
+        img = img if rng.random() < 0.5 else 255 - img   # polarity invariance
         x = torch.from_numpy(img.astype(np.float32) / 255.0).unsqueeze(0)
-        return x, s.sym_rot, s.fill
+        return x, sym_rot, fill
 
 
 def train(out_path: str, backdrops_dir: str | None = None, epochs: int = 8, per_epoch: int = 40000,
@@ -89,7 +97,9 @@ def train(out_path: str, backdrops_dir: str | None = None, epochs: int = 8, per_
         t0, tot, n_ok_s, n_ok_f, n = time.time(), 0.0, 0, 0, 0
         for x, ys, yf in dl:
             ls, lf = model(x)
-            loss = F.cross_entropy(ls, ys, label_smoothing=0.05) + 0.5 * F.cross_entropy(lf, yf)
+            real = ys != JUNK
+            fill_loss = F.cross_entropy(lf[real], yf[real]) if real.any() else ls.sum() * 0
+            loss = F.cross_entropy(ls, ys, label_smoothing=0.05) + 0.5 * fill_loss
             opt.zero_grad(set_to_none=True)
             loss.backward()
             opt.step()
@@ -98,7 +108,7 @@ def train(out_path: str, backdrops_dir: str | None = None, epochs: int = 8, per_
             step += 1
             tot += float(loss) * len(x)
             n_ok_s += int((ls.argmax(1) == ys).sum())
-            n_ok_f += int((lf.argmax(1) == yf).sum())
+            n_ok_f += int(((lf.argmax(1) == yf) | ~real).sum())
             n += len(x)
         model.eval()
         v_ok_s = v_ok_f = v_n = 0
@@ -106,7 +116,7 @@ def train(out_path: str, backdrops_dir: str | None = None, epochs: int = 8, per_
             for x, ys, yf in val:
                 ls, lf = model(x)
                 v_ok_s += int((ls.argmax(1) == ys).sum())
-                v_ok_f += int((lf.argmax(1) == yf).sum())
+                v_ok_f += int(((lf.argmax(1) == yf) | (ys == JUNK)).sum())
                 v_n += len(x)
         log(f"epoch {ep + 1}/{epochs} loss {tot / n:.4f} train sym {n_ok_s / n:.4f} fill {n_ok_f / n:.4f} "
             f"| val sym {v_ok_s / v_n:.4f} fill {v_ok_f / v_n:.4f} | {time.time() - t0:.0f}s")
