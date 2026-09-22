@@ -38,7 +38,13 @@ def build(weights_path, manifest_path, out_path):
     html = open(os.path.join(HERE, "index.template.html")).read()
     html = html.replace("/*__CORE__*/", core).replace("/*__SHAPES__*/[]", json.dumps(shapes, separators=(",", ":")))
     html = html.replace("/*__MANIFEST__*/{}", json.dumps(manifest, separators=(",", ":"))).replace("/*__WEIGHTS_B64__*/", weights_b64)
-    html = html.replace("/*__APP__*/", app)
+    import subprocess, datetime
+    try:
+        commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=HERE, text=True).strip()
+    except Exception:  # noqa: BLE001
+        commit = "unknown"
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M") + " " + commit
+    html = html.replace("/*__APP__*/", app).replace("/*__BUILD__*/", stamp)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     open(out_path, "w").write(html)
     # a core-only script for headless tests (no DOM)
