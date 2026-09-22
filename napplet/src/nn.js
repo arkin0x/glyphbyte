@@ -21,28 +21,25 @@ export function loadWeights(manifest, bytes) {
 }
 
 // conv 3x3, padding 1, followed by relu. inp is C*H*W planar, w is O*C*3*3, b is O.
+// The input is copied once into a zero-padded buffer so the inner loop has no bounds checks.
 function conv3x3Relu(inp, C, H, W, w, b, O) {
-  const out = new Float32Array(O * H * W);
-  const HW = H * W;
+  const PW = W + 2, PH = H + 2, pad = new Float32Array(C * PW * PH);
+  for (let c = 0; c < C; c++) for (let y = 0; y < H; y++) pad.set(inp.subarray(c * H * W + y * W, c * H * W + (y + 1) * W), c * PW * PH + (y + 1) * PW + 1);
+  const out = new Float32Array(O * H * W), HW = H * W;
   for (let o = 0; o < O; o++) {
-    const outBase = o * HW;
-    out.fill(b[o], outBase, outBase + HW);
+    const ob = o * HW;
+    out.fill(b[o], ob, ob + HW);
     for (let c = 0; c < C; c++) {
-      const inBase = c * HW, wBase = (o * C + c) * 9;
-      for (let ky = -1; ky <= 1; ky++) {
-        for (let kx = -1; kx <= 1; kx++) {
-          const wv = w[wBase + (ky + 1) * 3 + (kx + 1)];
-          if (wv === 0) continue;
-          const y0 = Math.max(0, -ky), y1 = Math.min(H, H - ky);
-          const x0 = Math.max(0, -kx), x1 = Math.min(W, W - kx);
-          for (let y = y0; y < y1; y++) {
-            const orow = outBase + y * W, irow = inBase + (y + ky) * W + kx;
-            for (let x = x0; x < x1; x++) out[orow + x] += inp[irow + x] * wv;
-          }
+      const wb = (o * C + c) * 9, pb = c * PW * PH;
+      const w0 = w[wb], w1 = w[wb + 1], w2 = w[wb + 2], w3 = w[wb + 3], w4 = w[wb + 4], w5 = w[wb + 5], w6 = w[wb + 6], w7 = w[wb + 7], w8 = w[wb + 8];
+      for (let y = 0; y < H; y++) {
+        let r0 = pb + y * PW, r1 = r0 + PW, r2 = r1 + PW, oi = ob + y * W;
+        for (let x = 0; x < W; x++, r0++, r1++, r2++, oi++) {
+          out[oi] += pad[r0] * w0 + pad[r0 + 1] * w1 + pad[r0 + 2] * w2 + pad[r1] * w3 + pad[r1 + 1] * w4 + pad[r1 + 2] * w5 + pad[r2] * w6 + pad[r2 + 1] * w7 + pad[r2 + 2] * w8;
         }
       }
     }
-    for (let i = outBase; i < outBase + HW; i++) if (out[i] < 0) out[i] = 0;
+    for (let i = ob; i < ob + HW; i++) if (out[i] < 0) out[i] = 0;
   }
   return out;
 }

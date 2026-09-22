@@ -87,11 +87,14 @@ export function labelComponents(bin, W, H, conn = 8) {
     const i = y * W + x;
     if (!bin[i]) continue;
     let l = 0;
-    const up = y > 0 && bin[i - W] ? labels[i - W] : 0;
-    const left = x > 0 && bin[i - 1] ? labels[i - 1] : 0;
-    const ul = conn === 8 && y > 0 && x > 0 && bin[i - W - 1] ? labels[i - W - 1] : 0;
-    const ur = conn === 8 && y > 0 && x < W - 1 && bin[i - W + 1] ? labels[i - W + 1] : 0;
-    for (const n of [up, left, ul, ur]) if (n) { if (!l) l = n; else union(l, n); }
+    const up = y > 0 ? labels[i - W] : 0;
+    const left = x > 0 ? labels[i - 1] : 0;
+    const ul = conn === 8 && y > 0 && x > 0 ? labels[i - W - 1] : 0;
+    const ur = conn === 8 && y > 0 && x < W - 1 ? labels[i - W + 1] : 0;
+    if (up) l = up;
+    if (left) { if (!l) l = left; else if (left !== l) union(l, left); }
+    if (ul) { if (!l) l = ul; else if (ul !== l) union(l, ul); }
+    if (ur) { if (!l) l = ur; else if (ur !== l) union(l, ur); }
     if (!l) { l = next++; parent.push(l); }
     labels[i] = l;
   }

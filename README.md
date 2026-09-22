@@ -109,6 +109,41 @@ blur, noise, JPEG, on photographs and procedural surfaces. See `symple train`.
 | `symple backdrops --out bench/backdrops` | fetch public-domain photos from picsum.photos for synth |
 | `symple train --backdrops DIR` | retrain the classifier (needs the `train` extra: torch) |
 
+## On device: the napplet
+
+Scanning should cost nothing per photo, so the recognizer also exists as a **napplet**
+([NIP-5D](https://github.com/nostr-protocol/nips/pull/2303)): one self-contained
+`index.html` that a Nostr shell loads in a sandboxed iframe. No server, no network, no
+external scripts: the detector, the network weights and the symbol shapes are all inline,
+and everything runs in plain JavaScript on the phone. `napplet/` holds the port:
+
+| file | what |
+|---|---|
+| `src/imgops.js`, `src/geom.js` | the image and geometry primitives OpenCV provided in Python |
+| `src/detect.js` | the detector, same logic and thresholds as `symple/detect.py` |
+| `src/nn.js` | inference for the small classifier (channels 16-32-64-96, batch-norm folded, float16 weights, about 430 KB) |
+| `src/pipeline.js`, `src/render.js`, `src/app.js` | candidates and sequences, canvas rendering of rows and the sheet, the page |
+| `build.py` | inlines everything into `dist/index.html` (about 1.3 MB) |
+| `test/` | Node harnesses: inference vs PyTorch, detector vs the Python detector on identical scenes, the bundle end to end |
+| `publish.sh` | uploads to Blossom and publishes the kind 35129 manifest with `nak` |
+
+Build and publish:
+
+```
+symple train --out symple/data/model-small.onnx --backdrops bench/backdrops   # or use the bundled small model
+python -c "from symple.model import export_weights, SMALL; export_weights('symple/data/model-small.pt', 'napplet/weights.bin', SMALL)"
+python napplet/build.py napplet/weights.bin napplet/weights.bin.json
+BLOSSOM=https://your.blossom RELAYS="wss://relay.damus.io" NAK_KEY="--sec nsec1..." napplet/publish.sh
+```
+
+The sandbox has no downloads, so the rendered row is meant to be copied by eye or
+screenshotted. The page uses the camera through a file input, which needs no permission
+from the shell. If the shell ever offers the `relay` NAP, the decoded prefix can be turned
+into an event lookup right there; today the page just gives you the hex.
+
+The Python package keeps the bigger reference model and the `symple serve` web app for
+anyone who wants a server anyway.
+
 ## Install
 
 ```
