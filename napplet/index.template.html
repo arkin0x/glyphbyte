@@ -15,7 +15,18 @@
   button, label.btn { font:15px system-ui; padding:10px 14px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); cursor:pointer }
   canvas.render { width:100%; background:#fff; border:1px solid var(--line); border-radius:8px }
   ol.symbols { padding-left:22px } ol.symbols li { margin:4px 0 } code { font:14px ui-monospace, monospace; background:var(--bg); padding:1px 5px; border-radius:4px } code.big { font-size:18px }
-  .seq { display:flex; gap:8px; flex-wrap:wrap } .card { display:flex; gap:12px; align-items:center; border:1px solid var(--line); border-radius:10px; padding:10px; margin:8px 0 } .card img { width:56px; height:56px; border-radius:50%; object-fit:cover; background:var(--bg) } .card .who { font-weight:600 } .hit { color:#00a152; font-size:13px } .seq button { font:16px ui-monospace, monospace } .muted { color:var(--muted); font-size:14px } .warn { color:#b5651d; font-size:14px } .alts { font-size:14px; color:var(--muted) }
+  .seq { display:flex; gap:8px; flex-wrap:wrap }
+  .ok { color:#00a152 } .bad { color:#d32f2f }
+  .ev { position:relative; border:1px solid var(--line); border-radius:12px; padding:12px 12px 10px; margin:10px 0; background:var(--bg) }
+  .ev .head { display:flex; gap:10px; align-items:center; padding-right:36px } .ev .head img { width:44px; height:44px; border-radius:50%; object-fit:cover; background:var(--card); flex:none }
+  .ev .name { font-weight:600 } .ev .sub { color:var(--muted); font-size:13px } .ev .body { margin:8px 0 4px; white-space:pre-wrap; word-break:break-word }
+  .ev .kind { display:inline-block; font-size:12px; padding:1px 7px; border-radius:10px; border:1px solid var(--line); color:var(--muted); margin-right:6px }
+  .ev .dots { position:absolute; top:8px; right:8px; width:32px; height:32px; padding:0; font-size:20px; line-height:1; border-radius:8px }
+  .ev .menu { position:absolute; top:42px; right:8px; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,.25); z-index:5; min-width:220px; overflow:hidden }
+  .ev .menu button { display:block; width:100%; text-align:left; border:0; border-radius:0; background:transparent; padding:11px 14px } .ev .menu button:hover { background:var(--bg) }
+  #modal { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:16px; z-index:20 } #modal[hidden] { display:none }
+  #modal .box { background:var(--card); color:var(--ink); border-radius:12px; padding:14px; max-width:820px; width:100%; max-height:85vh; overflow:auto } #modal pre { white-space:pre-wrap; word-break:break-all; font:13px ui-monospace, monospace; margin:10px 0 0; user-select:all }
+  .card { display:flex; gap:12px; align-items:center; border:1px solid var(--line); border-radius:10px; padding:10px; margin:8px 0 } .card img { width:56px; height:56px; border-radius:50%; object-fit:cover; background:var(--bg) } .card .who { font-weight:600 } .hit { color:#00a152; font-size:13px } .seq button { font:16px ui-monospace, monospace } .muted { color:var(--muted); font-size:14px } .warn { color:#b5651d; font-size:14px } .alts { font-size:14px; color:var(--muted) }
 </style>
 </head>
 <body>
@@ -36,14 +47,15 @@
     <div id="result"></div>
     <canvas id="photo" class="render" hidden></canvas>
   </section>
-  <section>
+  <section id="relaySection">
     <h2>On the relay</h2>
-    <div class="row"><input id="relay" type="text" value="wss://wheat.happytavern.co" spellcheck="false" style="font-size:15px"></div>
-    <p class="muted">Every candidate reading is queried at once as an event id prefix and as a pubkey prefix (kind 0). Prefix matching needs a relay that supports it; grain does.</p>
+    <div class="row"><input id="relay" type="text" value="wss://wheat.happytavern.co" spellcheck="false" autocapitalize="off" style="font-size:15px;flex:1;min-width:220px"><span id="relayStatus" class="muted"></span></div>
     <div id="lookup"></div>
+    <p class="muted">Every candidate reading is queried at once, as an event id prefix and as a pubkey prefix for kind 0. Prefix matching needs a relay that supports it.</p>
   </section>
   <p class="muted">Everything runs on this device. Nothing leaves the page except relay queries you can see above. Build /*__BUILD__*/.</p>
 </main>
+<div id="modal" hidden><div class="box"><div class="row" style="justify-content:space-between"><b id="modalTitle"></b><button id="modalClose">close</button></div><pre id="modalBody"></pre></div></div>
 <script>
 /*__CORE__*/
 const SHAPES = /*__SHAPES__*/[];

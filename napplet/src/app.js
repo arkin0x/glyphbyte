@@ -50,31 +50,98 @@ function show(d, ms) {
 
 
 // ---------------------------------------------------------------- relay lookup
-let lastCandidates = [];
+let lastCandidates = [], profiles = {};
 const nappletRelay = () => (typeof window !== 'undefined' && window.napplet && window.napplet.relay) ? window.napplet.relay : null;
+const relayUrl = () => $('relay').value.trim();
 $('lookupHexBtn').addEventListener('click', () => { const h = hexClean($('hex').value); if (h.length >= 2) runLookup([h]); });
+
+function placeRelaySection(hasResult) {
+  const sec = $('relaySection'), first = document.querySelector('main section');
+  if (hasResult) { if (first.nextElementSibling !== sec) first.after(sec); }
+  else document.querySelector('main').insertBefore(sec, document.querySelector('main > p.muted'));
+}
+
 async function runLookup(candidates) {
   lastCandidates = candidates;
-  const box = $('lookup'); box.innerHTML = `<p class="muted">asking ${$('relay').value.trim()}…</p>`;
-  const r = await lookup(candidates, { relay: $('relay').value.trim(), nappletRelay: nappletRelay() });
-  if (lastCandidates !== candidates) return;   // a newer lookup superseded this one
+  const box = $('lookup'); box.innerHTML = `<p class="muted">asking ${esc(relayUrl())}…</p>`;
+  const opts = { relay: relayUrl(), nappletRelay: nappletRelay() };
+  const r = await lookup(candidates, opts);
+  if (lastCandidates !== candidates) return;
+  const authors = Array.from(new Set(r.events.map(e => e.pubkey)));
+  for (const ev of r.events) if (ev.kind === 0 && (!profiles[ev.pubkey] || profiles[ev.pubkey].created_at < ev.created_at)) profiles[ev.pubkey] = ev;
+  const missing = authors.filter(pk => !profiles[pk]);
+  if (missing.length) Object.assign(profiles, await fetchProfiles(missing, opts));
+  if (lastCandidates !== candidates) return;
   let h = '';
-  if (r.error) h += `<p class="warn">${r.error}${r.via === 'websocket' ? ' (in a napplet shell the relay must be reached through the shell)' : ''}</p>`;
-  for (const n of r.notices) h += `<p class="warn">relay: ${n}</p>`;
+  if (r.error) h += `<p class="warn">${esc(r.error)}${r.via === 'websocket' ? ' (inside a napplet shell the relay is reached through the shell)' : ''}</p>`;
+  for (const n of r.notices) h += `<p class="warn">relay: ${esc(n)}</p>`;
   if (!r.events.length) h += `<p class="muted">nothing matched ${candidates.length} candidate${candidates.length > 1 ? 's' : ''}.</p>`;
-  const profiles = r.events.filter(e => e.kind === 0).sort((a, b) => b.created_at - a.created_at), others = r.events.filter(e => e.kind !== 0).sort((a, b) => b.created_at - a.created_at);
-  const seenPk = new Set();
-  for (const ev of profiles) {
-    if (seenPk.has(ev.pubkey)) continue; seenPk.add(ev.pubkey);
-    let c = {}; try { c = JSON.parse(ev.content || '{}'); } catch (e) { /* ignore */ }
-    const m = matchPrefix(ev, candidates);
-    h += `<div class="card">${c.picture ? `<img src="${String(c.picture).replace(/"/g, '')}" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<div style="width:56px;height:56px"></div>'}<div><div class="who">${esc(c.display_name || c.name || '(no name)')}</div>${c.nip05 ? `<div class="muted">${esc(c.nip05)}</div>` : ''}<div class="muted"><code>${ev.pubkey.slice(0, 16)}…</code></div>${m ? `<div class="hit">matches ${m.prefix} by ${m.how}</div>` : ''}</div></div>`;
-  }
-  for (const ev of others.slice(0, 20)) {
-    const m = matchPrefix(ev, candidates);
-    h += `<div class="card"><div><div>kind ${ev.kind} <span class="muted">${new Date(ev.created_at * 1000).toLocaleString()}</span></div><div class="muted"><code>${ev.id.slice(0, 16)}…</code> by <code>${ev.pubkey.slice(0, 12)}…</code></div><div>${esc(String(ev.content || '').slice(0, 160))}</div>${m ? `<div class="hit">matches ${m.prefix} by ${m.how}</div>` : ''}</div></div>`;
-  }
+  const seenPk = new Set(), items = [];
+  for (const ev of r.events.filter(e => e.kind === 0).sort((a, b) => b.created_at - a.created_at)) { if (!seenPk.has(ev.pubkey)) { seenPk.add(ev.pubkey); items.push(ev); } }
+  for (const ev of r.events.filter(e => e.kind !== 0).sort((a, b) => b.created_at - a.created_at).slice(0, 30)) items.push(ev);
+  h += items.map((ev, i) => eventCard(ev, i, candidates)).join('');
   h += `<p class="muted">via ${r.via}, ${r.events.length} event${r.events.length === 1 ? '' : 's'}</p>`;
   box.innerHTML = h;
+  window.__events = items;
+  placeRelaySection(items.length > 0);
+  if (items.length) $('relaySection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+function profileOf(pk) { const ev = profiles[pk]; if (!ev) return {}; try { return JSON.parse(ev.content || '{}'); } catch (e) { return {}; } }
+function eventCard(ev, i, candidates) {
+  const pr = profileOf(ev.pubkey), m = matchPrefix(ev, candidates), when = new Date(ev.created_at * 1000).toLocaleString();
+  const name = pr.display_name || pr.name || ev.pubkey.slice(0, 12) + '…';
+  const pic = pr.picture ? `<img src="${esc(String(pr.picture))}" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : `<div style="width:44px;height:44px;border-radius:50%;background:var(--card);flex:none"></div>`;
+  const body = ev.kind === 0 ? `<span class="sub">${esc(pr.about || '')}</span>` : esc(String(ev.content || '').slice(0, 400));
+  return `<div class="ev" data-i="${i}">
+    <div class="head">${pic}<div><div class="name">${esc(name)}</div><div class="sub">${pr.nip05 ? esc(pr.nip05) + ' · ' : ''}${when}</div></div></div>
+    <button class="dots" data-menu="${i}" aria-label="more">⋯</button>
+    <div class="body"><span class="kind">kind ${ev.kind}${ev.kind === 0 ? ' profile' : ''}</span>${body}</div>
+    ${m ? `<div class="ok" style="font-size:13px">matches <code>${m.prefix}</code> by ${m.how}</div>` : ''}
+  </div>`;
+}
+
+document.addEventListener('click', e => {
+  const open = document.querySelector('.ev .menu'); if (open && !open.contains(e.target)) open.remove();
+  const b = e.target.closest('button[data-menu]'); if (!b) return;
+  const ev = window.__events[+b.dataset.menu], card = b.closest('.ev'), d = dTag(ev), relays = [relayUrl()];
+  const menu = document.createElement('div'); menu.className = 'menu';
+  const items = [
+    ['copy event id', () => copyText(ev.id)],
+    ['copy nevent (with relay hint)', () => copyText(nevent(ev.id, { relays, author: ev.pubkey, kind: ev.kind }))],
+    isAddressable(ev.kind) ? ['copy naddr (with relay hint)', () => copyText(naddr(ev.kind, ev.pubkey, d, { relays }))] : null,
+    ['copy pubkey (hex)', () => copyText(ev.pubkey)],
+    ['copy npub', () => copyText(npub(ev.pubkey))],
+    ['copy content', () => copyText(ev.content || '')],
+    ['copy raw event', () => copyText(JSON.stringify(ev))],
+    ['view raw event', () => showModal(`kind ${ev.kind} · ${ev.id.slice(0, 16)}…`, JSON.stringify(ev, null, 2))],
+  ].filter(Boolean);
+  for (const [label, fn] of items) { const bt = document.createElement('button'); bt.textContent = label; bt.addEventListener('click', ev2 => { ev2.stopPropagation(); menu.remove(); fn(); }); menu.appendChild(bt); }
+  card.appendChild(menu); e.stopPropagation();
+});
+function dTag(ev) { const t = (ev.tags || []).find(t => t[0] === 'd'); return t ? (t[1] || '') : ''; }
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast('copied'); }
+  catch (e) { showModal('copy this', text); }
+}
+function toast(msg) { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;z-index:30;font-size:14px'; document.body.appendChild(t); setTimeout(() => t.remove(), 1200); }
+function showModal(title, body) { $('modalTitle').textContent = title; $('modalBody').textContent = body; $('modal').hidden = false; }
+$('modalClose').addEventListener('click', () => { $('modal').hidden = true; });
+$('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').hidden = true; });
+
+// ---------------------------------------------------------------- relay capability probe
+let probeTimer, probeSeq = 0;
+async function probe() {
+  const url = relayUrl(), seq = ++probeSeq, st = $('relayStatus');
+  if (!/^wss?:\/\//.test(url)) { st.textContent = ''; return; }
+  st.className = 'muted'; st.textContent = 'checking partial-id support…';
+  const r = await probeRelay(url, { nappletRelay: nappletRelay() });
+  if (seq !== probeSeq) return;
+  if (r.ok) { st.className = 'ok'; st.textContent = 'partial ids and pubkeys: supported'; }
+  else if (r.ids === 'rejected' || r.authors === 'rejected') { st.className = 'bad'; st.textContent = `this relay rejects partial queries${r.detail ? ': ' + r.detail.replace(/^CLOSED: /, '') : ''}`; }
+  else if (r.ids === 'ignored' || r.authors === 'ignored') { st.className = 'bad'; st.textContent = 'this relay ignores partial queries (exact matches only); try wss://wheat.happytavern.co'; }
+  else { st.className = 'warn'; st.textContent = `could not test: ${r.detail}`; }
+}
+$('relay').addEventListener('input', () => { clearTimeout(probeTimer); probeTimer = setTimeout(probe, 700); });
+probe();
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

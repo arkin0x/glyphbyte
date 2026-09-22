@@ -65,3 +65,31 @@ export function matchPrefix(ev, prefixes) {
   for (const p of prefixes) { const q = p.toLowerCase(); if (ev.id.startsWith(q)) return { prefix: q, how: 'event id' }; if (ev.pubkey.startsWith(q)) return { prefix: q, how: 'pubkey' }; }
   return null;
 }
+
+
+// fetch kind 0 for full pubkeys (the authors of id-matched events)
+export async function fetchProfiles(pubkeys, { relay = 'wss://wheat.happytavern.co', timeoutMs = 6000, nappletRelay = null } = {}) {
+  const pks = Array.from(new Set(pubkeys)).filter(p => /^[0-9a-f]{64}$/.test(p));
+  if (!pks.length) return {};
+  const filters = [{ authors: pks, kinds: [0] }];
+  const r = nappletRelay ? await viaNapplet(nappletRelay, relay, filters, timeoutMs) : await viaWebSocket(relay, filters, timeoutMs);
+  const out = {};
+  for (const ev of r.events) if (ev.kind === 0 && (!out[ev.pubkey] || out[ev.pubkey].created_at < ev.created_at)) out[ev.pubkey] = ev;
+  return out;
+}
+
+// does this relay honor partial ids and partial authors? Fetch one real event, then ask for it
+// by an 8-character prefix of its id and of its pubkey.
+export async function probeRelay(url, { timeoutMs = 6000, nappletRelay = null } = {}) {
+  const q = f => nappletRelay ? viaNapplet(nappletRelay, url, f, timeoutMs) : viaWebSocket(url, f, timeoutMs);
+  const a = await q([{ kinds: [0, 1], limit: 1 }]);
+  if (a.error && !a.events.length) return { ok: false, ids: 'unknown', authors: 'unknown', detail: a.error };
+  if (!a.events.length) return { ok: false, ids: 'unknown', authors: 'unknown', detail: 'relay returned no events to test with' };
+  const ev = a.events[0];
+  const verdict = r => (r.notices.some(n => /CLOSED|error|invalid|too small|bad req/i.test(n)) ? 'rejected' : r.events.some(e => e.id === ev.id) ? 'yes' : 'ignored');
+  const byId = await q([{ ids: [ev.id.slice(0, 8)] }]);
+  const byAuthor = await q([{ authors: [ev.pubkey.slice(0, 8)], kinds: [ev.kind], limit: 5 }]);
+  const ids = verdict(byId), authors = byAuthor.notices.some(n => /CLOSED|error|invalid|too small|bad req/i.test(n)) ? 'rejected' : byAuthor.events.some(e => e.pubkey === ev.pubkey) ? 'yes' : 'ignored';
+  const detail = [...byId.notices, ...byAuthor.notices].filter(Boolean)[0] || '';
+  return { ok: ids === 'yes' && authors === 'yes', ids, authors, detail };
+}
