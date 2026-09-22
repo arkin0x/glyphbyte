@@ -4,7 +4,7 @@ The sheet is a 4x4 grid of outline symbols. For each cell we take the ink,
 fill its holes to get the silhouette, shrink the silhouette by half the
 stroke width to approximate the drawn centerline, and keep any secondary
 hole (an inner closed stroke, like ring_dot's small circle) as a "feature"
-loop. Output goes to symple/data/canonical.json in a unit box.
+loop. Output goes to glyphbyte/data/canonical.json in a unit box.
 """
 
 from __future__ import annotations

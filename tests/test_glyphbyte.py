@@ -4,13 +4,13 @@ import cv2
 import numpy as np
 import pytest
 
-from symple import SYMBOLS, crc8, pack, unpack
-from symple.detect import detect
-from symple.pipeline import SymbolRead, _sequences
-from symple.render import render_row, render_sheet
-from symple.symbols import load_canonical
+from glyphbyte import SYMBOLS, crc8, pack, unpack
+from glyphbyte.detect import detect
+from glyphbyte.pipeline import SymbolRead, _sequences
+from glyphbyte.render import render_row, render_sheet
+from glyphbyte.symbols import load_canonical
 
-MODEL = os.path.join(os.path.dirname(__file__), "..", "symple", "data", "model.onnx")
+MODEL = os.path.join(os.path.dirname(__file__), "..", "glyphbyte", "data", "model.onnx")
 
 
 def test_pack_unpack_roundtrip():
@@ -74,7 +74,7 @@ def test_sequences_fork_and_rank():
 @pytest.mark.skipif(not os.path.exists(MODEL), reason="model not trained")
 @pytest.mark.parametrize("hand", [0.0, 0.6])
 def test_end_to_end_clean(hand):
-    from symple.pipeline import read_image
+    from glyphbyte.pipeline import read_image
     data = bytes.fromhex("8a3a3a6609eb01ff")
     row = render_row(data, cell=110, hand=hand, rng=np.random.default_rng(11))
     res = read_image(cv2.cvtColor(row.canvas, cv2.COLOR_GRAY2BGR))

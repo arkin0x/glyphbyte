@@ -74,7 +74,7 @@ def run_bench(directory: str, model: str | None = None, max_sequences: int = 8, 
         "failures": failures,
     }
     lines = [
-        f"# symple bench: {directory}", "",
+        f"# glyphbyte bench: {directory}", "",
         f"| metric | value |", f"|---|---|",
         f"| scenes | {n} |", f"| symbols | {cells} |",
         f"| whole sequence exact (top-1) | {rep['exact']:.3f} |",

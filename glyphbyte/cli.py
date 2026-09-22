@@ -1,4 +1,4 @@
-"""symple command line: decode photos, encode bytes, make sheets, synthesize and benchmark."""
+"""glyphbyte command line: decode photos, encode bytes, make sheets, synthesize and benchmark."""
 
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ def cmd_backdrops(a):
     import urllib.request
     os.makedirs(a.out, exist_ok=True)
     for i in range(a.n):
-        url = f"https://picsum.photos/seed/symple{i + 1}/{a.width}/{a.height}"
+        url = f"https://picsum.photos/seed/glyphbyte{i + 1}/{a.width}/{a.height}"
         dst = os.path.join(a.out, f"picsum_{i + 1}.jpg")
         try:
             urllib.request.urlretrieve(url, dst)
@@ -123,8 +123,8 @@ def cmd_backdrops(a):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="symple", description="hand-drawn symbols to bytes")
-    p.add_argument("--version", action="version", version=f"symple-cli {__version__}")
+    p = argparse.ArgumentParser(prog="glyphbyte", description="hand-drawn symbols to bytes")
+    p.add_argument("--version", action="version", version=f"glyphbyte {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     d = sub.add_parser("decode", help="read the symbols in a photo and print the bytes as hex")
@@ -139,7 +139,7 @@ def main(argv=None):
 
     e = sub.add_parser("encode", help="render bytes as a row of symbols")
     e.add_argument("hex")
-    e.add_argument("--out", default="symple-row.png")
+    e.add_argument("--out", default="glyphbyte-row.png")
     e.add_argument("--cell", type=int, default=120)
     e.add_argument("--hand", type=float, default=0.0, help="0 clean, 1 fully hand-drawn style")
     e.add_argument("--seed", type=int, default=0)
@@ -147,7 +147,7 @@ def main(argv=None):
     e.set_defaults(fn=cmd_encode)
 
     s = sub.add_parser("sheet", help="render the reference sheet of all symbols")
-    s.add_argument("--out", default="symple-sheet.png")
+    s.add_argument("--out", default="glyphbyte-sheet.png")
     s.add_argument("--cell", type=int, default=90)
     s.add_argument("--hand", type=float, default=0.0)
     s.add_argument("--seed", type=int, default=0)
@@ -173,7 +173,7 @@ def main(argv=None):
     b.set_defaults(fn=cmd_bench)
 
     t = sub.add_parser("train", help="train the classifier on synthetic patches (needs torch)")
-    t.add_argument("--out", default="symple/data/model.onnx")
+    t.add_argument("--out", default="glyphbyte/data/model.onnx")
     t.add_argument("--backdrops", default=None)
     t.add_argument("--epochs", type=int, default=8)
     t.add_argument("--per-epoch", type=int, default=40000)

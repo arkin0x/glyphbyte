@@ -1,6 +1,6 @@
 import fs from 'node:fs'; import vm from 'node:vm';
 const [pgm, core, weights, manifest] = process.argv.slice(2);
-const ctx = vm.createContext({ console }); vm.runInContext(fs.readFileSync(core, 'utf8'), ctx); const S = ctx.Symple;
+const ctx = vm.createContext({ console }); vm.runInContext(fs.readFileSync(core, 'utf8'), ctx); const S = ctx.GlyphByte;
 const model = S.loadWeights(JSON.parse(fs.readFileSync(manifest, 'utf8')), new Uint8Array(fs.readFileSync(weights)));
 const b = fs.readFileSync(pgm); let p = 0, tok = []; while (tok.length < 4) { let s = ''; while (b[p] === 0x20 || b[p] === 0x0a) p++; while (b[p] !== 0x20 && b[p] !== 0x0a) s += String.fromCharCode(b[p++]); tok.push(s); } p++;
 const W = +tok[1], H = +tok[2], gray = new Uint8Array(b.buffer, b.byteOffset + p, W * H);

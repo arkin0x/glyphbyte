@@ -31,7 +31,7 @@ def resample(points, n):
 def build(weights_path, manifest_path, out_path):
     core = "\n".join(strip_module(open(os.path.join(HERE, "src", f)).read()) for f in ORDER)
     app = open(os.path.join(HERE, "src", "app.js")).read()
-    shapes = json.load(open(os.path.join(HERE, "..", "symple", "data", "canonical.json")))
+    shapes = json.load(open(os.path.join(HERE, "..", "glyphbyte", "data", "canonical.json")))
     shapes = [{"name": s["name"], "outer": resample(s["outer"], 80), "features": [resample(f, 48) for f in s["features"]]} for s in shapes]
     weights_b64 = base64.b64encode(open(weights_path, "rb").read()).decode()
     manifest = json.load(open(manifest_path))
@@ -48,8 +48,8 @@ def build(weights_path, manifest_path, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     open(out_path, "w").write(html)
     # a core-only script for headless tests (no DOM)
-    with open(os.path.join(os.path.dirname(out_path), "symple-core.js"), "w") as f:
-        f.write(core + "\nconst SHAPES = " + json.dumps(shapes) + ";\nglobalThis.Symple = { toGray, readImage, detect, describe, unpack, SYMBOLS, loadWeights, classify, SHAPES, lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay, npub, note, nevent, naddr, decodeEntity };\n")
+    with open(os.path.join(os.path.dirname(out_path), "glyphbyte-core.js"), "w") as f:
+        f.write(core + "\nconst SHAPES = " + json.dumps(shapes) + ";\nglobalThis.GlyphByte = { toGray, readImage, detect, describe, unpack, SYMBOLS, loadWeights, classify, SHAPES, lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay, npub, note, nevent, naddr, decodeEntity };\n")
     print(f"wrote {out_path} ({os.path.getsize(out_path) / 1e6:.2f} MB)")
 
 

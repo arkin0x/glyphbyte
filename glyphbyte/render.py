@@ -1,4 +1,4 @@
-"""Render symple glyphs, frames and rows, either clean or in a hand-drawn style.
+"""Render glyphbyte glyphs, frames and rows, either clean or in a hand-drawn style.
 
 Coordinates are image coordinates (y down). Rotation r in quarter turns is
 clockwise on screen. Canvases are uint8 grayscale, white paper, dark ink.

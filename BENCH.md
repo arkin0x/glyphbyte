@@ -5,9 +5,9 @@ Numbers are on synthetic scenes only. No real handwriting has been measured yet.
 ## Reproduce
 
 ```
-symple backdrops --out bench/backdrops --n 48          # public-domain photos from picsum.photos
-symple synth --out bench/synth/v1 --n 200 --backdrops bench/backdrops --seed 1
-symple bench bench/synth/v1 --out bench/out/v1.json
+glyphbyte backdrops --out bench/backdrops --n 48          # public-domain photos from picsum.photos
+glyphbyte synth --out bench/synth/v1 --n 200 --backdrops bench/backdrops --seed 1
+glyphbyte bench bench/synth/v1 --out bench/out/v1.json
 ```
 
 `synth` draws 2 to 8 random bytes per scene in a hand-drawn style of random severity,
@@ -24,7 +24,7 @@ symbols touching the sheet's top edge, which turned crown and house into squares
 sequence exact" means every symbol of the row read right, in order, as the top-1 answer.
 "Aligned" metrics count only rows where the number of detected frames matched.
 
-### Python, big reference model (`symple/data/model.onnx`, channels 32-64-128-192, 98.6% on held-out patches)
+### Python, big reference model (`glyphbyte/data/model.onnx`, channels 32-64-128-192, 98.6% on held-out patches)
 
 | metric | value |
 |---|---|
@@ -50,7 +50,7 @@ sequence exact" means every symbol of the row read right, in order, as the top-1
 | persp<0.1 | 0.536 |
 | persp>=0.1 | 0.533 |
 
-### Python, small napplet model (`symple/data/model-small.onnx`, channels 16-32-64-96, 97.6% on held-out patches)
+### Python, small napplet model (`glyphbyte/data/model-small.onnx`, channels 16-32-64-96, 97.6% on held-out patches)
 
 | metric | value |
 |---|---|
@@ -74,7 +74,7 @@ sequence exact" means every symbol of the row read right, in order, as the top-1
 ### First real photo
 
 arkinox drew the first six bytes of his pubkey, `e8ed3798c6ff`, with a marker in a dot-grid
-notebook (`projects/symple/photo-01-arkinox-prefix.jpg`). After the fixes that photo forced
+notebook (`projects/glyphbyte/photo-01-arkinox-prefix.jpg`). After the fixes that photo forced
 (see the git log of 2026-09-22): the napplet reads it exactly, top-1; the Python pipeline reads
 five of six top-1 and has the truth among its four candidate sequences. The one soft symbol is
 the snowman, drawn as two blobs of nearly equal size, which the network cannot tell from an

@@ -15,11 +15,11 @@ function viaWebSocket(url, filters, timeoutMs) {
     const finish = (error) => { if (done) return; done = true; try { ws && ws.close(); } catch (e) { /* ignore */ } resolve({ events, notices, error, via: 'websocket' }); };
     try { ws = new WebSocket(url); } catch (e) { return finish(String(e)); }
     const timer = setTimeout(() => finish('timeout'), timeoutMs);
-    ws.onopen = () => ws.send(JSON.stringify(['REQ', 'symple', ...filters]));
+    ws.onopen = () => ws.send(JSON.stringify(['REQ', 'glyphbyte', ...filters]));
     ws.onmessage = m => {
       let msg; try { msg = JSON.parse(m.data); } catch (e) { return; }
       if (msg[0] === 'EVENT' && msg[2] && !seen.has(msg[2].id)) { seen.add(msg[2].id); events.push(msg[2]); }
-      else if (msg[0] === 'EOSE') { clearTimeout(timer); ws.send(JSON.stringify(['CLOSE', 'symple'])); finish(undefined); }
+      else if (msg[0] === 'EOSE') { clearTimeout(timer); ws.send(JSON.stringify(['CLOSE', 'glyphbyte'])); finish(undefined); }
       else if (msg[0] === 'NOTICE') notices.push(String(msg[1]));
       else if (msg[0] === 'CLOSED') { notices.push('CLOSED: ' + msg[2]); clearTimeout(timer); finish(undefined); }
     };

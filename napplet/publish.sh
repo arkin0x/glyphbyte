@@ -17,11 +17,11 @@ echo "aggregate (NIP-5A) $AGG"
 # shellcheck disable=SC2086
 nak blossom upload --server "$BLOSSOM" $NAK_KEY "$FILE"
 # shellcheck disable=SC2086
-nak event -k 35129 -d symple \
+nak event -k 35129 -d glyphbyte \
   -t "path=/index.html;$HASH" \
   -t "x=$AGG;aggregate" \
   -t "server=$BLOSSOM" \
-  -t "title=symple" \
+  -t "title=glyphbyte" \
   -t "description=Hand-drawn symbols to bytes, on device: draw a nostr event id prefix on anything, photograph it, get the bytes." \
-  -t "source=https://embassy.local:52248/arkin0x/symple-cli" \
+  -t "source=https://embassy.local:52248/arkin0x/glyphbyte" \
   $NAK_KEY $RELAYS

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>symple</title>
+<title>glyphbyte</title>
 <style>
   :root { --bg:#f6f4ee; --ink:#151515; --muted:#6b6b6b; --card:#ffffff; --line:#d9d5cc; --accent:#1f5fbf; }
   @media (prefers-color-scheme: dark) { :root { --bg:#141414; --ink:#ececec; --muted:#9a9a9a; --card:#1e1e1e; --line:#333; --accent:#7aa7ff; } }
@@ -29,14 +29,14 @@
 </head>
 <body>
 <main>
-  <h1>symple <small>hand-drawn symbols, one byte each</small></h1>
+  <h1>glyphbyte <small>hand-drawn symbols, one byte each</small></h1>
 
   <section>
     <h2>Bytes to symbols</h2>
     <input id="hex" type="text" placeholder="hex, e.g. 8a3a3a6609eb" autocomplete="off" spellcheck="false">
     <div class="row">
       <label class="muted"><input id="hand" type="checkbox"> show a sloppy version</label>
-      <a id="dl" class="btn" download="symple-row.png"><button>download PNG</button></a>
+      <a id="dl" class="btn" download="glyphbyte-row.png"><button>download PNG</button></a>
       <a href="/api/sheet.png" target="_blank"><button>reference sheet</button></a>
     </div>
     <img id="render" class="render" alt="" hidden>

@@ -27,7 +27,7 @@ class Classifier:
     def __init__(self, model_path: str | None = None):
         import onnxruntime as ort
         if model_path is None:
-            model_path = str(resources.files("symple.data").joinpath("model.onnx"))
+            model_path = str(resources.files("glyphbyte.data").joinpath("model.onnx"))
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 2
         self.session = ort.InferenceSession(model_path, opts, providers=["CPUExecutionProvider"])

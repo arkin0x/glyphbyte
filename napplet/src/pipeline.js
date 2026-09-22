@@ -1,4 +1,4 @@
-// Image to candidate byte sequences: port of symple/pipeline.py.
+// Image to candidate byte sequences: port of glyphbyte/pipeline.py.
 import { detect } from './detect.js';
 import { classify } from './nn.js';
 

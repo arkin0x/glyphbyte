@@ -3,8 +3,8 @@ image coordinates, and the Python detector's reading for comparison.
 usage: PYTHONPATH=. python napplet/test/export_scenes.py <out_dir> [n] [seed]"""
 import json, os, sys
 import cv2, numpy as np
-from symple.synth import make_scene, load_backdrops
-from symple.detect import detect
+from glyphbyte.synth import make_scene, load_backdrops
+from glyphbyte.detect import detect
 
 out, n, seed = sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 40, int(sys.argv[3]) if len(sys.argv) > 3 else 77
 os.makedirs(out, exist_ok=True)

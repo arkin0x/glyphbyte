@@ -1,14 +1,16 @@
-# symple-cli
+# glyphbyte
 
-Hand-drawn symbols to bytes, offline. Draw a row of **symple** symbols on a wall, a
-notebook, a sticker or a whiteboard, photograph it, and `symple decode` returns the
+One drawn glyph is one byte. (Developed under the working name *symple* on 2026-09-22.)
+
+Hand-drawn symbols to bytes, offline. Draw a row of **glyphbyte** symbols on a wall, a
+notebook, a sticker or a whiteboard, photograph it, and `glyphbyte decode` returns the
 bytes. It was built to carry partial nostr event ids attached to physical places,
 where a wrong read costs one extra relay query and nothing else.
 
 ```
-$ symple decode photo.jpg
+$ glyphbyte decode photo.jpg
 8a3a3a6609eb
-$ symple decode photo.jpg -v
+$ glyphbyte decode photo.jpg -v
 8a3a3a6609eb
   8a3a3a6609eb  p=0.91
   8a3a3a6609e3  p=0.06
@@ -49,13 +51,13 @@ No network at runtime. Dependencies: numpy, OpenCV, onnxruntime.
 | 15 | pacman | a disc with a wedge bitten out of the top |
 
 Every symbol is distinct from every other symbol in all four rotations, and stays
-distinct when filled. `symple sheet` renders the whole set for printing.
+distinct when filled. `glyphbyte sheet` renders the whole set for printing.
 
 Four symbols from the original 2026-09-22 sheet were retired because they differed from
 another symbol only by a small feature that handwriting loses first: **spade** (an
 upside-down heart plus a stem), **clover** (a heart plus one bump), **shield** (a cloud
 without its scallops when upside down) and **ring dot** (its rotation cue vanishes when
-filled). They live in `symple/data/retired.json`; the sheet is in `assets/`.
+filled). They live in `glyphbyte/data/retired.json`; the sheet is in `assets/`.
 
 ## How to write a row
 
@@ -64,10 +66,10 @@ filled). They live in `symple/data/retired.json`; the sheet is in `assets/`.
 2. Underline the whole row with one stroke, and put a **fat dot at the start** of the
    underline, about a quarter of a symbol across. The line tells the reader which way is
    up, the dot tells it where to start. Without them a photo taken sideways has every
-   rotation bit wrong, and `symple` will say so in its warnings.
+   rotation bit wrong, and `glyphbyte` will say so in its warnings.
 3. Fill means fill: scribble the whole inside. Outline means a single stroke.
 
-`symple encode 8a3a3a6609eb --out row.png` renders a row to copy from, and
+`glyphbyte encode 8a3a3a6609eb --out row.png` renders a row to copy from, and
 `--hand 0.7` shows what a sloppy one still looks like.
 
 ## Uncertainty is forked, not hidden
@@ -95,19 +97,19 @@ eight bytes, a wrong candidate simply matches nothing.
 
 The classifier is trained only on synthetic data rendered from the canonical shapes:
 wobble, stroke breathing, pen gaps, scribbled fills, perspective, lighting, shadows,
-blur, noise, JPEG, on photographs and procedural surfaces. See `symple train`.
+blur, noise, JPEG, on photographs and procedural surfaces. See `glyphbyte train`.
 
 ## Commands
 
 | command | does |
 |---|---|
-| `symple decode IMG... [-v] [--json] [--debug out.png]` | read a photo; `--json` gives candidates and warnings; `--debug` writes the detection overlay |
-| `symple encode HEX --out row.png [--hand 0.7]` | render bytes as a row |
-| `symple sheet --out sheet.png` | the reference sheet, all symbols, rotations and fills |
-| `symple synth --out DIR --n 200 --backdrops DIR` | generate photo-like test scenes with ground truth |
-| `symple bench DIR` | decode a synth directory and report accuracy |
-| `symple backdrops --out bench/backdrops` | fetch public-domain photos from picsum.photos for synth |
-| `symple train --backdrops DIR` | retrain the classifier (needs the `train` extra: torch) |
+| `glyphbyte decode IMG... [-v] [--json] [--debug out.png]` | read a photo; `--json` gives candidates and warnings; `--debug` writes the detection overlay |
+| `glyphbyte encode HEX --out row.png [--hand 0.7]` | render bytes as a row |
+| `glyphbyte sheet --out sheet.png` | the reference sheet, all symbols, rotations and fills |
+| `glyphbyte synth --out DIR --n 200 --backdrops DIR` | generate photo-like test scenes with ground truth |
+| `glyphbyte bench DIR` | decode a synth directory and report accuracy |
+| `glyphbyte backdrops --out bench/backdrops` | fetch public-domain photos from picsum.photos for synth |
+| `glyphbyte train --backdrops DIR` | retrain the classifier (needs the `train` extra: torch) |
 
 ## On device: the napplet
 
@@ -120,7 +122,7 @@ and everything runs in plain JavaScript on the phone. `napplet/` holds the port:
 | file | what |
 |---|---|
 | `src/imgops.js`, `src/geom.js` | the image and geometry primitives OpenCV provided in Python |
-| `src/detect.js` | the detector, same logic and thresholds as `symple/detect.py` |
+| `src/detect.js` | the detector, same logic and thresholds as `glyphbyte/detect.py` |
 | `src/nn.js` | inference for the small classifier (channels 16-32-64-96, batch-norm folded, float16 weights, about 430 KB) |
 | `src/pipeline.js`, `src/render.js`, `src/app.js` | candidates and sequences, canvas rendering of rows and the sheet, the page |
 | `build.py` | inlines everything into `dist/index.html` (about 1.3 MB) |
@@ -130,8 +132,8 @@ and everything runs in plain JavaScript on the phone. `napplet/` holds the port:
 Build and publish:
 
 ```
-symple train --out symple/data/model-small.onnx --backdrops bench/backdrops   # or use the bundled small model
-python -c "from symple.model import export_weights, SMALL; export_weights('symple/data/model-small.pt', 'napplet/weights.bin', SMALL)"
+glyphbyte train --out glyphbyte/data/model-small.onnx --backdrops bench/backdrops   # or use the bundled small model
+python -c "from glyphbyte.model import export_weights, SMALL; export_weights('glyphbyte/data/model-small.pt', 'napplet/weights.bin', SMALL)"
 python napplet/build.py napplet/weights.bin napplet/weights.bin.json
 BLOSSOM=https://your.blossom RELAYS="wss://relay.damus.io" NAK_KEY="--sec nsec1..." napplet/publish.sh
 ```
@@ -141,25 +143,25 @@ screenshotted. The page uses the camera through a file input, which needs no per
 from the shell. If the shell ever offers the `relay` NAP, the decoded prefix can be turned
 into an event lookup right there; today the page just gives you the hex.
 
-The Python package keeps the bigger reference model and the `symple serve` web app for
+The Python package keeps the bigger reference model and the `glyphbyte serve` web app for
 anyone who wants a server anyway.
 
 ## Install
 
 ```
-git clone https://embassy.local:52248/arkin0x/symple-cli.git   # or your mirror
-cd symple-cli
+git clone https://embassy.local:52248/arkin0x/glyphbyte.git   # or your mirror
+cd glyphbyte
 pip install .            # runtime: numpy, opencv-python-headless, onnxruntime
 pip install '.[train]'   # to retrain
 ```
 
-Python 3.10 or newer. The bundled model is `symple/data/model.onnx`.
+Python 3.10 or newer. The bundled model is `glyphbyte/data/model.onnx`.
 
 ## Benchmark
 
 See `BENCH.md` for the current numbers on the synthetic suite and how to reproduce
 them. Real handwriting on real walls has not been measured yet: photograph some, put
-the truth in a `truth.jsonl` next to the images, and `symple bench` scores it the same
+the truth in a `truth.jsonl` next to the images, and `glyphbyte bench` scores it the same
 way.
 
 ## License

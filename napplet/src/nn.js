@@ -1,4 +1,4 @@
-// Plain-JavaScript inference for the symple classifier. Weights are a flat float16 blob
+// Plain-JavaScript inference for the glyphbyte classifier. Weights are a flat float16 blob
 // (batch-norm already folded into the convolutions) described by a manifest.
 
 export function f16ToF32(u16) {

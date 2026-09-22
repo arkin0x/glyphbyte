@@ -1,4 +1,4 @@
-// Port of symple/detect.py: frames, baseline, start dot, rectification. Same numbers, same order.
+// Port of glyphbyte/detect.py: frames, baseline, start dot, rectification. Same numbers, same order.
 import { resizeGray, adaptiveThreshold, morphClose3, removeSpecks, labelComponents, distanceTransform, dilate, warp, normalizePatch } from './imgops.js';
 import { convexHull, polygonArea, polygonPerimeter, polygonCentroid, pointInPolygon, approxPolyDP, maxInscribedQuad, eigen2, homography, mat3mul, mat3inv } from './geom.js';
 

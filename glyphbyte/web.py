@@ -1,4 +1,4 @@
-"""Web app: bytes to symbols, photo to bytes. `symple serve` runs it; deploy/ has the containers."""
+"""Web app: bytes to symbols, photo to bytes. `glyphbyte serve` runs it; deploy/ has the containers."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from .symbols import SYMBOLS, unpack
 
 
 def create_app(model_path: str | None = None) -> FastAPI:
-    app = FastAPI(title="symple", version=__version__)
+    app = FastAPI(title="glyphbyte", version=__version__)
     state = {"clf": None, "model_path": model_path}
 
     def clf() -> Classifier:
@@ -30,7 +30,7 @@ def create_app(model_path: str | None = None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def index():
-        return resources.files("symple.static").joinpath("index.html").read_text()
+        return resources.files("glyphbyte.static").joinpath("index.html").read_text()
 
     @app.get("/api/symbols")
     def symbols():

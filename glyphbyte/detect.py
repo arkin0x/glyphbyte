@@ -28,7 +28,7 @@ from .synth import PATCH, normalize_patch, patch_target_quad, rectify
 
 MAX_SIDE = 1600
 JUNK_TOP_K = 24      # candidates offered to the classifier's junk check
-_DEBUG = bool(__import__("os").environ.get("SYMPLE_DEBUG"))
+_DEBUG = bool(__import__("os").environ.get("GLYPHBYTE_DEBUG"))
 
 
 @dataclass

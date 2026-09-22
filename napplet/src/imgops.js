@@ -1,4 +1,4 @@
-// Image primitives for the symple detector, plain JavaScript, no dependencies.
+// Image primitives for the glyphbyte detector, plain JavaScript, no dependencies.
 // Images are row-major typed arrays; binary images are Uint8Array with 1 = ink.
 
 export function toGray(rgba, W, H) {
@@ -175,7 +175,7 @@ export function warp(gray, W, H, M, ow, oh) {
   return out;
 }
 
-// same maths as symple.synth.normalize_patch
+// same maths as glyphbyte.synth.normalize_patch
 export function normalizePatch(p, size, lightInk) {
   const bg = gaussianBlur(p, size, size, size / 6), d = new Float32Array(p.length);
   for (let i = 0; i < d.length; i++) d[i] = lightInk ? bg[i] - p[i] : p[i] - bg[i];

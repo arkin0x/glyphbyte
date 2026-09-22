@@ -85,7 +85,7 @@ def load_canonical() -> list[dict]:
     Each entry: {"name": str, "outer": [[x, y], ...], "features": [[[x, y], ...], ...]}
     in a unit box centered at the origin, y down, unrotated (sheet orientation).
     """
-    with resources.files("symple.data").joinpath("canonical.json").open() as f:
+    with resources.files("glyphbyte.data").joinpath("canonical.json").open() as f:
         shapes = json.load(f)
     assert [s["name"] for s in shapes] == SYMBOLS, "canonical.json is out of sync with SYMBOLS"
     return shapes

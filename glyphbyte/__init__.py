@@ -1,4 +1,4 @@
-"""symple: hand-drawn symbols to bytes.
+"""glyphbyte: hand-drawn symbols to bytes.
 
 One symbol carries one byte:
   high nibble  which of the 16 symbols (sheet order)

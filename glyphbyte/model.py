@@ -33,7 +33,7 @@ def build_model(channels=BIG):
         def forward(self, x):
             return self.net(x)
 
-    class SympleNet(nn.Module):
+    class GlyphByteNet(nn.Module):
         """1x64x64 normalized patch -> (65 logits: symbol*rotation plus junk, 2 fill logits)."""
 
         def __init__(self, channels=channels):
@@ -49,7 +49,7 @@ def build_model(channels=BIG):
             f = self.pool(self.features(x)).flatten(1)
             return self.head_sym(f), self.head_fill(f)
 
-    return SympleNet()
+    return GlyphByteNet()
 
 
 class PatchDataset:
