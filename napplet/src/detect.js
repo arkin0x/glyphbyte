@@ -197,7 +197,7 @@ function sampleLine(inkD, W, H, p0, d, t0, t1) {
   for (let t = t0; t < t1; t += 1) { const x = Math.round(p0[0] + t * d[0]), y = Math.round(p0[1] + t * d[1]); ts.push(t); hit.push(x >= 0 && y >= 0 && x < W && y < H && inkD[y * W + x] > 0); }
   return { ts, hit };
 }
-function refineLine(ink, inkD, W, H, p0, d, nrm, med, tLo, tHi) {
+function refineLineUnused(ink, inkD, W, H, p0, d, nrm, med, tLo, tHi) {
   let { ts, hit } = sampleLine(inkD, W, H, p0, d, tLo, tHi);
   const band = Math.max(2, Math.floor(0.06 * med)), pts = [];
   for (let i = 0; i < ts.length; i++) { if (!hit[i]) continue; const cx = p0[0] + d[0] * ts[i], cy = p0[1] + d[1] * ts[i];
@@ -226,6 +226,38 @@ function fillSmallHoles(ink, W, H, maxArea) {
   for (let i = 0; i < out.length; i++) { const l = lab.labels[i]; if (l && !lab.stats[l].border && lab.stats[l].area < maxArea) out[i] = 1; }
   return out;
 }
+function sampleBand(ink, W, H, p0, d, nrm, t0, t1, tol) {
+  const ts = [], hit = [];
+  for (let t = t0; t < t1; t += 1) {
+    const cx = p0[0] + d[0] * t, cy = p0[1] + d[1] * t; let h = false;
+    for (let o = -tol; o <= tol && !h; o++) { const x = Math.round(cx + nrm[0] * o), y = Math.round(cy + nrm[1] * o); if (x >= 0 && y >= 0 && x < W && y < H && ink[y * W + x]) h = true; }
+    ts.push(t); hit.push(h);
+  }
+  return { ts, hit };
+}
+function refineLine2(ink, inkD, inkLines, W, H, p0, d, nrm, med, tLo, tHi) {
+  let { ts, hit } = sampleLine(inkD, W, H, p0, d, tLo, tHi);
+  const band = Math.max(3, Math.floor(0.12 * med)), pts = [];
+  for (let i = 0; i < ts.length; i++) { if (!hit[i]) continue; const cx = p0[0] + d[0] * ts[i], cy = p0[1] + d[1] * ts[i];
+    for (let o = -band; o <= band; o++) { const x = Math.round(cx + nrm[0] * o), y = Math.round(cy + nrm[1] * o); if (x >= 0 && y >= 0 && x < W && y < H && ink[y * W + x]) pts.push([x, y]); } }
+  if (pts.length >= 10) {
+    const mx = pts.reduce((s, p) => s + p[0], 0) / pts.length, my = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+    let a = 0, b = 0, c = 0; for (const p of pts) { const dx = p[0] - mx, dy = p[1] - my; a += dx * dx; b += dx * dy; c += dy * dy; }
+    const n1 = pts.length - 1; let d2 = eigen2(a / n1, b / n1, c / n1).evecs[0];
+    if (d2[0] * d[0] + d2[1] * d[1] < 0) d2 = [-d2[0], -d2[1]];
+    d = d2; p0 = [mx, my]; nrm = [-d[1], d[0]];
+  }
+  ({ ts, hit } = sampleBand(inkLines, W, H, p0, d, nrm, tLo - med, tHi + med, Math.max(3, Math.floor(0.1 * med))));
+  const idx = []; for (let i = 0; i < hit.length; i++) if (hit[i]) idx.push(i);
+  if (!idx.length) return null;
+  const gap = 0.5 * med, runs = []; let start = idx[0];
+  for (let k = 0; k + 1 < idx.length; k++) { if (ts[idx[k + 1]] - ts[idx[k]] > gap) { runs.push([start, idx[k]]); start = idx[k + 1]; } }
+  runs.push([start, idx[idx.length - 1]]);
+  let bestR = runs[0]; for (const r of runs) if (ts[r[1]] - ts[r[0]] > ts[bestR[1]] - ts[bestR[0]]) bestR = r;
+  const pa = [p0[0] + d[0] * ts[bestR[0]], p0[1] + d[1] * ts[bestR[0]]], pb = [p0[0] + d[0] * ts[bestR[1]], p0[1] + d[1] * ts[bestR[1]]];
+  if (Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) < 1.2 * med) return null;
+  return { pa, pb, d, nrm };
+}
 function dotEvidence(ink0, W, H, pa, pb, med) {
   const ink = fillSmallHoles(ink0, W, H, (0.35 * med) ** 2), dist = distanceTransform(ink, W, H);
   const thick = (p, radius) => { const x = Math.round(p[0]), y = Math.round(p[1]), r = Math.floor(radius); let m = 0;
@@ -237,9 +269,14 @@ function dotEvidence(ink0, W, H, pa, pb, med) {
     return s / Math.max(1, Math.PI * m * m); };
   const mids = []; for (let i = 0; i < 9; i++) { const t = 0.25 + 0.5 * i / 8; mids.push(thick([pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t], Math.max(2, 0.04 * med))); }
   mids.sort((a, b) => a - b); const lineHalf = Math.max(1, mids[4]);
-  const ra = thick(pa, 0.22 * med) / lineHalf, rb = thick(pb, 0.22 * med) / lineHalf, hi = Math.max(ra, rb), lo = Math.min(ra, rb);
-  const rd = roundness(ra > rb ? pa : pb, 0.22 * med);
-  if (hi >= 1.8 && lo <= 1.6 && hi >= 1.5 * lo && rd <= 2.2) return { start: ra > rb ? 0 : 1, strength: hi };
+  const L = Math.max(1e-6, Math.hypot(pb[0] - pa[0], pb[1] - pa[1])), u = [(pb[0] - pa[0]) / L, (pb[1] - pa[1]) / L];
+  const endScan = (p, dir) => { let best = 0, bp = p; const step = Math.max(1, 0.05 * med);
+    for (let t = -0.15 * med; t < 0.4 * med; t += step) { const q = [p[0] + dir[0] * t, p[1] + dir[1] * t], v = thick(q, Math.max(2, 0.12 * med)); if (v > best) { best = v; bp = q; } }
+    return [best, bp]; };
+  const [ta, qa] = endScan(pa, u), [tb, qb] = endScan(pb, [-u[0], -u[1]]);
+  const ra = ta / lineHalf, rb = tb / lineHalf, hi = Math.max(ra, rb), lo = Math.min(ra, rb);
+  const rd = roundness(ra > rb ? qa : qb, 0.12 * med);
+  if (hi >= 1.8 && lo <= 1.6 && hi >= 1.5 * lo && rd <= 3.5) return { start: ra > rb ? 0 : 1, strength: hi };
   return { start: null, strength: hi };
 }
 
@@ -248,23 +285,21 @@ export function findBaseline(ink, W, H, frames) {
   const sizes = frames.map(f => f.size).sort((a, b) => a - b), med = sizes.length % 2 ? sizes[(sizes.length - 1) / 2] : (sizes[sizes.length / 2 - 1] + sizes[sizes.length / 2]) / 2;
   const m = [frames.reduce((s, f) => s + f.center[0], 0) / frames.length, frames.reduce((s, f) => s + f.center[1], 0) / frames.length];
   let d = rowAxis(frames), nrm = [-d[1], d[0]];
-  const along = frames.map(f => (f.center[0] - m[0]) * d[0] + (f.center[1] - m[1]) * d[1]);
-  const order = along.map((a, i) => i).sort((a, b) => along[a] - along[b]);
-  const al = order.map(i => along[i]), sz = order.map(i => frames[i].size);
-  const iv = al.map((a, i) => [a - 0.55 * sz[i], a + 0.55 * sz[i]]);
-  const tLo = al[0] - 1.6 * med, tHi = al[al.length - 1] + 1.6 * med;
-  const inkD = dilate(ink, W, H, 2);
+  const along = frames.map(f => (f.center[0] - m[0]) * d[0] + (f.center[1] - m[1]) * d[1]).sort((a, b) => a - b);
+  // frames' ink masked out: their edges cannot pose as a baseline, and the underline is scored along the whole row
+  const frameMask = new Uint8Array(W * H);
+  for (const f of frames) { const mk = fillConvexFull(f.hull, W, H); for (let i = 0; i < mk.length; i++) if (mk[i]) frameMask[i] = 1; }
+  const strokes = frames.map(f => f.stroke).sort((a, b) => a - b), kd = Math.max(1, Math.floor((2 * strokes[strokes.length >> 1] + 4) / 2));
+  const fm = dilate(frameMask, W, H, kd);
+  const inkLines = new Uint8Array(W * H); for (let i = 0; i < inkLines.length; i++) inkLines[i] = ink[i] && !fm[i] ? 1 : 0;
+  const tLo = along[0] - 0.6 * med, tHi = along[along.length - 1] + 0.6 * med;
+  const inkD = dilate(inkLines, W, H, 2);
   const offs = [], covs = [], nOff = Math.floor(4.8 * med / 2) + 1;
   for (let k = 0; k < nOff; k++) {
-    const off = -2.4 * med + 4.8 * med * k / (nOff - 1); if (Math.abs(off) < 0.6 * med) continue;
-    const p0 = [m[0] + nrm[0] * off, m[1] + nrm[1] * off], { ts, hit } = sampleLine(inkD, W, H, p0, d, tLo, tHi);
-    let gapN = 0, gapHit = 0, before = false, after = false;
-    for (let i = 0; i < ts.length; i++) { let inside = false; for (const [a, b] of iv) if (ts[i] >= a && ts[i] <= b) { inside = true; break; }
-      if (!inside) { gapN++; if (hit[i]) gapHit++; }
-      if (hit[i] && ts[i] < al[0] - 0.55 * sz[0]) before = true; if (hit[i] && ts[i] > al[al.length - 1] + 0.55 * sz[sz.length - 1]) after = true; }
-    if (gapN < 4) continue;
-    let cov = gapHit / gapN; if (!(before && after)) cov *= 0.5;
-    offs.push(off); covs.push(cov);
+    const off = -2.4 * med + 4.8 * med * k / (nOff - 1); if (Math.abs(off) < 0.5 * med) continue;
+    const { ts, hit } = sampleLine(inkD, W, H, [m[0] + nrm[0] * off, m[1] + nrm[1] * off], d, tLo, tHi);
+    if (ts.length < 4) continue;
+    offs.push(off); covs.push(hit.filter(Boolean).length / ts.length);
   }
   if (!offs.length) return null;
   const cands = [];
@@ -276,10 +311,10 @@ export function findBaseline(ink, W, H, frames) {
   if (!cands.length) return null;
   const scored = [];
   for (const [off, cov] of cands) {
-    const r = refineLine(ink, inkD, W, H, [m[0] + nrm[0] * off, m[1] + nrm[1] * off], d, nrm, med, tLo, tHi); if (!r) continue;
-    const { start } = dotEvidence(ink, W, H, r.pa, r.pb, med);
-    const near = Math.abs(off) / med >= 0.55 && Math.abs(off) / med <= 1.4;
-    scored.push({ key: [start !== null ? 1 : 0, near ? 1 : 0, Math.round(cov * 10) / 10, -Math.abs(off) / med], off, cov, ...r, start });
+    const r = refineLine2(ink, inkD, inkLines, W, H, [m[0] + nrm[0] * off, m[1] + nrm[1] * off], d, nrm, med, tLo, tHi); if (!r) continue;
+    const { start } = dotEvidence(inkLines, W, H, r.pa, r.pb, med);
+    const near = Math.abs(off) / med >= 0.5 && Math.abs(off) / med <= 1.5;
+    scored.push({ key: [near ? 1 : 0, start !== null ? 1 : 0, -Math.round(Math.abs(off) / med * 10) / 10, cov], off, cov, ...r, start });
   }
   if (!scored.length) return null;
   scored.sort((a, b) => { for (let i = 0; i < 4; i++) if (a.key[i] !== b.key[i]) return b.key[i] - a.key[i]; return 0; });
@@ -290,6 +325,18 @@ export function findBaseline(ink, W, H, frames) {
   if (start === 1) return { pStart: pb, pEnd: pa, startKnown: true, up };
   if (dd[0] < 0 || (dd[0] === 0 && dd[1] < 0)) [pa, pb] = [pb, pa];
   return { pStart: pa, pEnd: pb, startKnown: false, up };
+}
+
+function fillConvexFull(poly, W, H) {
+  const mask = new Uint8Array(W * H), n = poly.length;
+  let y0 = Infinity, y1 = -Infinity; for (const p of poly) { if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
+  for (let y = Math.max(0, Math.floor(y0)); y <= Math.min(H - 1, Math.ceil(y1)); y++) {
+    const yy = y + 0.5; let xl = Infinity, xr = -Infinity;
+    for (let i = 0; i < n; i++) { const [ax, ay] = poly[i], [bx, by] = poly[(i + 1) % n]; if ((ay <= yy && by > yy) || (by <= yy && ay > yy)) { const x = ax + (yy - ay) * (bx - ax) / (by - ay); if (x < xl) xl = x; if (x > xr) xr = x; } }
+    if (xl === Infinity) continue;
+    for (let x = Math.max(0, Math.ceil(xl - 0.5)); x <= Math.min(W - 1, Math.floor(xr - 0.5)); x++) mask[y * W + x] = 1;
+  }
+  return mask;
 }
 
 function targetQuad(size = PATCH, margin = PATCH_MARGIN) { const m = size * margin; return [[m, m], [size - m, m], [size - m, size - m], [m, size - m]]; }

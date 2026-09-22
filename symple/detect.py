@@ -356,11 +356,27 @@ def _sample_line(ink_d: np.ndarray, p0: np.ndarray, d: np.ndarray, t0: float, t1
     return ts, hit
 
 
-def _refine_line(ink, ink_d, p0, d, nrm, med, t_lo, t_hi):
+def _sample_band(ink, p0, d, nrm, t0, t1, tol):
+    """Like _sample_line, but a step counts as a hit when any ink lies within tol pixels
+    perpendicular to the line: a hand-drawn underline sags and rises."""
+    ts = np.arange(t0, t1, 1.0)
+    hit = np.zeros(len(ts), bool)
+    offs = np.arange(-tol, tol + 1)
+    for i, t in enumerate(ts):
+        cx, cy = p0[0] + d[0] * t, p0[1] + d[1] * t
+        xs = np.round(cx + nrm[0] * offs).astype(int)
+        ys = np.round(cy + nrm[1] * offs).astype(int)
+        ok = (xs >= 0) & (ys >= 0) & (xs < ink.shape[1]) & (ys < ink.shape[0])
+        if ok.any() and ink[ys[ok], xs[ok]].any():
+            hit[i] = True
+    return ts, hit
+
+
+def _refine_line(ink, ink_d, ink_lines, p0, d, nrm, med, t_lo, t_hi):
     """Least-squares fit to the ink in a thin band around a candidate line, then its extent.
     Returns (pa, pb, d, nrm) or None."""
     ts, hit = _sample_line(ink_d, p0, d, t_lo, t_hi)
-    band = int(max(2, 0.06 * med))
+    band = int(max(3, 0.12 * med))   # hand-drawn lines sag and rise; gather generously before fitting
     pts = []
     for t in ts[hit]:
         c = p0 + d * t
@@ -379,7 +395,7 @@ def _refine_line(ink, ink_d, p0, d, nrm, med, t_lo, t_hi):
             d2 = -d2
         d, p0 = d2, c
         nrm = np.array([-d[1], d[0]])
-    ts, hit = _sample_line(ink_d, p0, d, t_lo - med, t_hi + med)
+    ts, hit = _sample_band(ink_lines, p0, d, nrm, t_lo - med, t_hi + med, max(3, int(0.1 * med)))
     idx = np.nonzero(hit)[0]
     if len(idx) == 0:
         return None
@@ -442,15 +458,30 @@ def _dot_evidence(ink, dist, pa, pb, med):
 
     mids = [thickness_near(pa + (pb - pa) * t, max(2, 0.04 * med)) for t in np.linspace(0.25, 0.75, 9)]
     line_half = max(1.0, float(np.median(mids)))
-    ra = thickness_near(pa, 0.22 * med) / line_half
-    rb = thickness_near(pb, 0.22 * med) / line_half
+    L = max(1e-6, float(np.linalg.norm(pb - pa)))
+    u = (pb - pa) / L
+
+    def end_scan(p, direction):
+        """fattest spot within 0.4 med of an end, scanning inward: the run may overshoot the
+        dot by a speck or two, or stop a little short of it"""
+        best, best_p = 0.0, p
+        for t in np.arange(-0.15 * med, 0.4 * med, max(1.0, 0.05 * med)):
+            q = p + direction * t
+            v = thickness_near(q, max(2, 0.12 * med))
+            if v > best:
+                best, best_p = v, q
+        return best, best_p
+
+    ta, qa = end_scan(pa, u)
+    tb, qb = end_scan(pb, -u)
+    ra, rb = ta / line_half, tb / line_half
     hi, lo = max(ra, rb), min(ra, rb)
-    fat = pa if ra > rb else pb
-    rd = roundness_near(fat, 0.22 * med)
+    fat = qa if ra > rb else qb
+    rd = roundness_near(fat, 0.12 * med)
     if _DEBUG:
         print("[baseline] line_half", round(line_half, 2), "ratio a", round(ra, 2), "b", round(rb, 2), "roundness", round(rd, 2))
     # a start dot is one fat, round end and one thin end; texture is fat at both ends
-    if hi >= 1.8 and lo <= 1.6 and hi >= 1.5 * lo and rd <= 2.2:
+    if hi >= 1.8 and lo <= 1.6 and hi >= 1.5 * lo and rd <= 3.5:
         return (0 if ra > rb else 1), hi
     return None, hi
 
@@ -474,28 +505,28 @@ def find_baseline(ink: np.ndarray, frames: list[Frame]):
     order = np.argsort(along)
     along = along[order]
     sizes = np.array([frames[i].size for i in order])
-    frame_iv = [(a - 0.55 * s, a + 0.55 * s) for a, s in zip(along, sizes)]
-    t_lo, t_hi = along[0] - 1.6 * med, along[-1] + 1.6 * med
-    ink_d = cv2.dilate(ink, np.ones((5, 5), np.uint8))
+    # ink that is not part of any frame: the frames' rings are masked out so their edges
+    # cannot pose as a baseline, and the underline is scored along the whole row, not just
+    # in the gaps between frames (real rows are often drawn with almost no gaps)
+    frame_mask = np.zeros_like(ink)
+    for f in frames:
+        cv2.fillPoly(frame_mask, [f.hole.reshape(-1, 1, 2).astype(np.int32)], 1)
+        cv2.fillPoly(frame_mask, [cv2.convexHull(f.outer.reshape(-1, 1, 2).astype(np.int32))], 1)
+    kd = max(3, int(2.0 * float(np.median([f.stroke for f in frames])) + 4) | 1)
+    frame_mask = cv2.dilate(frame_mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kd, kd)))
+    ink_lines = ink & (1 - frame_mask)
+    t_lo, t_hi = along[0] - 0.6 * med, along[-1] + 0.6 * med
+    ink_d = cv2.dilate(ink_lines, np.ones((5, 5), np.uint8))
     offs, covs = [], []
     for off in np.linspace(-2.4 * med, 2.4 * med, int(4.8 * med / 2) + 1):
-        if abs(off) < 0.6 * med:
+        if abs(off) < 0.5 * med:
             continue
         p0 = m + nrm * off
         ts, hit = _sample_line(ink_d, p0, d, t_lo, t_hi)
-        inside = np.zeros(len(ts), bool)
-        for a, b in frame_iv:
-            inside |= (ts >= a) & (ts <= b)
-        gap_mask = ~inside
-        if gap_mask.sum() < 4:
+        if len(ts) < 4:
             continue
-        cov = float(hit[gap_mask].mean())
-        before = hit[ts < along[0] - 0.55 * sizes[0]]
-        after = hit[ts > along[-1] + 0.55 * sizes[-1]]
-        if not (before.any() and after.any()):
-            cov *= 0.5
         offs.append(off)
-        covs.append(cov)
+        covs.append(float(hit.mean()))
     if not offs:
         return None
     offs, covs = np.array(offs), np.array(covs)
@@ -516,13 +547,14 @@ def find_baseline(ink: np.ndarray, frames: list[Frame]):
     dist = cv2.distanceTransform(ink, cv2.DIST_L2, 3)
     scored = []
     for off, cov in cands:
-        r = _refine_line(ink, ink_d, m + nrm * off, d, nrm, med, t_lo, t_hi)
+        r = _refine_line(ink, ink_d, ink_lines, m + nrm * off, d, nrm, med, t_lo, t_hi)
         if r is None:
             continue
         pa, pb, d2, nrm2 = r
-        start, strength = _dot_evidence(ink, dist, pa, pb, med)
-        near = 0.55 <= abs(off) / med <= 1.4      # where an underline actually sits
-        scored.append(((start is not None, near, round(cov, 1), -abs(off) / med), off, cov, pa, pb, d2, nrm2, start))
+        start, strength = _dot_evidence(ink_lines, dist, pa, pb, med)
+        near = 0.5 <= abs(off) / med <= 1.5       # where an underline actually sits
+        # a near line with a start dot beats everything; then coverage, then proximity
+        scored.append(((near, start is not None, -round(abs(off) / med, 1), cov), off, cov, pa, pb, d2, nrm2, start))
     if not scored:
         return None
     scored.sort(key=lambda t: t[0], reverse=True)

@@ -1,0 +1,10 @@
+import fs from 'node:fs'; import vm from 'node:vm';
+const [pgm, core, out] = process.argv.slice(2);
+const ctx = vm.createContext({ console }); vm.runInContext(fs.readFileSync(core, 'utf8'), ctx); const S = ctx.Symple;
+const b = fs.readFileSync(pgm); let p = 0, tok = []; while (tok.length < 4) { let s = ''; while (b[p] === 0x20 || b[p] === 0x0a) p++; while (b[p] !== 0x20 && b[p] !== 0x0a) s += String.fromCharCode(b[p++]); tok.push(s); } p++;
+const W = +tok[1], H = +tok[2], gray = new Uint8Array(b.buffer, b.byteOffset + p, W * H);
+const det = S.detect(gray, W, H, null);
+console.log('JS d', det.direction.map(v => v.toFixed(3)), 'up', det.up.map(v => v.toFixed(3)), 'start', det.startKnown, 'frames', det.frames.map(f => `${f.kind}@${f.center.map(Math.round)}`).join(' '));
+const n = det.patches.length, g = new Uint8Array(64 * n * 64);
+det.patches.forEach((pt, i) => { for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) g[y * 64 * n + i * 64 + x] = Math.round(pt[y * 64 + x] * 255); });
+fs.writeFileSync(out, Buffer.concat([Buffer.from(`P5\n${64 * n} 64\n255\n`), Buffer.from(g)]));

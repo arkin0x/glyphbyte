@@ -49,13 +49,16 @@ def largest_external_contour(mask: np.ndarray) -> np.ndarray:
 
 
 def fill_holes(mask: np.ndarray) -> np.ndarray:
-    h, w = mask.shape
+    """Ink plus everything it encloses. The mask is padded with background first, so a
+    symbol touching the image edge (the crown's points on the sheet) does not get the gaps
+    between its features counted as enclosed."""
+    padded = np.pad(mask.astype(np.uint8), 1)
+    h, w = padded.shape
     ff = np.zeros((h + 2, w + 2), np.uint8)
-    inv = (~mask.astype(bool)).astype(np.uint8)
-    flooded = inv.copy()
+    flooded = (~padded.astype(bool)).astype(np.uint8)
     cv2.floodFill(flooded, ff, (0, 0), 2)
     outside = flooded == 2
-    return (~outside).astype(np.uint8)
+    return (~outside).astype(np.uint8)[1:-1, 1:-1]
 
 
 def _normalize(pts: np.ndarray) -> np.ndarray:
@@ -119,7 +122,12 @@ def extract(sheet_path: str, out_path: str, debug_path: str | None = None) -> li
         half_w = float(np.percentile(dist[m > 0], 90))
         sil = fill_holes(m)
         k = max(1, int(round(half_w)))
-        centerline = cv2.erode(sil, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * k + 1, 2 * k + 1)))
+        K = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * k + 1, 2 * k + 1))
+        # the drawn centerline sits half a stroke inside the silhouette. erosion alone eats
+        # convex points (a crown's spikes, a roof's apex), dilation of the interior alone fills
+        # concave notches; their union keeps both to within k pixels.
+        interior = (sil & (1 - m)).astype(np.uint8)
+        centerline = cv2.erode(sil, K) | cv2.dilate(interior, K)
         outer = largest_external_contour(centerline)
 
         # holes of the ink component; the largest is the interior, the rest are inner strokes
