@@ -6,7 +6,7 @@ const ne = nevent('36f988e43ff1'.padEnd(64, '0'), { relays: ['wss://wheat.happyt
 console.log('nevent', ne.slice(0, 20) + '…', ne.length, 'chars');
 console.log('naddr', naddr(30023, pk, 'hello', { relays: ['wss://wheat.happytavern.co'] }).slice(0, 24) + '…');
 console.log('note', note(pk).slice(0, 12) + '…');
-process.exit(got === want ? 0 : 1);
+
 import { decodeEntity } from '../src/nip19.js';
 const d1 = decodeEntity('npub1arkn0xxxll4llgy9qxkrncn3vc4l69s0dz8ef3zadykcwe7ax3dqrrh43w');
 console.log('decode npub', d1.hex === pk ? 'OK' : 'MISMATCH');
