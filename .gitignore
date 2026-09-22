@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+bench/out/
+bench/backdrops/
+bench/synth/
+*.pt
