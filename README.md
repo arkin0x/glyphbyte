@@ -166,12 +166,8 @@ way.
 
 ## License
 
-Two licenses, by kind of thing:
-
-- **Code** (the Python package, the JavaScript package, the napplet, the site build, tests,
-  scripts): MIT, see `LICENSE-MIT`.
-- **The GlyphByte specification, the glyph alphabet and its canonical shapes, the printable
-  sheet, the test vectors, and all documentation and site text**: Creative Commons
-  Attribution-ShareAlike 4.0 International, see `LICENSE-CC-BY-SA-4.0`. Anyone may copy,
-  adapt and build on the alphabet and the spec, including commercially, as long as they credit
-  GlyphByte and share adaptations under the same license.
+Everything in this repository, the code, the specification, the glyph alphabet and its canonical
+shapes, the sheet, the test vectors and the documentation, is licensed under the Creative Commons
+Attribution-ShareAlike 4.0 International License. See `LICENSE` and
+https://creativecommons.org/licenses/by-sa/4.0/. Copy it, adapt it, ship it, commercially or not,
+as long as you credit GlyphByte and share adaptations under the same license.

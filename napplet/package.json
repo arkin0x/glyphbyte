@@ -1,6 +1,6 @@
 {
   "name": "glyphbyte",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "One drawn glyph is one byte. Read hand-drawn glyph rows from photos on the device, render rows to draw from, and resolve the bytes on nostr as event id and pubkey prefixes.",
   "type": "module",
   "main": "src/index.js",
@@ -34,7 +34,7 @@
     "url": "git+https://github.com/arkin0x/glyphbyte.git",
     "directory": "napplet"
   },
-  "license": "MIT",
+  "license": "CC-BY-SA-4.0",
   "author": "arkinox",
   "engines": {
     "node": ">=22"

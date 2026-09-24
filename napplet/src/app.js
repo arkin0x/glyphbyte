@@ -34,8 +34,9 @@ function renderEncode() {
 let timer; $('hex').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(renderEncode, 200); });
 $('sheetBtn').addEventListener('click', () => { const c = $('sheet'); drawSheet(c, SHAPES, 56); c.hidden = !c.hidden; });
 
-$('file').addEventListener('change', async () => {
-  const f = $('file').files[0]; if (!f) return;
+for (const id of ['file', 'file2']) $(id).addEventListener('change', () => readFile($(id).files[0]));
+async function readFile(f) {
+  if (!f) return;
   $('busy').hidden = false; $('result').innerHTML = '';
   try {
     let bmp;
@@ -51,7 +52,7 @@ $('file').addEventListener('change', async () => {
     drawDetection(ctx, res.detection); cv.hidden = false;
   } catch (e) { $('result').innerHTML = `<p class="warn">could not read that image: ${e}</p>`; }
   $('busy').hidden = true;
-});
+}
 
 function show(d, ms) {
   let h = '';

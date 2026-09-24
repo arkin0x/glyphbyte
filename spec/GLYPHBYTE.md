@@ -178,7 +178,7 @@ image anywhere.
 
 ## License
 
-This specification, the GlyphByte alphabet and its canonical shapes, the sheet and the test
-vectors are licensed under the Creative Commons Attribution-ShareAlike 4.0 International
-License (`LICENSE-CC-BY-SA-4.0` in the repository, https://creativecommons.org/licenses/by-sa/4.0/).
-The reference implementations are MIT.
+This specification, the GlyphByte alphabet and its canonical shapes, the sheet, the test
+vectors and the reference implementations are licensed under the Creative Commons
+Attribution-ShareAlike 4.0 International License (`LICENSE` in the repository,
+https://creativecommons.org/licenses/by-sa/4.0/).
