@@ -34,7 +34,7 @@ function renderEncode() {
 let timer; $('hex').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(renderEncode, 200); });
 $('sheetBtn').addEventListener('click', () => { const c = $('sheet'); drawSheet(c, SHAPES, 56); c.hidden = !c.hidden; });
 
-for (const id of ['file', 'file2']) $(id).addEventListener('change', () => readFile($(id).files[0]));
+$('file').addEventListener('change', () => readFile($('file').files[0]));   // no capture attribute: the phone offers camera and library together
 async function readFile(f) {
   if (!f) return;
   $('busy').hidden = false; $('result').innerHTML = '';

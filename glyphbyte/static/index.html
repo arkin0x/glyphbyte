@@ -47,7 +47,7 @@
   <section>
     <h2>Photo to bytes</h2>
     <div class="row">
-      <label class="btn">take a photo <input id="file" type="file" accept="image/*" capture="environment" hidden></label><label class="btn">choose an image <input id="file2" type="file" accept="image/*" hidden></label>
+      <label class="btn">take or choose a photo <input id="file" type="file" accept="image/*" hidden></label>
       <label class="muted"><input id="debug" type="checkbox"> show what was detected</label>
       <span id="busy" class="muted">reading…</span>
     </div>
@@ -69,7 +69,7 @@ async function encode() {
   const r = await fetch(`/api/describe?hex=${hex}`); const d = await r.json();
   $('describe').innerHTML = d.symbols.map(s => `<li><code>${s.hex}</code> ${s.name}, rotated ${s.rotation}°, ${s.fill}, ${s.frame} frame</li>`).join('');
 }
-for (const id of ['file', 'file2']) $(id).addEventListener('change', () => sendFile($(id).files[0]));
+$('file').addEventListener('change', () => sendFile($('file').files[0]));
 async function sendFile(f) {
   if (!f) return;
   $('busy').style.display = 'inline'; $('result').innerHTML = '';
