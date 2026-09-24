@@ -175,3 +175,10 @@ prefix resolves to, and the person decides whether that is what they were lookin
 short prefix on a large relay may resolve to several objects; clients MUST show all of them.
 Readers process photos on the device; nothing in this specification requires sending an
 image anywhere.
+
+## License
+
+This specification, the GlyphByte alphabet and its canonical shapes, the sheet and the test
+vectors are licensed under the Creative Commons Attribution-ShareAlike 4.0 International
+License (`LICENSE-CC-BY-SA-4.0` in the repository, https://creativecommons.org/licenses/by-sa/4.0/).
+The reference implementations are MIT.

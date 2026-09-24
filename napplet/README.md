@@ -17,4 +17,4 @@ const hits = await lookup(result.sequences.map(s => s.hex), { relay: 'wss://whea
 ```
 
 The same code, bundled into one HTML file, is the GlyphByte napplet (NIP-5D).
-MIT.
+Code MIT. The alphabet, shapes and specification are CC BY-SA 4.0.
