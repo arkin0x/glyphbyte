@@ -89,7 +89,7 @@ ICONS = {
     "moon":     _moon(),
     "crown":    [("poly", [(-0.4, 0.3), (-0.4, -0.3), (-0.2, 0.0), (0, -0.36), (0.2, 0.0), (0.4, -0.3), (0.4, 0.3)], True)],
     "arrow":    [("poly", [(0, 0.45), (0, -0.42)], False), ("poly", [(-0.3, -0.12), (0, -0.44), (0.3, -0.12)], False)],
-    "cloud":    _cloud(),
+    "box":      [("poly", [(-0.3, -0.3), (0.3, -0.3), (0.3, 0.3), (-0.3, 0.3)], True)],
     "mountain": [("poly", [(-0.45, 0.36), (0, -0.4), (0.45, 0.36)], True)],
     "pie":      _pie(),
     "tree":     [("circle", 0, -0.14, 0.28), ("poly", [(0, 0.14), (0, 0.46)], False)],
@@ -101,7 +101,7 @@ ICONS = {
     "fish":     _fish(),
 }
 NAMES = list(ICONS)
-KEPT = {"house", "heart", "drop", "moon", "crown", "arrow", "cloud", "mountain", "pie"}
+KEPT = {"house", "heart", "drop", "moon", "crown", "arrow", "mountain", "pie"}
 
 # candidates to replace the wave, not in the alphabet yet
 CANDIDATES = {"spiral": _spiral(), "plus": [("poly", [(0, -0.4), (0, 0.4)], False), ("poly", [(-0.4, 0), (0.4, 0)], False)], "umbrella": _umbrella()}

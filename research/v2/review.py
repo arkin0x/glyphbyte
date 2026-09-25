@@ -18,6 +18,7 @@ REPLACED = {
     "tree": ("tee", "a hollow T took 8 corners; a lollipop tree is a circle and one line"),
     "plus": ("u", "a hollow U took 8 corners; a plus is two straight strokes, drawable by age 4"),
     "flag": ("l", "a hollow L took 6 corners; a flag is a pole and one triangle"),
+    "box": ("cloud", "four straight lines instead of a bumpy outline; kept small so it never reads as a second frame"),
     "x": ("snowman", "two straight strokes; the frame's sides tell it apart from the plus"),
     "bolt": ("bookmark", "bookmark, trapezoid and chevron read as house or mountain once rotation is gone"),
     "star": ("trapezoid", "a five-point star is one stroke that people already draw"),
@@ -236,7 +237,7 @@ a {{ color: var(--accent); }}
 <section>
   <div class="eyebrow">first hex digit</div>
   <h2>The icon alphabet</h2>
-  <p>Nine icons are kept from the current set (pacman renamed pie and turned to face away from the moon). Seven are new, replacing shapes that were slow to draw or that looked too much like each other once rotation is gone. Every icon is upright, has a name you can say, and takes one or two pen strokes.</p>
+  <p>Eight icons are kept from the current set (pacman renamed pie and turned to face away from the moon). Eight are new, replacing shapes that were slow to draw or that looked too much like each other once rotation is gone. Every icon is upright, has a name you can say, and takes one or two pen strokes.</p>
   <div class="grid16">{icons}</div>
 </section>
 
@@ -313,7 +314,7 @@ a {{ color: var(--accent); }}
   <h2>Three decisions before training</h2>
   <ol class="decide">
     <li><p><b>Direction.</b> B keeps the character of your set and removes what made it hard to draw. C is the easiest to draw but has no personality. A stays as it is. My recommendation is B.</p></li>
-    <li><p><b>The seven new icons.</b> Tree, plus, flag, x, bolt, star and fish are proposals. Swap any. A replacement should be upright, nameable, one or two strokes, have no dot inside, and not be a turned or mirrored copy of another icon.</p></li>
+    <li><p><b>The eight new icons.</b> Tree, box, plus, flag, x, bolt, star and fish are proposals. Swap any. A replacement should be upright, nameable, one or two strokes, have no dot inside, and not be a turned or mirrored copy of another icon.</p></li>
     <li><p><b>Frame.</b> A square gives the dots natural corners. A circle is quicker to draw and survives camera tilt better, but the icon would shrink to leave room for the dots. In the drawing-time model the square frame is the biggest single cost in B: 2.3 s of about 5.3 s, against 1.4 s for a circle.</p></li>
   </ol>
 </section>
