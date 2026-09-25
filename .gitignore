@@ -11,3 +11,4 @@ bench/synth/
 research/v2/out/*.pt
 research/v2/out/*.log
 research/v2/__pycache__/
+bench/v2/
