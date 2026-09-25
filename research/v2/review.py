@@ -20,7 +20,7 @@ REPLACED = {
     "flag": ("l", "a hollow L took 6 corners; a flag is a pole and one triangle"),
     "box": ("cloud", "four straight lines instead of a bumpy outline; kept small so it never reads as a second frame"),
     "x": ("snowman", "two straight strokes; the frame's sides tell it apart from the plus"),
-    "bolt": ("bookmark", "bookmark, trapezoid and chevron read as house or mountain once rotation is gone"),
+    "bolt": ("bookmark", "bookmark, trapezoid and chevron read as house or triangle once rotation is gone"),
     "star": ("trapezoid", "a five-point star is one stroke that people already draw"),
     "fish": ("chevron", "a fish is unmistakable and faces sideways, unlike every other icon"),
 }
