@@ -1,0 +1,18 @@
+{
+ "pen": {
+  "acc": 0.1899,
+  "bits_wrong_per_glyph": 1.5586
+ },
+ "marker": {
+  "acc": 0.1416,
+  "bits_wrong_per_glyph": 1.7588
+ },
+ "chalk": {
+  "acc": 0.0913,
+  "bits_wrong_per_glyph": 2.3198
+ },
+ "crop": {
+  "acc": 0.1006,
+  "bits_wrong_per_glyph": 1.9121
+ }
+}

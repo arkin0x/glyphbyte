@@ -8,3 +8,6 @@ bench/out/
 bench/backdrops/
 bench/synth/
 *.pt
+research/v2/out/*.pt
+research/v2/out/*.log
+research/v2/__pycache__/

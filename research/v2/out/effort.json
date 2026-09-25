@@ -1,0 +1,168 @@
+{
+ "v1": {
+  "marks": {
+   "mean": 2.5,
+   "max": 3.0
+  },
+  "sharp_corners": {
+   "mean": 6.625,
+   "max": 12.0
+  },
+  "fill_area": {
+   "mean": 0.104,
+   "max": 0.31
+  },
+  "must_recall_shape": {
+   "mean": 1.0,
+   "max": 1.0
+  },
+  "must_rotate_shape": {
+   "mean": 0.75,
+   "max": 1.0
+  },
+  "things_to_get_right": {
+   "mean": 4.0,
+   "max": 4.0
+  },
+  "est_seconds": {
+   "mean": 5.631,
+   "max": 9.526
+  }
+ },
+ "ring": {
+  "marks": {
+   "mean": 4.5,
+   "max": 7.0
+  },
+  "sharp_corners": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "oblique_strokes": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "fill_area": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "must_recall_shape": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "must_rotate_shape": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "things_to_get_right": {
+   "mean": 4.0,
+   "max": 8.0
+  },
+  "est_seconds": {
+   "mean": 2.75,
+   "max": 3.6
+  }
+ },
+ "star": {
+  "marks": {
+   "mean": 4.0,
+   "max": 5.0
+  },
+  "sharp_corners": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "oblique_strokes": {
+   "mean": 2.0,
+   "max": 4.0
+  },
+  "fill_area": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "must_recall_shape": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "must_rotate_shape": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "things_to_get_right": {
+   "mean": 4.0,
+   "max": 8.0
+  },
+  "est_seconds": {
+   "mean": 2.9,
+   "max": 3.4
+  }
+ },
+ "dice": {
+  "marks": {
+   "mean": 7.0,
+   "max": 13.0
+  },
+  "sharp_corners": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "oblique_strokes": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "fill_area": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "must_recall_shape": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "must_rotate_shape": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "things_to_get_right": {
+   "mean": 6.0,
+   "max": 12.0
+  },
+  "est_seconds": {
+   "mean": 3.2,
+   "max": 5.0
+  }
+ },
+ "tally": {
+  "marks": {
+   "mean": 7.0,
+   "max": 13.0
+  },
+  "sharp_corners": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "oblique_strokes": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "fill_area": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "must_recall_shape": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "must_rotate_shape": {
+   "mean": 0.0,
+   "max": 0.0
+  },
+  "things_to_get_right": {
+   "mean": 6.0,
+   "max": 12.0
+  },
+  "est_seconds": {
+   "mean": 4.4,
+   "max": 7.4
+  }
+ }
+}
