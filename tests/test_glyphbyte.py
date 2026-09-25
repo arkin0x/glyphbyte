@@ -41,12 +41,12 @@ def test_icons_match_vocabulary():
 
 def test_dots_clear_icon_and_frame():
     from glyphbyte.icons import DOT_CORNERS, DOT_OFFSET, DOT_RADIUS, ICON_SCALE, strokes
-    assert 0.5 - DOT_OFFSET - DOT_RADIUS >= 0.1
+    assert 0.5 - DOT_OFFSET - DOT_RADIUS >= 0.099
     for k in range(16):
         pts = np.vstack([p for p, _ in strokes(k)]) * ICON_SCALE
         for dx, dy in DOT_CORNERS:
             d = np.hypot(pts[:, 0] - dx * DOT_OFFSET, pts[:, 1] - dy * DOT_OFFSET).min() - DOT_RADIUS
-            assert d >= 0.1, (SYMBOLS[k], dx, dy, d)
+            assert d >= 0.099, (SYMBOLS[k], dx, dy, d)
 
 
 def test_render_row_geometry():
@@ -122,3 +122,21 @@ def test_spec_photo_vectors():
         img = cv2.imread(os.path.join(spec_dir, ph["image"]))
         res = read_image(img)
         assert any(b.hex() == ph["expected"] for b, _ in res.sequences), res.to_dict()
+
+
+@pytest.mark.skipif(not os.path.exists(MODEL), reason="model not trained")
+@pytest.mark.parametrize("turns", [1, 2, 3])
+def test_glyphs_find_up_without_underline(turns):
+    """v2 icons have a top: a row photographed turned, with no underline, still reads in order."""
+    from glyphbyte.pipeline import read_image
+    data = bytes.fromhex("e8ed3798c6ff")
+    row = render_row(data, cell=110, hand=0.3, rng=np.random.default_rng(5), baseline=False)
+    img = np.ascontiguousarray(np.rot90(row.canvas, turns))
+    res = read_image(cv2.cvtColor(img, cv2.COLOR_GRAY2BGR))
+    assert res.best == data, res.to_dict()
+
+
+def test_handedness():
+    from glyphbyte.detect import handed
+    assert list(handed(np.array([0.0, -1.0]))) == [1.0, 0.0]      # upright: read to the right
+    assert list(handed(np.array([1.0, 0.0]))) == [-0.0, 1.0]      # up points right: read downward

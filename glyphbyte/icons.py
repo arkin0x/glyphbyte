@@ -66,8 +66,8 @@ ICONS: list[tuple[str, list[tuple[list, bool]]]] = [
 NAMES = [n for n, _ in ICONS]
 ICON_SCALE = 0.48          # icon size relative to the frame side
 DOT_OFFSET = 0.32          # dot centres sit this far from the frame centre on each axis, in frame sides
-DOT_RADIUS = 0.065         # dot radius in frame sides
-# with these three, every dot clears both the icon and the frame by 0.115 frame sides, clean
+DOT_RADIUS = 0.08          # dot radius in frame sides
+# with these three, every dot clears both the icon and the frame by 0.10 frame sides, clean
 DOT_CORNERS = [(-1, -1), (1, -1), (1, 1), (-1, 1)]   # top-left 8, top-right 4, bottom-right 2, bottom-left 1
 
 

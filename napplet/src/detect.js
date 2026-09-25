@@ -1,5 +1,5 @@
 // Port of glyphbyte/detect.py: frames, baseline, start dot, rectification. Same numbers, same order.
-import { resizeGray, adaptiveThreshold, morphClose3, removeSpecks, labelComponents, distanceTransform, dilate, warp, normalizePatch } from './imgops.js';
+import { resizeGray, gaussianBlur, adaptiveThreshold, morphClose3, removeSpecks, labelComponents, distanceTransform, dilate, warp, normalizePatch } from './imgops.js';
 import { convexHull, polygonArea, polygonPerimeter, polygonCentroid, pointInPolygon, approxPolyDP, maxInscribedQuad, eigen2, homography, mat3mul, mat3inv } from './geom.js';
 
 export const PATCH = 64, PATCH_MARGIN = 0.12, MAX_SIDE = 1280, JUNK_TOP_K = 24;
@@ -12,9 +12,14 @@ export function prepare(gray, W, H) {
   return { gray: resizeGray(gray, W, H, nw, nh), W: nw, H: nh, scale: s };
 }
 
-export function binarize(gray, W, H, light) {
+// smooth = the grain pass: blur first and close gaps wider, so a stroke made of specks
+// (chalk, a path mown through a field) becomes one closed line again. Same as detect.py.
+export function binarize(gray, W, H, light, smooth = false) {
   const side = Math.min(W, H), block = Math.max(31, Math.floor(side / 14) | 1);
-  const ink = morphClose3(adaptiveThreshold(gray, W, H, block, 10, light), W, H);
+  if (smooth) { const b = gaussianBlur(gray, W, H, Math.max(1.5, side / 500)); gray = Uint8Array.from(b, v => Math.round(v)); }
+  let ink = adaptiveThreshold(gray, W, H, block, smooth ? 6 : 10, light);
+  ink = morphClose3(ink, W, H);
+  if (smooth) ink = morphClose3(ink, W, H);
   return removeSpecks(ink, W, H, Math.max(6, (side / 250) ** 2));
 }
 
@@ -381,14 +386,18 @@ export function rectifyFrame(gray, W, H, f, d, up, lightInk) {
   return normalizePatch(patch, PATCH, lightInk);
 }
 
+// the reading direction for a given "up" (y down): a quarter turn clockwise, so [0, -1] reads along [1, 0]
+export function handed(up) { return [-up[1], up[0]]; }
+
 export function detect(grayIn, Win, Hin, junkFn = null) {
   const { gray, W, H, scale } = prepare(grayIn, Win, Hin);
   const inks = {}; let pool = [];
-  for (const light of [false, true]) {
-    const ink = binarize(gray, W, H, light); inks[light] = ink;
+  // each polarity is binarized twice: as is, and after a blur that rejoins grainy strokes
+  for (const smooth of [false, true]) for (const light of [false, true]) {
+    const ink = binarize(gray, W, H, light, smooth); inks[`${light}${smooth}`] = ink;
     let cov = 0; for (let i = 0; i < ink.length; i++) cov += ink[i]; cov /= ink.length;
     const penalty = 1 - Math.min(0.9, 3 * Math.max(0, cov - 0.2));
-    for (const f of findFrames(ink, W, H)) { f.lightInk = light; f.quality *= penalty; pool.push(f); }
+    for (const f of findFrames(ink, W, H)) { f.lightInk = light; f.smooth = smooth; f.quality *= penalty; pool.push(f); }
   }
   pool.sort((a, b) => b.quality - a.quality);
   let merged = [];
@@ -401,14 +410,22 @@ export function detect(grayIn, Win, Hin, junkFn = null) {
     merged = top.filter(f => f.junk < 0.9);
   }
   let { frames, warnings } = filterRow(merged);
-  const votes = frames.reduce((s, f) => s + (f.lightInk ? 1 : -1), 0), lightInk = votes > 0, ink = inks[lightInk];
+  const votes = frames.reduce((s, f) => s + (f.lightInk ? 1 : -1), 0), lightInk = votes > 0;
+  const smooth = frames.filter(f => f.lightInk === lightInk).reduce((s, f) => s + (f.smooth ? 1 : -1), 0) > 0;
+  const ink = inks[`${lightInk}${smooth}`];
   let up = [0, -1], d = [1, 0], baseline = null, startKnown = false;
   const bl = findBaseline(ink, W, H, frames);
   if (bl) {
     startKnown = bl.startKnown; up = bl.up;
     const L = Math.hypot(bl.pEnd[0] - bl.pStart[0], bl.pEnd[1] - bl.pStart[1]) || 1e-6;
     d = [(bl.pEnd[0] - bl.pStart[0]) / L, (bl.pEnd[1] - bl.pStart[1]) / L]; baseline = [bl.pStart, bl.pEnd];
-    if (!startKnown) warnings.push('baseline found but no start dot: reading left to right');
+    if (!startKnown) warnings.push('baseline found but no start dot: reading order follows from which side is up');
+    else if (d[0] * up[1] - d[1] * up[0] > 0) {   // d must be a quarter turn clockwise from up
+      warnings.push("the start dot disagrees with which side of the underline the glyphs are on; trusting the side"); startKnown = false;
+    }
+    // a photo is never mirrored: once "up" is known, reading runs to its right
+    d = handed(up);
+    if ((bl.pEnd[0] - bl.pStart[0]) * d[0] + (bl.pEnd[1] - bl.pStart[1]) * d[1] < 0) baseline = [bl.pEnd, bl.pStart];
   } else warnings.push('no baseline: assuming the photo is upright and reads left to right');
   if (frames.length) {
     if (bl) {
@@ -421,5 +438,5 @@ export function detect(grayIn, Win, Hin, junkFn = null) {
     } else frames.sort((a, b) => a.center[0] - b.center[0]);
   }
   const patches = frames.map(f => rectifyFrame(gray, W, H, f, d, up, lightInk));
-  return { frames, baseline, startKnown, up, direction: d, lightInk, scale, W, H, warnings, patches };
+  return { frames, baseline, startKnown, up, direction: d, lightInk, scale, W, H, gray, warnings, patches };
 }

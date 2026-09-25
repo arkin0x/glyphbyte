@@ -12,9 +12,10 @@ from .synth import PATCH
 
 @dataclass
 class PatchScores:
-    icon: np.ndarray      # 16 probabilities over the icons, renormalized without junk
+    icon: np.ndarray      # 16 probabilities over the icons, for an upright patch
     dots: np.ndarray      # 4 probabilities that each corner dot is present, top-left first
-    junk: float = 0.0     # probability that the patch is not a glyph at all
+    junk: float = 0.0     # probability that the patch is not a glyph at all, in any rotation
+    orient: np.ndarray | None = None   # 4 probabilities: the glyph is turned k quarter turns counter-clockwise
 
 
 def _sigmoid(x: np.ndarray) -> np.ndarray:
@@ -45,20 +46,19 @@ class Classifier:
         variants = [x]
         if tta:
             variants.append(1.0 - x)  # the model is polarity invariant; averaging both views steadies it
-        icon = None
-        dots = np.zeros((len(patches), 4), np.float64)
+        icon = np.zeros((len(patches), 16))
+        dots = np.zeros((len(patches), 4))
+        junk = np.zeros(len(patches))
+        orient = np.zeros((len(patches), 4))
         for v in variants:
-            li, ld = self.session.run(None, {self.input_name: v})
-            icon = _softmax(li) if icon is None else icon + _softmax(li)
+            li, ld, lj, lo = self.session.run(None, {self.input_name: v})
+            icon += _softmax(li)
             dots += _sigmoid(ld)
-        icon /= len(variants)
-        dots /= len(variants)
-        out = []
-        for i in range(len(patches)):
-            junk = float(icon[i, 16])
-            real = icon[i, :16] / max(icon[i, :16].sum(), 1e-12)
-            out.append(PatchScores(icon=real, dots=dots[i], junk=junk))
-        return out
+            junk += _sigmoid(lj[:, 0])
+            orient += _softmax(lo)
+        k = len(variants)
+        return [PatchScores(icon=icon[i] / k, dots=dots[i] / k, junk=float(junk[i] / k), orient=orient[i] / k)
+                for i in range(len(patches))]
 
     def junk_probabilities(self, patches: list[np.ndarray]) -> np.ndarray:
         return np.array([s.junk for s in self.predict(patches, tta=False)])

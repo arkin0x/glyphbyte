@@ -24,10 +24,10 @@ def main(pt, out_dir, n=24):
     with torch.no_grad():
         for _ in range(n):
             p = make_patch(rng, bd).image.astype(np.float32) / 255.0
-            li, ld = model(torch.from_numpy(p)[None, None])
-            sym = torch.softmax(li, 1)[0].numpy()
-            fx.append({"patch": p.ravel().round(5).tolist(), "icon": (sym[:16] / sym[:16].sum()).tolist(),
-                       "junk": float(sym[16]), "dots": torch.sigmoid(ld)[0].numpy().tolist()})
+            li, ld, lj, lo = model(torch.from_numpy(p)[None, None])
+            fx.append({"patch": p.ravel().round(5).tolist(), "icon": torch.softmax(li, 1)[0].tolist(),
+                       "dots": torch.sigmoid(ld)[0].tolist(), "junk": float(torch.sigmoid(lj)[0, 0]),
+                       "orient": torch.softmax(lo, 1)[0].tolist()})
     json.dump(fx, open(f"{out_dir}/fixtures.json", "w"))
     print(f"wrote {n} fixtures to {out_dir}/fixtures.json")
 

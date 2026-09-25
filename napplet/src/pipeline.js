@@ -1,5 +1,5 @@
 // Image to candidate byte sequences: port of glyphbyte/pipeline.py.
-import { detect } from './detect.js';
+import { detect, rectifyFrame } from './detect.js';
 import { classify } from './nn.js';
 
 export const SYMBOLS = ['house', 'heart', 'drop', 'moon', 'crown', 'arrow', 'box', 'triangle', 'pie', 'tree', 'plus', 'flag', 'x', 'bolt', 'star', 'fish'];
@@ -29,18 +29,48 @@ function sequences(reads, maxSeq) {
   return beam.map(([seq, p]) => ({ bytes: seq, hex: seq.map(b => b.toString(16).padStart(2, '0')).join(''), p: p / tot }));
 }
 
+// how much more likely (nats, summed over the row) a turned reading must be before the glyphs
+// overrule the underline; below this both readings are kept as candidates. Same as pipeline.py.
+const ORIENT_MARGIN = 2.0;
+
+// true [up, d] when glyphs cut with (up, d) look turned k quarter turns counter-clockwise
+function turn(up, d, k) { for (let i = 0; i < ((k % 4) + 4) % 4; i++) [up, d] = [[-d[0], -d[1]], up]; return [up, d]; }
+
+function reorient(det, k, model) {
+  const [up, d] = turn(det.up, det.direction, k);
+  const frames = det.frames.slice().sort((a, b) => (a.center[0] * d[0] + a.center[1] * d[1]) - (b.center[0] * d[0] + b.center[1] * d[1]));
+  const patches = frames.map(f => rectifyFrame(det.gray, det.W, det.H, f, d, up, det.lightInk));
+  return { frames, patches, scores: patches.map(p => classify(model, p, 64)), up, d };
+}
+
+function readsOf(frames, scores, forkRatio, maxPer) {
+  return frames.map((f, i) => { const c = candidates(byteDistribution(scores[i]), forkRatio, maxPer); return { index: i, candidates: c, byte: c[0][0], p: c[0][1], frameConf: f.conf }; });
+}
+
 export function readImage(gray, W, H, model, opts = {}) {
   const maxSeq = opts.maxSequences || 8, forkRatio = opts.forkRatio || 0.2, maxPer = opts.maxPerSymbol || 4;
   const junkFn = patches => patches.map(p => classify(model, p, 64).junk);
   const det = detect(gray, W, H, junkFn);
   const warnings = det.warnings.slice();
   if (!det.frames.length) return { reads: [], sequences: [], warnings: warnings.concat(['no glyphs found']), detection: det };
-  const reads = det.frames.map((f, i) => { const sc = classify(model, det.patches[i], 64); const c = candidates(byteDistribution(sc), forkRatio, maxPer); return { index: i, candidates: c, byte: c[0][0], p: c[0][1], frameConf: f.conf }; });
+  let frames = det.frames, scores = det.patches.map(p => classify(model, p, 64));
+  // every icon but box, plus and x has a top: the glyphs vote on which way the row is turned
+  const turns = det.baseline ? [0, 2] : [0, 1, 2, 3];
+  const ll = {}; for (const k of turns) ll[k] = scores.reduce((s, sc) => s + Math.log(Math.max(sc.orient[k], 1e-6)), 0);
+  const ranked = turns.slice().sort((a, b) => ll[b] - ll[a]);
+  let kBest = ranked[0], turned = null;
+  if (kBest !== 0 && ll[kBest] - ll[0] > ORIENT_MARGIN) {
+    const r = reorient(det, kBest, model);
+    frames = r.frames; scores = r.scores; det.up = r.up; det.direction = r.d; det.frames = r.frames; det.patches = r.patches;
+    warnings.push(`the glyphs read turned ${90 * kBest} degrees from the underline's side; turned the row`);
+  } else if (kBest !== 0 || ll[ranked[0]] - ll[ranked[1]] < ORIENT_MARGIN) turned = kBest === 0 ? ranked[1] : kBest;
+  const reads = readsOf(frames, scores, forkRatio, maxPer);
   let seqs = sequences(reads, maxSeq);
-  if (det.baseline && !det.startKnown) {
-    const rev = seqs.map(s => ({ bytes: s.bytes.slice().reverse(), hex: s.bytes.slice().reverse().map(b => b.toString(16).padStart(2, '0')).join(''), p: s.p * 0.5 }));
-    seqs = seqs.map(s => ({ ...s, p: s.p * 0.5 })).concat(rev).sort((a, b) => b.p - a.p).slice(0, maxSeq);
-    warnings.push('reading direction unknown: sequences include the reversed order');
+  if (turned !== null && !det.startKnown) {
+    const r = reorient(det, turned, model), seq2 = sequences(readsOf(r.frames, r.scores, forkRatio, maxPer), maxSeq);
+    const w = 1 / (1 + Math.exp(ll[0] - ll[turned]));
+    seqs = seqs.map(s => ({ ...s, p: s.p * (1 - w) })).concat(seq2.map(s => ({ ...s, p: s.p * w }))).sort((a, b) => b.p - a.p).slice(0, maxSeq);
+    warnings.push(`not sure which way is up: candidates include the row turned ${90 * turned} degrees`);
   }
   return { reads, sequences: seqs, best: seqs[0].hex, warnings, detection: det };
 }

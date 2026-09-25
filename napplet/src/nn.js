@@ -60,7 +60,9 @@ function softmax(v) {
 }
 
 // patch: Float32Array of PATCH*PATCH values in 0..1.
-// Returns {icon: 16 probabilities, junk: probability of "not a glyph", dots: 4 probabilities, top-left first}
+// Returns {icon: 16 probabilities (upright patch), dots: 4 probabilities, top-left first,
+//          junk: probability of "not a glyph" in any rotation, orient: 4 probabilities that the
+//          glyph is turned k quarter turns counter-clockwise}
 export function classify(model, patch, size) {
   const { w, manifest } = model;
   const ch = manifest.channels;
@@ -75,8 +77,6 @@ export function classify(model, patch, size) {
   for (let c = 0; c < C; c++) { let s = 0; for (let i = 0; i < H * W; i++) s += x[c * H * W + i]; feat[c] = s / (H * W); }
   const dense = (name) => { const W_ = w[name + "_w"], b = w[name + "_b"].data, n = W_.shape[0], out = new Array(n);
     for (let o = 0; o < n; o++) { let s = b[o]; for (let c = 0; c < C; c++) s += W_.data[o * C + c] * feat[c]; out[o] = s; } return out; };
-  const sym = softmax(dense("sym")), dots = dense("dots").map(v => 1 / (1 + Math.exp(-v)));
-  const junk = sym[16];
-  const real = sym.slice(0, 16); const rs = real.reduce((a, b) => a + b, 0) || 1;
-  return { icon: real.map(p => p / rs), junk, dots };
+  const sig = v => 1 / (1 + Math.exp(-v));
+  return { icon: softmax(dense("sym")), dots: dense("dots").map(sig), junk: sig(dense("junk")[0]), orient: softmax(dense("orient")) };
 }

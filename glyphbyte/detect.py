@@ -38,14 +38,15 @@ class Frame:
     size: float
     outer: np.ndarray
     hole: np.ndarray
-    corners: np.ndarray | None = None        # 4x2 unordered, squares only
-    ellipse: tuple | None = None             # ((cx, cy), (MA, ma), angle), circles only
+    corners: np.ndarray | None = None        # 4x2 unordered, from the largest inscribed quadrilateral
+    ellipse: tuple | None = None             # ((cx, cy), (MA, ma), angle), the fallback for rectifying
     ink_fraction: float = 0.0
     quad_ratio: float = 0.0        # confidence of the square/circle decision, 0..1
     stroke: float = 0.0
     quality: float = 1.0           # how much this looks like a drawn frame with a glyph in it
     light_ink: bool = False        # polarity this frame was found in
-    junk: float = 0.0              # classifier's probability that this is not a symbol
+    smooth: bool = False           # found in the grain pass (blurred before binarizing)
+    junk: float = 0.0              # classifier's probability that this is not a glyph
 
 
 @dataclass
@@ -75,13 +76,23 @@ def prepare(image: np.ndarray) -> tuple[np.ndarray, float]:
     return gray, s
 
 
-def binarize(gray: np.ndarray, light_ink: bool) -> np.ndarray:
+def smooth_sigma(gray: np.ndarray) -> float:
+    """Blur for the grain pass: enough to join chalk grain and ragged field paths into strokes."""
+    return max(1.5, min(gray.shape) / 500.0)
+
+
+def binarize(gray: np.ndarray, light_ink: bool, smooth: bool = False) -> np.ndarray:
+    """Local threshold at one polarity. smooth=True is the grain pass: the picture is blurred
+    first and gaps are closed wider, so a stroke made of specks (chalk, a mown path) becomes
+    one closed line again."""
+    if smooth:
+        gray = cv2.GaussianBlur(gray, (0, 0), smooth_sigma(gray))
     src = 255 - gray if light_ink else gray
     side = min(gray.shape)
     block = max(31, (side // 14) | 1)
-    ink = cv2.adaptiveThreshold(src, 1, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block, 10)
-    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, k)
+    ink = cv2.adaptiveThreshold(src, 1, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block, 10 if not smooth else 6)
+    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))    # a plus; applied twice it closes a diamond of radius 2
+    ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, k, iterations=2 if smooth else 1)
     # drop specks
     n, lab, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
     min_area = max(6, (side / 250) ** 2)
@@ -632,6 +643,12 @@ def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, lig
 
 # ----------------------------------------------------------------------------- entry
 
+def handed(up: np.ndarray) -> np.ndarray:
+    """The reading direction for a given "up" in image coordinates (y down): a quarter turn
+    clockwise from up, so up (0, -1) reads along (1, 0)."""
+    return np.array([-up[1], up[0]], dtype=np.float64)
+
+
 def detect(image: np.ndarray, junk_fn=None) -> Detection:
     """junk_fn(list of patches) -> array of probabilities that each patch is not a symbol.
     When given, candidates are scored by it before the row is chosen, so texture that
@@ -640,17 +657,21 @@ def detect(image: np.ndarray, junk_fn=None) -> Detection:
     # frames from both polarities go into one pool; the row then decides which polarity
     # the drawing has. strokes are sparse, so a polarity that inks most of the picture
     # has binarized the paper and its frames are penalized.
+    # each polarity is binarized twice: as is, and after a blur that rejoins grainy strokes
+    # (chalk, a path mown through a field). all frames share one pool.
     inks = {}
     pool: list[Frame] = []
-    for light in (False, True):
-        ink = binarize(gray, light)
-        inks[light] = ink
-        coverage = float(ink.mean())
-        penalty = 1.0 - min(0.9, 3.0 * max(0.0, coverage - 0.2))
-        for f in find_frames(ink):
-            f.light_ink = light
-            f.quality *= penalty
-            pool.append(f)
+    for smooth in (False, True):
+        for light in (False, True):
+            ink = binarize(gray, light, smooth)
+            inks[(light, smooth)] = ink
+            coverage = float(ink.mean())
+            penalty = 1.0 - min(0.9, 3.0 * max(0.0, coverage - 0.2))
+            for f in find_frames(ink):
+                f.light_ink = light
+                f.smooth = smooth
+                f.quality *= penalty
+                pool.append(f)
     pool.sort(key=lambda f: -f.quality)
     merged: list[Frame] = []
     for f in pool:
@@ -671,7 +692,9 @@ def detect(image: np.ndarray, junk_fn=None) -> Detection:
     frames, warnings = filter_row(merged)
     votes = sum(1 if f.light_ink else -1 for f in frames)
     light_ink = votes > 0
-    ink = inks[light_ink]
+    same = [f for f in frames if f.light_ink == light_ink]
+    smooth = sum(1 if f.smooth else -1 for f in same) > 0
+    ink = inks[(light_ink, smooth)]
 
     up = np.array([0.0, -1.0])
     d = np.array([1.0, 0.0])
@@ -683,7 +706,14 @@ def detect(image: np.ndarray, junk_fn=None) -> Detection:
         d = (p_end - p_start) / max(1e-6, np.linalg.norm(p_end - p_start))
         baseline = np.stack([p_start, p_end])
         if not start_known:
-            warnings.append("baseline found but no start dot: reading left to right")
+            warnings.append("baseline found but no start dot: reading order follows from which side is up")
+        elif float(d[0] * up[1] - d[1] * up[0]) > 0:   # d must be a quarter turn clockwise from up
+            warnings.append("the start dot disagrees with which side of the underline the glyphs are on; trusting the side")
+            start_known = False
+        # a photo is never mirrored: once "up" is known, reading runs to its right
+        d = handed(up)
+        if float((p_end - p_start) @ d) < 0:
+            baseline = baseline[::-1].copy()
     else:
         warnings.append("no baseline: assuming the photo is upright and reads left to right")
 
