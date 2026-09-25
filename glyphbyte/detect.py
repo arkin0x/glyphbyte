@@ -461,28 +461,34 @@ def _dot_evidence(ink, dist, pa, pb, med):
     L = max(1e-6, float(np.linalg.norm(pb - pa)))
     u = (pb - pa) / L
 
-    def end_scan(p, direction):
-        """fattest spot within 0.4 med of an end, scanning inward: the run may overshoot the
-        dot by a speck or two, or stop a little short of it"""
+    def end_scan(p, direction, reach):
+        """fattest spot within `reach` med of an end, scanning inward"""
         best, best_p = 0.0, p
-        for t in np.arange(-0.15 * med, 0.4 * med, max(1.0, 0.05 * med)):
+        for t in np.arange(-0.15 * med, reach * med, max(1.0, 0.05 * med)):
             q = p + direction * t
+            if not (0 <= q[0] < ink.shape[1] and 0 <= q[1] < ink.shape[0]):
+                continue  # the photo's border is not a dot
             v = thickness_near(q, max(2, 0.12 * med))
             if v > best:
                 best, best_p = v, q
         return best, best_p
 
-    ta, qa = end_scan(pa, u)
-    tb, qb = end_scan(pb, -u)
-    ra, rb = ta / line_half, tb / line_half
-    hi, lo = max(ra, rb), min(ra, rb)
-    fat = qa if ra > rb else qb
+    # the dot may sit well inside the run's end (paper grain and the paper's own edge can
+    # carry the run past it), so it is sought up to 0.9 med in; the other end is judged thin
+    # or fat within 0.4 med only, or a glyph near that end would look like a second dot
+    ta, qa = end_scan(pa, u, 0.9)
+    tb, qb = end_scan(pb, -u, 0.9)
+    a_fat = ta > tb
+    near = end_scan(pb, -u, 0.4)[0] if a_fat else end_scan(pa, u, 0.4)[0]
+    hi, lo = (ta if a_fat else tb) / line_half, near / line_half
+    ra, rb = (hi, lo) if a_fat else (lo, hi)
+    fat = qa if a_fat else qb
     rd = roundness_near(fat, 0.12 * med)
     if _DEBUG:
         print("[baseline] line_half", round(line_half, 2), "ratio a", round(ra, 2), "b", round(rb, 2), "roundness", round(rd, 2))
     # a start dot is one fat, round end and one thin end; texture is fat at both ends
     if hi >= 1.8 and lo <= 1.6 and hi >= 1.5 * lo and rd <= 3.5:
-        return (0 if ra > rb else 1), hi
+        return (0 if a_fat else 1), hi
     return None, hi
 
 
@@ -553,8 +559,9 @@ def find_baseline(ink: np.ndarray, frames: list[Frame]):
         pa, pb, d2, nrm2 = r
         start, strength = _dot_evidence(ink_lines, dist, pa, pb, med)
         near = 0.5 <= abs(off) / med <= 1.5       # where an underline actually sits
-        # a near line with a start dot beats everything; then coverage, then proximity
-        scored.append(((near, start is not None, -round(abs(off) / med, 1), cov), off, cov, pa, pb, d2, nrm2, start))
+        # a near line with a start dot beats everything; then a nearly continuous line beats a
+        # patchy one (texture), then proximity, then coverage
+        scored.append(((near, start is not None, cov >= 0.7, -round(abs(off) / med, 1), cov), off, cov, pa, pb, d2, nrm2, start))
     if not scored:
         return None
     scored.sort(key=lambda t: t[0], reverse=True)

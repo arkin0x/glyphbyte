@@ -270,13 +270,18 @@ function dotEvidence(ink0, W, H, pa, pb, med) {
   const mids = []; for (let i = 0; i < 9; i++) { const t = 0.25 + 0.5 * i / 8; mids.push(thick([pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t], Math.max(2, 0.04 * med))); }
   mids.sort((a, b) => a - b); const lineHalf = Math.max(1, mids[4]);
   const L = Math.max(1e-6, Math.hypot(pb[0] - pa[0], pb[1] - pa[1])), u = [(pb[0] - pa[0]) / L, (pb[1] - pa[1]) / L];
-  const endScan = (p, dir) => { let best = 0, bp = p; const step = Math.max(1, 0.05 * med);
-    for (let t = -0.15 * med; t < 0.4 * med; t += step) { const q = [p[0] + dir[0] * t, p[1] + dir[1] * t], v = thick(q, Math.max(2, 0.12 * med)); if (v > best) { best = v; bp = q; } }
+  // the dot may sit well inside the run's end (paper grain and the paper's own edge can carry
+  // the run past it), so the dot is sought up to 0.9 med in; the other end is judged thin or
+  // fat within 0.4 med only, or a glyph near that end would look like a second dot
+  const endScan = (p, dir, reach) => { let best = 0, bp = p; const step = Math.max(1, 0.05 * med);
+    for (let t = -0.15 * med; t < reach * med; t += step) { const q = [p[0] + dir[0] * t, p[1] + dir[1] * t]; if (q[0] < 0 || q[1] < 0 || q[0] >= W || q[1] >= H) continue; const v = thick(q, Math.max(2, 0.12 * med)); if (v > best) { best = v; bp = q; } }
     return [best, bp]; };
-  const [ta, qa] = endScan(pa, u), [tb, qb] = endScan(pb, [-u[0], -u[1]]);
-  const ra = ta / lineHalf, rb = tb / lineHalf, hi = Math.max(ra, rb), lo = Math.min(ra, rb);
-  const rd = roundness(ra > rb ? qa : qb, 0.12 * med);
-  if (hi >= 1.8 && lo <= 1.6 && hi >= 1.5 * lo && rd <= 3.5) return { start: ra > rb ? 0 : 1, strength: hi };
+  const ub = [-u[0], -u[1]];
+  const [ta, qa] = endScan(pa, u, 0.9), [tb, qb] = endScan(pb, ub, 0.9);
+  const aFat = ta > tb, near = aFat ? endScan(pb, ub, 0.4)[0] : endScan(pa, u, 0.4)[0];
+  const hi = (aFat ? ta : tb) / lineHalf, lo = near / lineHalf;
+  const rd = roundness(aFat ? qa : qb, 0.12 * med);
+  if (hi >= 1.8 && lo <= 1.6 && hi >= 1.5 * lo && rd <= 3.5) return { start: aFat ? 0 : 1, strength: hi };
   return { start: null, strength: hi };
 }
 
@@ -314,10 +319,11 @@ export function findBaseline(ink, W, H, frames) {
     const r = refineLine2(ink, inkD, inkLines, W, H, [m[0] + nrm[0] * off, m[1] + nrm[1] * off], d, nrm, med, tLo, tHi); if (!r) continue;
     const { start } = dotEvidence(inkLines, W, H, r.pa, r.pb, med);
     const near = Math.abs(off) / med >= 0.5 && Math.abs(off) / med <= 1.5;
-    scored.push({ key: [near ? 1 : 0, start !== null ? 1 : 0, -Math.round(Math.abs(off) / med * 10) / 10, cov], off, cov, ...r, start });
+    // a drawn line is nearly continuous; a patchy one is texture, however close it sits
+    scored.push({ key: [near ? 1 : 0, start !== null ? 1 : 0, cov >= 0.7 ? 1 : 0, -Math.round(Math.abs(off) / med * 10) / 10, cov], off, cov, ...r, start });
   }
   if (!scored.length) return null;
-  scored.sort((a, b) => { for (let i = 0; i < 4; i++) if (a.key[i] !== b.key[i]) return b.key[i] - a.key[i]; return 0; });
+  scored.sort((a, b) => { for (let i = 0; i < a.key.length; i++) if (a.key[i] !== b.key[i]) return b.key[i] - a.key[i]; return 0; });
   let { pa, pb, d: dd, nrm: nn, start } = scored[0];
   let sideSum = 0; for (const f of frames) sideSum += (f.center[0] - pa[0]) * nn[0] + (f.center[1] - pa[1]) * nn[1];
   const side = Math.sign(sideSum / frames.length) || 1, up = [nn[0] * side, nn[1] * side];
