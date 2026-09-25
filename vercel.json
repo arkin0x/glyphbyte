@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pip3 install -r site/requirements.txt",
+  "buildCommand": "python3 site/build.py",
+  "outputDirectory": "site/dist",
+  "framework": null,
+  "trailingSlash": true,
+  "headers": [
+    { "source": "/(.*)\\.(svg|json|png|jpg)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }] },
+    { "source": "/app/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] }
+  ]
+}

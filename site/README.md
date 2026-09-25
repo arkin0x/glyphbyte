@@ -60,3 +60,10 @@ The script refuses to run without `DEPLOY_TARGET` or without a complete build, r
 `rsync -avz --delete --chmod=D755,F644`, and leaves `.well-known/` on the server alone. Everything
 else under the target that is not in `site/dist/` is deleted, so point it at the site's own
 directory, never at the home directory.
+
+## Vercel
+
+`vercel.json` at the repository root makes the site deploy from GitHub with no server: install
+command `pip3 install -r site/requirements.txt`, build command `python3 site/build.py`, output
+directory `site/dist`. Every push to `main` deploys production; every pull request gets a preview
+URL. The DreamHost `deploy.sh` path still works for a manual upload of the same `site/dist/`.
