@@ -93,15 +93,15 @@ ICONS = {
     "mountain": [("poly", [(-0.45, 0.36), (0, -0.4), (0.45, 0.36)], True)],
     "pie":      _pie(),
     "tree":     [("circle", 0, -0.14, 0.28), ("poly", [(0, 0.14), (0, 0.46)], False)],
-    "wave":     _wave(),
+    "plus":     [("poly", [(0, -0.42), (0, 0.42)], False), ("poly", [(-0.42, 0), (0.42, 0)], False)],
     "flag":     [("poly", [(-0.3, 0.46), (-0.3, -0.44)], False), ("poly", [(-0.3, -0.44), (0.36, -0.24), (-0.3, -0.04)], False)],
-    "snowman":  [("circle", 0, -0.25, 0.17), ("circle", 0, 0.18, 0.26)],
+    "x":        [("poly", [(-0.32, -0.32), (0.32, 0.32)], False), ("poly", [(0.32, -0.32), (-0.32, 0.32)], False)],
     "bolt":     [("poly", [(0.12, -0.46), (-0.2, 0.04), (0.16, 0.0), (-0.12, 0.46)], False)],
     "star":     _star(),
     "fish":     _fish(),
 }
 NAMES = list(ICONS)
-KEPT = {"house", "heart", "drop", "moon", "crown", "arrow", "cloud", "mountain", "pie", "snowman"}
+KEPT = {"house", "heart", "drop", "moon", "crown", "arrow", "cloud", "mountain", "pie"}
 
 # candidates to replace the wave, not in the alphabet yet
 CANDIDATES = {"spiral": _spiral(), "plus": [("poly", [(0, -0.4), (0, 0.4)], False), ("poly", [(-0.4, 0), (0.4, 0)], False)], "umbrella": _umbrella()}

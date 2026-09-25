@@ -16,8 +16,9 @@ from sets import ring  # noqa: E402
 DOTS = [(-1, -1), (1, -1), (1, 1), (-1, 1)]   # NW NE SE SW = 8 4 2 1
 REPLACED = {
     "tree": ("tee", "a hollow T took 8 corners; a lollipop tree is a circle and one line"),
-    "wave": ("u", "a hollow U took 8 corners; a wave is one smooth stroke"),
+    "plus": ("u", "a hollow U took 8 corners; a plus is two straight strokes, drawable by age 4"),
     "flag": ("l", "a hollow L took 6 corners; a flag is a pole and one triangle"),
+    "x": ("snowman", "two straight strokes; the frame's sides tell it apart from the plus"),
     "bolt": ("bookmark", "bookmark, trapezoid and chevron read as house or mountain once rotation is gone"),
     "star": ("trapezoid", "a five-point star is one stroke that people already draw"),
     "fish": ("chevron", "a fish is unmistakable and faces sideways, unlike every other icon"),
@@ -235,7 +236,7 @@ a {{ color: var(--accent); }}
 <section>
   <div class="eyebrow">first hex digit</div>
   <h2>The icon alphabet</h2>
-  <p>Ten icons are kept from the current set. Six are new, replacing shapes that were slow to draw or that looked too much like each other once rotation is gone. Every icon is upright, has a name you can say, and takes one or two pen strokes.</p>
+  <p>Nine icons are kept from the current set (pacman renamed pie and turned to face away from the moon). Seven are new, replacing shapes that were slow to draw or that looked too much like each other once rotation is gone. Every icon is upright, has a name you can say, and takes one or two pen strokes.</p>
   <div class="grid16">{icons}</div>
 </section>
 
@@ -298,7 +299,7 @@ a {{ color: var(--accent); }}
   <div class="evidence">
     <div class="ev"><h3>Lines and circles come first</h3><p>Children copy a vertical line at 2, a circle at 3, a cross and a square at 4, a triangle at 5, a diamond at 6. Slanted lines are harder than level ones at every age.</p><a href="https://med.stanford.edu/content/dam/sm/pediatricsclerkship/documents/5-Developmental-Milestones-MedU.pdf">Stanford pediatrics milestones</a><a href="https://pubmed.ncbi.nlm.nih.gov/3559475/">diamond vs square, PubMed 3559475</a></div>
     <div class="ev"><h3>Rotations and mirrors confuse people</h3><p>Left-right mirrors are the most confused transform in children's letter tests, and 180° turns nearly as much. The current set spends 2 of its 8 bits on rotation.</p><a href="https://upload.wikimedia.org/wikipedia/commons/b/b3/A_developmental_study_of_the_discrimination_of_letter-like_forms.pdf">Gibson et al. 1962</a><a href="https://pubmed.ncbi.nlm.nih.gov/19770045/">Dehaene et al. 2010</a></div>
-    <div class="ev"><h3>Open vs closed is easy to tell</h3><p>Even 4-year-olds tell a closed shape from one with a gap. The draft keeps closed icons (heart, star) apart from open ones (wave, arrow).</p><a href="https://upload.wikimedia.org/wikipedia/commons/b/b3/A_developmental_study_of_the_discrimination_of_letter-like_forms.pdf">Gibson et al. 1962</a></div>
+    <div class="ev"><h3>Open vs closed is easy to tell</h3><p>Even 4-year-olds tell a closed shape from one with a gap. The draft keeps closed icons (heart, star) apart from open ones (arrow, bolt).</p><a href="https://upload.wikimedia.org/wikipedia/commons/b/b3/A_developmental_study_of_the_discrimination_of_letter-like_forms.pdf">Gibson et al. 1962</a></div>
     <div class="ev"><h3>Count to four, no further</h3><p>Up to about four items are counted at a glance and almost without error; beyond that, errors climb. Four corner dots stay inside that limit.</p><a href="https://pubmed.ncbi.nlm.nih.gov/8121961/">Trick and Pylyshyn 1994</a></div>
     <div class="ev"><h3>Simple shapes, one stroke, seconds</h3><p>In Google's Quick, Draw! data, a circle is drawn in about 1.4 s and recognised 97% of the time; a star in 3.1 s at 96%; an octagon takes 6 s.</p><a href="https://github.com/googlecreativelab/quickdraw-dataset">Quick, Draw! dataset</a></div>
     <div class="ev"><h3>Matoran: circle, lines, small circles</h3><p>Every letter sits in the same outer circle and uses one to three lines and one or two small circles. Letters that differ only by where one dot sits (A, C, P, Q, U) are its weak spot.</p><a href="https://biosector01.com/wiki/Matoran_Alphabet">BIONICLE Matoran alphabet</a></div>
@@ -312,7 +313,7 @@ a {{ color: var(--accent); }}
   <h2>Three decisions before training</h2>
   <ol class="decide">
     <li><p><b>Direction.</b> B keeps the character of your set and removes what made it hard to draw. C is the easiest to draw but has no personality. A stays as it is. My recommendation is B.</p></li>
-    <li><p><b>The six new icons.</b> Tree, wave, flag, bolt, star and fish are proposals. Swap any. A replacement should be upright, nameable, one or two strokes, have no dot inside, and not be a turned or mirrored copy of another icon.</p></li>
+    <li><p><b>The seven new icons.</b> Tree, plus, flag, x, bolt, star and fish are proposals. Swap any. A replacement should be upright, nameable, one or two strokes, have no dot inside, and not be a turned or mirrored copy of another icon.</p></li>
     <li><p><b>Frame.</b> A square gives the dots natural corners. A circle is quicker to draw and survives camera tilt better, but the icon would shrink to leave room for the dots. In the drawing-time model the square frame is the biggest single cost in B: 2.3 s of about 5.3 s, against 1.4 s for a circle.</p></li>
   </ol>
 </section>
