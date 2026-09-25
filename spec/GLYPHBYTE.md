@@ -76,7 +76,7 @@ underline (see Reading), so a photo taken sideways reads the same as one taken u
 2. **Icon in the middle,** upright, about half the frame's width, one or two strokes, touching
    nothing. Keep the box and the x small, well inside the frame: a big box reads as a second
    frame, and the x's arms point at the corner dots.
-3. **Corner dots.** A dot is a filled blob about an eighth of the frame across, placed in the
+3. **Corner dots.** A dot is a filled blob about a sixth of the frame across, placed in the
    corner area between the icon and the frame. A dot must touch neither the frame nor the
    icon: a dot that touches a line becomes part of it and is lost.
 4. **Keep points pointy.** The house's roof, the crown's points and the triangle's corners are
@@ -90,9 +90,9 @@ underline (see Reading), so a photo taken sideways reads the same as one taken u
 3. **Start dot:** a solid dot at the start end of the underline, about a quarter of a frame
    across. The underline tells a reader which way is up; the dot tells it where to start.
 
-A row without an underline is readable only if the photo is upright and left to right; a
-reader MUST warn when it had to assume that. A row with an underline but no dot has two
-readings, forward and reversed; a reader SHOULD return both.
+A row without an underline is still readable: its glyphs show which way is up. A reader MUST
+warn when it had to decide "up" from the glyphs alone, and SHOULD return the runner-up
+orientation's reading as a candidate when the glyphs do not agree clearly.
 
 Recommended lengths for Nostr references: **6 bytes** (48 bits) for an event id or pubkey
 prefix in ordinary use, **8 bytes** for something meant to stay unambiguous for years, **4
@@ -108,10 +108,15 @@ work like this, and a compatible reader MUST produce the same bytes for the same
 1. Find the frames: closed squares of ink that contain ink, taken in any perspective.
 2. Find the row: the frames that share a line and a smooth size trend.
 3. Find the underline: a long stroke parallel to the row just outside it, and its fat end.
-   "Up" is the side of the underline the frames are on; reading order starts at the dot.
-4. Rectify each frame into an upright patch from its four corners, and classify the icon
+   "Up" is the side of the underline the frames are on. A photo is never mirrored, so reading
+   runs a quarter turn clockwise from up; the dot confirms where the row starts.
+4. Check "up" against the glyphs. Every icon except box, plus and x has a top, so the glyphs
+   of a row vote on how the row is turned. When the vote clearly disagrees with the underline
+   (a ruled line on lined paper, a paper edge), the glyphs win; when it is close, both
+   readings are returned as candidates. Without an underline the glyphs alone decide.
+5. Rectify each frame into an upright patch from its four corners, and classify the icon
    and each of the four corner dots.
-5. Assemble bytes. Where a glyph is uncertain, keep the alternatives and return the most
+6. Assemble bytes. Where a glyph is uncertain, keep the alternatives and return the most
    probable whole sequences, ranked, so the client can query all of them.
 
 Readers MUST NOT silently drop a glyph they could not read; a missing byte shifts every later

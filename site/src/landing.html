@@ -18,7 +18,7 @@
     </li>
     <li>
       <h3>Read</h3>
-      <p>Open the reader on a phone and take a photo. It finds the frames, the underline and the dot, straightens each frame, and reads the icon and each corner dot with a small neural network, all in JavaScript on the device. The underline tells it which way is up, so a photo taken sideways reads the same.</p>
+      <p>Open the reader on a phone and take a photo. It finds the frames, the underline and the dot, straightens each frame, and reads the icon and each corner dot with a small neural network, all in JavaScript on the device. The underline tells it which way is up, and the icons check it: each has a top, so a photo taken sideways or upside down reads the same, even without an underline.</p>
       <p>Where a glyph is unclear the reader keeps the alternatives instead of guessing, and returns the most probable whole readings, ranked. A missing glyph is never dropped silently, because that would shift every byte after it.</p>
     </li>
     <li>
@@ -58,7 +58,7 @@
   <ul>
     <li><b>Frame first.</b> Draw a square. Keep the frames about the same size along the row, with a gap of roughly a third of a frame between them.</li>
     <li><b>Icon in the middle,</b> upright, about half the frame wide, touching nothing. Keep the box and the x small.</li>
-    <li><b>Corner dots</b> are filled blobs about an eighth of the frame across. A dot must touch neither the frame nor the icon, or it becomes part of that line.</li>
+    <li><b>Corner dots</b> are filled blobs about a sixth of the frame across. A dot must touch neither the frame nor the icon, or it becomes part of that line.</li>
     <li><b>Keep points pointy.</b> The house's roof, the crown's points and the triangle's corners are what separate them from the box.</li>
     <li><b>Underline the row</b> with one stroke a little below the frames, extending past the first and last frame. The line tells the reader which way is up.</li>
     <li><b>Fat start dot:</b> a solid dot at the start end of the underline, about a quarter of a frame across. The dot tells the reader where to begin; without it the row has two readings, forward and reversed.</li>

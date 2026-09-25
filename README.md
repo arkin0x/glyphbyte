@@ -74,12 +74,13 @@ eight bytes, a wrong candidate simply matches nothing.
 
 | stage | method |
 |---|---|
-| binarize | local threshold at both polarities (dark ink on light, light ink on dark), specks removed |
+| binarize | local threshold at both polarities (dark ink on light, light ink on dark), each also after a blur that rejoins grainy strokes (chalk, mown paths), specks removed |
 | frames | interiors of ink squares that hold ink; frames with a pen gap are recovered from their convex hull; a stroke-width check by ray marching rejects paper regions and thick texture; confidently round rings score lower |
 | the row | the set of frames sharing a line and a smooth size trend with the highest total quality, so tiles and windows in the backdrop lose |
 | baseline and start | parallel offsets scored by ink coverage in the gaps between frames; each candidate line is refined and tested for a fat end; a line with a dot beats a lined-paper line |
-| rectify | homography from the frame's four corners, rotated so the baseline is horizontal |
-| classify | a 4-block CNN (about 0.9M parameters) on 64x64 contrast-normalized patches, two heads: the icon (16 classes plus not-a-glyph) and the four corner dots (one yes/no each); polarity-invariant; ONNX on CPU |
+| rectify | homography from the frame's four corners, rotated so the baseline is horizontal; reading runs a quarter turn clockwise from up |
+| which way is up | the icons vote: a fourth network head says how each glyph is turned, and a clear vote turns the whole row (a ruled line or a paper edge taken for the underline, or no underline at all); a close vote keeps both readings |
+| classify | a 4-block CNN (about 0.9M parameters) on 64x64 contrast-normalized patches, four heads: the icon (16 classes), the four corner dots (one yes/no each), not-a-glyph (in any rotation) and the glyph's turn (4 classes); polarity-invariant; ONNX on CPU |
 | decode | joint probability over the 256 bytes per cell (icon times each dot), then a beam over cells |
 
 The classifier is trained only on synthetic data rendered from the icon strokes:
