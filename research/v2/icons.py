@@ -51,8 +51,21 @@ def _star():
     return [("poly", pts, True)]
 
 
-def _pacman():
-    return [("poly", [(0, 0)] + arc(0, 0, 0.42, 35, 325), True)]
+def _pie():
+    """a pie missing one slice; the gap faces left, away from the moon's opening"""
+    return [("poly", [(0, 0)] + arc(0, 0, 0.42, 215, 505), True)]
+
+
+def _spiral():
+    """one and a half turns, open, one stroke"""
+    t = np.linspace(0, 3 * math.pi, 90)
+    r = 0.06 + 0.36 * t / t[-1]
+    return [("poly", list(zip(r * np.cos(t), r * np.sin(t))), False)]
+
+
+def _umbrella():
+    dome = arc(0, 0.02, 0.44, 180, 360)
+    return [("poly", dome, True), ("poly", [(0, 0.02), (0, 0.36)] + arc(-0.08, 0.36, 0.08, 0, 180, 10), False)]
 
 
 def _fish():
@@ -78,7 +91,7 @@ ICONS = {
     "arrow":    [("poly", [(0, 0.45), (0, -0.42)], False), ("poly", [(-0.3, -0.12), (0, -0.44), (0.3, -0.12)], False)],
     "cloud":    _cloud(),
     "mountain": [("poly", [(-0.45, 0.36), (0, -0.4), (0.45, 0.36)], True)],
-    "pacman":   _pacman(),
+    "pie":      _pie(),
     "tree":     [("circle", 0, -0.14, 0.28), ("poly", [(0, 0.14), (0, 0.46)], False)],
     "wave":     _wave(),
     "flag":     [("poly", [(-0.3, 0.46), (-0.3, -0.44)], False), ("poly", [(-0.3, -0.44), (0.36, -0.24), (-0.3, -0.04)], False)],
@@ -88,4 +101,7 @@ ICONS = {
     "fish":     _fish(),
 }
 NAMES = list(ICONS)
-KEPT = {"house", "heart", "drop", "moon", "crown", "arrow", "cloud", "mountain", "pacman", "snowman"}
+KEPT = {"house", "heart", "drop", "moon", "crown", "arrow", "cloud", "mountain", "pie", "snowman"}
+
+# candidates to replace the wave, not in the alphabet yet
+CANDIDATES = {"spiral": _spiral(), "plus": [("poly", [(0, -0.4), (0, 0.4)], False), ("poly", [(-0.4, 0), (0.4, 0)], False)], "umbrella": _umbrella()}
