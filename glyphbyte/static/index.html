@@ -29,10 +29,10 @@
 </head>
 <body>
 <main>
-  <h1>glyphbyte <small>hand-drawn symbols, one byte each</small></h1>
+  <h1>glyphbyte <small>hand-drawn glyphs, one byte each</small></h1>
 
   <section>
-    <h2>Bytes to symbols</h2>
+    <h2>Bytes to glyphs</h2>
     <input id="hex" type="text" placeholder="hex, e.g. 8a3a3a6609eb" autocomplete="off" spellcheck="false">
     <div class="row">
       <label class="muted"><input id="hand" type="checkbox"> show a sloppy version</label>
@@ -41,7 +41,7 @@
     </div>
     <img id="render" class="render" alt="" hidden>
     <ol id="describe" class="symbols"></ol>
-    <p class="muted">Draw each symbol inside its frame, underline the row, and put a fat dot at the start of the underline (about a quarter of a symbol across). Filled means scribble it in.</p>
+    <p class="muted">Draw a square frame, the icon upright and small in the middle, and the corner dots so they touch nothing. Underline the row and put a fat dot at the start of the underline (about a quarter of a frame across).</p>
   </section>
 
   <section>
@@ -67,7 +67,7 @@ async function encode() {
   const url = `/api/encode.png?hex=${hex}&hand=${$('hand').checked ? 0.7 : 0}&cell=140`;
   $('render').src = url; $('render').hidden = false; $('dl').href = url;
   const r = await fetch(`/api/describe?hex=${hex}`); const d = await r.json();
-  $('describe').innerHTML = d.symbols.map(s => `<li><code>${s.hex}</code> ${s.name}, rotated ${s.rotation}°, ${s.fill}, ${s.frame} frame</li>`).join('');
+  $('describe').innerHTML = d.symbols.map(s => `<li><code>${s.hex}</code> ${s.text}</li>`).join('');
 }
 $('file').addEventListener('change', () => sendFile($('file').files[0]));
 async function sendFile(f) {
@@ -82,10 +82,10 @@ async function sendFile(f) {
 }
 function show(d) {
   let h = '';
-  if (!d.sequences || !d.sequences.length) { h += `<p class="warn">no symbols found</p>`; }
+  if (!d.sequences || !d.sequences.length) { h += `<p class="warn">no glyphs found</p>`; }
   else {
     h += `<p>Most likely: <code style="font-size:18px">${d.best}</code></p>`;
-    if (d.sequences.length > 1) h += `<p class="muted">Not sure about some symbols. Pick the reading that matches what you see, or query all of them:</p>`;
+    if (d.sequences.length > 1) h += `<p class="muted">Not sure about some glyphs. Pick the reading that matches what you see, or query all of them:</p>`;
     h += `<div class="seq">` + d.sequences.map(s => `<button onclick="navigator.clipboard.writeText('${s.hex}');this.textContent='${s.hex} ✓'">${s.hex} <span class="muted">${Math.round(s.p*100)}%</span></button>`).join('') + `</div>`;
     h += `<ol class="symbols">` + d.symbols.map(s => {
       const alts = s.candidates.slice(1).map(c => `${c.glyph} (${Math.round(c.p*100)}%)`).join('; ');

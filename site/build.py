@@ -13,7 +13,6 @@ What goes where:
     spec/{test-vectors,glyphs}.json, spec/glyphs.svg, spec/vectors/*  -> dist/spec/...
     spec/glyphs.svg              -> dist/sheet.svg
     spec/vectors/row-<hex>.png   -> dist/img/                    the reference row on the landing page
-    spec/vectors/photo-01.jpg    -> dist/img/photo-01.jpg        resized with OpenCV, 1200 px long side, JPEG 85
     spec/glyphs.json (house)     -> dist/favicon.svg
     site/src/*                   -> dist/index.html, dist/404.html, dist/.htaccess
 
@@ -32,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SRC, DIST = os.path.join(HERE, "src"), os.path.join(HERE, "dist")
 NAPPLET, SPEC = os.path.join(ROOT, "napplet"), os.path.join(ROOT, "spec")
-ROW_HEX = "e8ed3798c6ff"   # the reference row shown on the landing page; also the photo's expected bytes
+ROW_HEX = "e8ed3798c6ff"   # the reference row shown on the landing page
 SITE_DESCRIPTION = ("GlyphByte: a hand-drawable alphabet where one glyph is one byte. Draw a nostr event id or "
                     "pubkey prefix with any pen; a phone reads it back on the device and a relay resolves it.")
 
@@ -50,7 +49,7 @@ def write(path, text):
 
 
 def copy(src, dst):
-    """copyfile, not copy2: the source mode is not carried over (spec/vectors/photo-01.jpg is 0600, Apache needs 0644)."""
+    """copyfile, not copy2: the source mode is not carried over (a 0600 source would be unreadable on a web server)."""
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     shutil.copyfile(src, dst)
     os.chmod(dst, 0o644)
@@ -101,12 +100,16 @@ def resize_photo(src, dst, max_side=1200, quality=85):
 
 
 def favicon_svg():
-    """Byte 0x02, the filled house in a square frame, from the spec's own polygon."""
-    house = next(s for s in json.load(open(os.path.join(SPEC, "glyphs.json"))) if s["name"] == "house")
-    pts = " ".join(f"{32 + x * 34:.1f},{32 + y * 34:.1f}" for x, y in house["outer"])
+    """Byte 0x0f, the house with all four corner dots, from the spec's own strokes."""
+    g = json.load(open(os.path.join(SPEC, "glyphs.json")))
+    house = next(i for i in g["icons"] if i["name"] == "house")
+    k = 52 * g["icon_scale"]
+    paths = "".join(f'<polyline points="{" ".join(f"{32 + x * k:.1f},{32 + y * k:.1f}" for x, y in st["points"] + (st["points"][:1] if st["closed"] else []))}" '
+                    'fill="none" stroke="#151515" stroke-width="4" stroke-linejoin="round"/>' for st in house["strokes"])
+    dots = "".join(f'<circle cx="{32 + dx * g["dot_offset"] * 52:.1f}" cy="{32 + dy * g["dot_offset"] * 52:.1f}" r="{g["dot_radius"] * 52 * 1.2:.1f}" fill="#151515"/>'
+                   for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1)))
     return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#f6f4ee"/>'
-            '<rect x="6" y="6" width="52" height="52" fill="none" stroke="#151515" stroke-width="4"/>'
-            f'<polygon points="{pts}" fill="#151515"/></svg>\n')
+            '<rect x="6" y="6" width="52" height="52" fill="none" stroke="#151515" stroke-width="4"/>' + paths + dots + '</svg>\n')
 
 
 def build():
@@ -128,17 +131,14 @@ def build():
     row_src = os.path.join(SPEC, "vectors", f"row-{ROW_HEX}.png")
     copy(row_src, os.path.join(DIST, "img", f"row-{ROW_HEX}.png"))
     row_w, row_h = image_size(row_src)
-    photo_w, photo_h = resize_photo(os.path.join(SPEC, "vectors", "photo-01.jpg"), os.path.join(DIST, "img", "photo-01.jpg"))
 
     tv = json.load(open(os.path.join(SPEC, "test-vectors.json")))
     seq = next(s for s in tv["sequences"] if s["hex"] == ROW_HEX)
-    photo = next(p for p in tv["photos"] if p["image"] == "vectors/photo-01.jpg")
     row_glyphs = "".join(f"<li><code>{ROW_HEX[2 * i:2 * i + 2]}</code> {html.escape(g)}</li>" for i, g in enumerate(seq["glyphs"]))
 
     write(os.path.join(DIST, "index.html"), page(
         "landing.html", "glyphbyte", SITE_DESCRIPTION, "landing",
-        ROW_HEX=ROW_HEX, ROW_W=str(row_w), ROW_H=str(row_h), ROW_GLYPHS=row_glyphs,
-        PHOTO_HEX=photo["expected"], PHOTO_W=str(photo_w), PHOTO_H=str(photo_h)))
+        ROW_HEX=ROW_HEX, ROW_W=str(row_w), ROW_H=str(row_h), ROW_GLYPHS=row_glyphs))
     write(os.path.join(DIST, "404.html"), page(
         "404.html", "not found · glyphbyte", "This page does not exist.", "notfound"))
     vector_links = ", ".join(f'<a href="/spec/vectors/{html.escape(n)}">{html.escape(n)}</a>' for n in vectors)

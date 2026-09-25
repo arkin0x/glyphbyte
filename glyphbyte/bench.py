@@ -25,7 +25,7 @@ def run_bench(directory: str, model: str | None = None, max_sequences: int = 8, 
     n = len(items)
     exact = topk = 0
     sym_ok = sym_n = 0
-    bit_ok = {"symbol": 0, "rotation": 0, "fill": 0, "frame": 0}
+    bit_ok = {"icon": 0, "dots": 0}
     frames_found = cells = 0
     confusion = np.zeros((16, 16), int)
     secs = 0.0
@@ -48,12 +48,10 @@ def run_bench(directory: str, model: str | None = None, max_sequences: int = 8, 
             for r, tb in zip(res.reads, truth):
                 sym_n += 1
                 g, tg = r.glyph, unpack(tb)
-                confusion[tg.symbol, g.symbol] += 1
+                confusion[tg.icon, g.icon] += 1
                 sym_ok += int(r.byte == tb)
-                bit_ok["symbol"] += int(g.symbol == tg.symbol)
-                bit_ok["rotation"] += int(g.rotation == tg.rotation)
-                bit_ok["fill"] += int(g.fill == tg.fill)
-                bit_ok["frame"] += int(g.frame == tg.frame)
+                bit_ok["icon"] += int(g.icon == tg.icon)
+                bit_ok["dots"] += int(g.dots == tg.dots)
         else:
             frames_found += min(len(res.reads), len(truth))
         hb = "hand<0.5" if it.get("hand", 0) < 0.5 else "hand>=0.5"

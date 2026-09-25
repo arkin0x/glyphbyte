@@ -110,9 +110,11 @@ export function findFrames(ink, W, H) {
     q *= 0.5 + 0.5 * conf;
     q *= offC <= 0.22 ? 1 : 0.5;
     q *= share >= 0.5 ? 1 : (share >= 0.3 ? 0.6 : 0.3);
+    if (kind === FRAME_CIRCLE) q *= 1 - 0.5 * conf;   // v2 frames are squares: a confidently round ring is likely not one
     if (kind === FRAME_CIRCLE) size = Math.sqrt(px / Math.PI) * 2;
     const fr = { kind, center, size, hull, outer: ringOuter || hull, corners: null, ellipse: null, inkFraction: frac, conf, stroke, quality: q, lightInk: false, junk: 0 };
-    if (kind === FRAME_SQUARE && quad) fr.corners = quad.map(p => [center[0] + (p[0] - center[0]) * (1 + 0.5 * stroke / Math.max(size, 1)), center[1] + (p[1] - center[1]) * (1 + 0.5 * stroke / Math.max(size, 1))]);
+    if (quad) fr.corners =   // every v2 frame is a square, even one wobbly enough to score round
+      quad.map(p => [center[0] + (p[0] - center[0]) * (1 + 0.5 * stroke / Math.max(size, 1)), center[1] + (p[1] - center[1]) * (1 + 0.5 * stroke / Math.max(size, 1))]);
     // ellipse from the second moments of the hull mask
     let m00 = 0, mx = 0, my = 0;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (mask[y * w + x]) { m00++; mx += x; my += y; }
@@ -364,7 +366,7 @@ function circleMatrix(e, d, size = PATCH) {
 }
 export function rectifyFrame(gray, W, H, f, d, up, lightInk) {
   let patch;
-  if (f.kind === FRAME_SQUARE && f.corners) {
+  if (f.corners) {
     const src = orderCorners(f.corners, f.center, d, up), M = homography(targetQuad(), src);   // dst -> src
     patch = warp(gray, W, H, M, PATCH, PATCH);
   } else if (f.ellipse) {

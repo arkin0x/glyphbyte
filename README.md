@@ -2,8 +2,8 @@
 
 One drawn glyph is one byte. The specification with test vectors is in [`spec/GLYPHBYTE.md`](spec/GLYPHBYTE.md). (Developed under the working name *symple* on 2026-09-22.)
 
-Hand-drawn symbols to bytes, offline. Draw a row of **glyphbyte** symbols on a wall, a
-notebook, a sticker or a whiteboard, photograph it, and `glyphbyte decode` returns the
+Hand-drawn glyphs to bytes, offline. Draw a row of **glyphbyte** glyphs on a wall, a
+notebook, a sidewalk or a field, photograph it, and `glyphbyte decode` returns the
 bytes. It was built to carry partial nostr event ids attached to physical places,
 where a wrong read costs one extra relay query and nothing else.
 
@@ -20,61 +20,49 @@ $ glyphbyte decode photo.jpg -v
 
 No network at runtime. Dependencies: numpy, OpenCV, onnxruntime.
 
-## The code: one symbol, one byte
+## The code: one glyph, one byte (format v2)
 
-| bits | what | values |
-|---|---|---|
-| 7..4 | which symbol | 16 symbols, sheet order below |
-| 3..2 | rotation | quarter turns clockwise: 0, 90, 180, 270 |
-| 1 | fill | 0 outline, 1 filled in |
-| 0 | frame | 0 square around the symbol, 1 circle around it |
+Each glyph is a square frame with an upright **icon** in the middle and up to four
+**corner dots**. The icon is the first hex digit; the dots are the second, reading
+clockwise from the top-left corner: 8, 4, 2, 1.
 
-16 x 4 x 2 x 2 = 256, so every byte has exactly one drawing and every drawing is one byte.
+| hex | icon | hex | icon |
+|---|---|---|---|
+| 0 | house | 8 | pie |
+| 1 | heart | 9 | tree |
+| 2 | drop | a | plus |
+| 3 | moon | b | flag |
+| 4 | crown | c | x |
+| 5 | arrow | d | bolt |
+| 6 | box | e | star |
+| 7 | triangle | f | fish |
 
-| # | name | how to draw it |
-|---|---|---|
-| 0 | house | a square with a pointed roof |
-| 1 | chevron | a house whose base is cut by a chevron, an upward notch |
-| 2 | bookmark | a rectangle with a chevron cut into the bottom |
-| 3 | crown | a rectangle with three points on top |
-| 4 | drop | a teardrop, point up |
-| 5 | tee | the letter T, in block form |
-| 6 | u | the letter U, in block form |
-| 7 | mountain | a triangle whose apex is split into two peaks |
-| 8 | arrow | a chevron head on a shaft, pointing up |
-| 9 | heart | a heart |
-| 10 | crescent | a thick crescent lying like a bowl, horns up |
-| 11 | cloud | a dome with three scallops underneath |
-| 12 | snowman | a small circle merged onto a larger circle, small one on top |
-| 13 | l | the letter L, in block form |
-| 14 | trapezoid | narrow top, wide bottom |
-| 15 | pacman | a disc with a wedge bitten out of the top |
+So `e8` is a star with one dot in the top-left corner, and `ff` is a fish with all four
+dots. 16 icons x 16 dot patterns = 256: every byte has exactly one drawing and every
+drawing is one byte. `glyphbyte sheet` renders all 256 for printing; the shapes are in
+`glyphbyte/icons.py`.
 
-Every symbol is distinct from every other symbol in all four rotations, and stays
-distinct when filled. `glyphbyte sheet` renders the whole set for printing.
-
-Four symbols from the original 2026-09-22 sheet were retired because they differed from
-another symbol only by a small feature that handwriting loses first: **spade** (an
-upside-down heart plus a stem), **clover** (a heart plus one bump), **shield** (a cloud
-without its scallops when upside down) and **ring dot** (its rotation cue vanishes when
-filled). They live in `glyphbyte/data/retired.json`; the sheet is in `assets/`.
+v2 (2026-09-25) replaced the first alphabet of 16 pictograms x 4 rotations x outline or
+filled x square or circle frame. Rotations, fills and a second frame shape were the parts
+people found hard to draw; the reasoning and the evidence are in the spec and in
+`research/v2/`.
 
 ## How to write a row
 
-1. Draw the symbols left to right, each inside its frame, roughly the same size,
-   with a gap of about a third of a symbol between frames.
-2. Underline the whole row with one stroke, and put a **fat dot at the start** of the
-   underline, about a quarter of a symbol across. The line tells the reader which way is
-   up, the dot tells it where to start. Without them a photo taken sideways has every
-   rotation bit wrong, and `glyphbyte` will say so in its warnings.
-3. Fill means fill: scribble the whole inside. Outline means a single stroke.
+1. Draw a square frame for each byte, left to right, roughly the same size, with a gap
+   of about a third of a frame between frames.
+2. Draw the icon upright in the middle, about half the frame wide, touching nothing.
+3. Add the corner dots. A dot must touch neither the frame nor the icon.
+4. Underline the whole row with one stroke, and put a **fat dot at the start** of the
+   underline, about a quarter of a frame across. The line tells the reader which way is
+   up, the dot tells it where to start.
 
-`glyphbyte encode 8a3a3a6609eb --out row.png` renders a row to copy from, and
+`glyphbyte encode e8ed3798c6ff --out row.png` renders a row to copy from, and
 `--hand 0.7` shows what a sloppy one still looks like.
 
 ## Uncertainty is forked, not hidden
 
-When a symbol could be one of two things, the decoder keeps both. The result carries
+When a glyph could be one of two things, the decoder keeps both. The result carries
 ranked candidates per symbol and the most probable whole sequences, so a client can
 query all of them (cheap on nostr) and show the alternatives to the person holding the
 phone. `--fork-ratio` sets how likely an alternative must be, relative to the best
@@ -87,17 +75,18 @@ eight bytes, a wrong candidate simply matches nothing.
 | stage | method |
 |---|---|
 | binarize | local threshold at both polarities (dark ink on light, light ink on dark), specks removed |
-| frames | interiors of ink rings that hold a compact blob of ink; rings with a pen gap are recovered from their convex hull; a stroke-width check by ray marching rejects paper regions and thick texture |
-| square or circle | area of the largest quadrilateral inscribed in the interior's hull over the hull area: 1 for a quadrilateral, 2/pi for an ellipse, in any perspective |
+| frames | interiors of ink squares that hold ink; frames with a pen gap are recovered from their convex hull; a stroke-width check by ray marching rejects paper regions and thick texture; confidently round rings score lower |
 | the row | the set of frames sharing a line and a smooth size trend with the highest total quality, so tiles and windows in the backdrop lose |
 | baseline and start | parallel offsets scored by ink coverage in the gaps between frames; each candidate line is refined and tested for a fat end; a line with a dot beats a lined-paper line |
-| rectify | squares by homography from their corners, circles by mapping the fitted ellipse to a circle, both rotated so the baseline is horizontal |
-| classify | a 4-block CNN (about 0.9M parameters) on 64x64 contrast-normalized patches, two heads: symbol x rotation (64 classes) and fill; polarity-invariant; ONNX on CPU |
-| decode | joint probability over the 256 bytes per cell from the two heads and the frame decision, then a beam over cells |
+| rectify | homography from the frame's four corners, rotated so the baseline is horizontal |
+| classify | a 4-block CNN (about 0.9M parameters) on 64x64 contrast-normalized patches, two heads: the icon (16 classes plus not-a-glyph) and the four corner dots (one yes/no each); polarity-invariant; ONNX on CPU |
+| decode | joint probability over the 256 bytes per cell (icon times each dot), then a beam over cells |
 
-The classifier is trained only on synthetic data rendered from the canonical shapes:
-wobble, stroke breathing, pen gaps, scribbled fills, perspective, lighting, shadows,
-blur, noise, JPEG, on photographs and procedural surfaces. See `glyphbyte train`.
+The classifier is trained only on synthetic data rendered from the icon strokes:
+wobble, stroke breathing, pen gaps, dots drawn as blobs, scribbles or tiny rings,
+perspective, lighting, shadows, blur, noise, JPEG, on photographs and procedural
+surfaces, in three media: pen or marker, chalk on pavement, and paths flattened into a
+crop field. See `glyphbyte train`.
 
 ## Commands
 
@@ -105,7 +94,7 @@ blur, noise, JPEG, on photographs and procedural surfaces. See `glyphbyte train`
 |---|---|
 | `glyphbyte decode IMG... [-v] [--json] [--debug out.png]` | read a photo; `--json` gives candidates and warnings; `--debug` writes the detection overlay |
 | `glyphbyte encode HEX --out row.png [--hand 0.7]` | render bytes as a row |
-| `glyphbyte sheet --out sheet.png` | the reference sheet, all symbols, rotations and fills |
+| `glyphbyte sheet --out sheet.png` | the reference sheet, all 256 glyphs |
 | `glyphbyte synth --out DIR --n 200 --backdrops DIR` | generate photo-like test scenes with ground truth |
 | `glyphbyte bench DIR` | decode a synth directory and report accuracy |
 | `glyphbyte backdrops --out bench/backdrops` | fetch public-domain photos from picsum.photos for synth |
@@ -116,7 +105,7 @@ blur, noise, JPEG, on photographs and procedural surfaces. See `glyphbyte train`
 Scanning should cost nothing per photo, so the recognizer also exists as a **napplet**
 ([NIP-5D](https://github.com/nostr-protocol/nips/pull/2303)): one self-contained
 `index.html` that a Nostr shell loads in a sandboxed iframe. No server, no network, no
-external scripts: the detector, the network weights and the symbol shapes are all inline,
+external scripts: the detector, the network weights and the icon shapes are all inline,
 and everything runs in plain JavaScript on the phone. `napplet/` holds the port:
 
 | file | what |

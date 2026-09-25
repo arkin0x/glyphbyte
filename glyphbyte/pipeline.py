@@ -60,17 +60,14 @@ class Result:
         }
 
 
-def _byte_distribution(scores: PatchScores, frame_kind: int, frame_conf: float) -> np.ndarray:
-    """Joint probability over all 256 bytes for one cell."""
-    p_frame = np.array([0.5, 0.5])
-    p_frame[frame_kind] = 0.5 + 0.5 * frame_conf
-    p_frame[1 - frame_kind] = 0.5 - 0.5 * frame_conf
-    dist = np.zeros(256)
-    for sr in range(64):
-        for fill in (0, 1):
-            for frame in (0, 1):
-                b = (sr << 2) | (fill << 1) | frame
-                dist[b] = scores.sym_rot[sr] * scores.fill[fill] * p_frame[frame]
+def _byte_distribution(scores: PatchScores) -> np.ndarray:
+    """Joint probability over all 256 bytes for one cell: icon times each dot bit."""
+    p_dots = np.ones(16)
+    for n in range(16):
+        for k in range(4):
+            on = n >> (3 - k) & 1
+            p_dots[n] *= scores.dots[k] if on else 1.0 - scores.dots[k]
+    dist = np.outer(scores.icon, p_dots).ravel()     # index = icon << 4 | dots
     return dist / max(dist.sum(), 1e-12)
 
 
@@ -107,7 +104,7 @@ def read_image(image: np.ndarray, classifier: Classifier | None = None, max_sequ
     scores = classifier.predict(det.patches)
     reads = []
     for i, (f, sc) in enumerate(zip(det.frames, scores)):
-        dist = _byte_distribution(sc, f.kind, f.quad_ratio)
+        dist = _byte_distribution(sc)
         reads.append(SymbolRead(index=i, candidates=_candidates(dist, fork_ratio, max_per_symbol), frame_conf=f.quad_ratio))
     sequences = _sequences(reads, max_sequences)
     if det.baseline is not None and not det.start_known:

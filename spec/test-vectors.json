@@ -1,2655 +1,3145 @@
 {
- "version": "0.1",
- "bit_layout": "byte = symbol_index << 4 | rotation_quarter_turns_cw << 2 | fill << 1 | frame",
+ "format": 2,
+ "bit_layout": "byte = icon_index << 4 | dots; dots: top-left 8, top-right 4, bottom-right 2, bottom-left 1",
  "symbols": [
   "house",
-  "chevron",
-  "bookmark",
-  "crown",
-  "drop",
-  "tee",
-  "u",
-  "mountain",
-  "arrow",
   "heart",
-  "crescent",
-  "cloud",
-  "snowman",
-  "l",
-  "trapezoid",
-  "pacman"
+  "drop",
+  "moon",
+  "crown",
+  "arrow",
+  "box",
+  "triangle",
+  "pie",
+  "tree",
+  "plus",
+  "flag",
+  "x",
+  "bolt",
+  "star",
+  "fish"
  ],
  "bytes": [
   {
    "byte": 0,
    "hex": "00",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "house rotated 0 deg, outline, square frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 0,
+   "dots": [],
+   "text": "house, no dots"
   },
   {
    "byte": 1,
    "hex": "01",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "house rotated 0 deg, outline, circle frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "house, dot bottom-left"
   },
   {
    "byte": 2,
    "hex": "02",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "house rotated 0 deg, filled, square frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "house, dot bottom-right"
   },
   {
    "byte": 3,
    "hex": "03",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "house rotated 0 deg, filled, circle frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "house, dots bottom-right, bottom-left"
   },
   {
    "byte": 4,
    "hex": "04",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "house rotated 90 deg, outline, square frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "house, dot top-right"
   },
   {
    "byte": 5,
    "hex": "05",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "house rotated 90 deg, outline, circle frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "house, dots top-right, bottom-left"
   },
   {
    "byte": 6,
    "hex": "06",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "house rotated 90 deg, filled, square frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "house, dots top-right, bottom-right"
   },
   {
    "byte": 7,
    "hex": "07",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "house rotated 90 deg, filled, circle frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "house, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 8,
    "hex": "08",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "house rotated 180 deg, outline, square frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "house, dot top-left"
   },
   {
    "byte": 9,
    "hex": "09",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "house rotated 180 deg, outline, circle frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "house, dots top-left, bottom-left"
   },
   {
    "byte": 10,
    "hex": "0a",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "house rotated 180 deg, filled, square frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "house, dots top-left, bottom-right"
   },
   {
    "byte": 11,
    "hex": "0b",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "house rotated 180 deg, filled, circle frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "house, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 12,
    "hex": "0c",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "house rotated 270 deg, outline, square frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "house, dots top-left, top-right"
   },
   {
    "byte": 13,
    "hex": "0d",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "house rotated 270 deg, outline, circle frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "house, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 14,
    "hex": "0e",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "house rotated 270 deg, filled, square frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "house, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 15,
    "hex": "0f",
-   "symbol": "house",
-   "symbol_index": 0,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "house rotated 270 deg, filled, circle frame"
+   "icon": "house",
+   "icon_index": 0,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "house, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 16,
    "hex": "10",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "chevron rotated 0 deg, outline, square frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 0,
+   "dots": [],
+   "text": "heart, no dots"
   },
   {
    "byte": 17,
    "hex": "11",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "chevron rotated 0 deg, outline, circle frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "heart, dot bottom-left"
   },
   {
    "byte": 18,
    "hex": "12",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "chevron rotated 0 deg, filled, square frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "heart, dot bottom-right"
   },
   {
    "byte": 19,
    "hex": "13",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "chevron rotated 0 deg, filled, circle frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "heart, dots bottom-right, bottom-left"
   },
   {
    "byte": 20,
    "hex": "14",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "chevron rotated 90 deg, outline, square frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "heart, dot top-right"
   },
   {
    "byte": 21,
    "hex": "15",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "chevron rotated 90 deg, outline, circle frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "heart, dots top-right, bottom-left"
   },
   {
    "byte": 22,
    "hex": "16",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "chevron rotated 90 deg, filled, square frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "heart, dots top-right, bottom-right"
   },
   {
    "byte": 23,
    "hex": "17",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "chevron rotated 90 deg, filled, circle frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "heart, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 24,
    "hex": "18",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "chevron rotated 180 deg, outline, square frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "heart, dot top-left"
   },
   {
    "byte": 25,
    "hex": "19",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "chevron rotated 180 deg, outline, circle frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "heart, dots top-left, bottom-left"
   },
   {
    "byte": 26,
    "hex": "1a",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "chevron rotated 180 deg, filled, square frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "heart, dots top-left, bottom-right"
   },
   {
    "byte": 27,
    "hex": "1b",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "chevron rotated 180 deg, filled, circle frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "heart, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 28,
    "hex": "1c",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "chevron rotated 270 deg, outline, square frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "heart, dots top-left, top-right"
   },
   {
    "byte": 29,
    "hex": "1d",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "chevron rotated 270 deg, outline, circle frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "heart, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 30,
    "hex": "1e",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "chevron rotated 270 deg, filled, square frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "heart, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 31,
    "hex": "1f",
-   "symbol": "chevron",
-   "symbol_index": 1,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "chevron rotated 270 deg, filled, circle frame"
+   "icon": "heart",
+   "icon_index": 1,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "heart, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 32,
    "hex": "20",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "bookmark rotated 0 deg, outline, square frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 0,
+   "dots": [],
+   "text": "drop, no dots"
   },
   {
    "byte": 33,
    "hex": "21",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "bookmark rotated 0 deg, outline, circle frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "drop, dot bottom-left"
   },
   {
    "byte": 34,
    "hex": "22",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "bookmark rotated 0 deg, filled, square frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "drop, dot bottom-right"
   },
   {
    "byte": 35,
    "hex": "23",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "bookmark rotated 0 deg, filled, circle frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "drop, dots bottom-right, bottom-left"
   },
   {
    "byte": 36,
    "hex": "24",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "bookmark rotated 90 deg, outline, square frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "drop, dot top-right"
   },
   {
    "byte": 37,
    "hex": "25",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "bookmark rotated 90 deg, outline, circle frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "drop, dots top-right, bottom-left"
   },
   {
    "byte": 38,
    "hex": "26",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "bookmark rotated 90 deg, filled, square frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "drop, dots top-right, bottom-right"
   },
   {
    "byte": 39,
    "hex": "27",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "bookmark rotated 90 deg, filled, circle frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "drop, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 40,
    "hex": "28",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "bookmark rotated 180 deg, outline, square frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "drop, dot top-left"
   },
   {
    "byte": 41,
    "hex": "29",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "bookmark rotated 180 deg, outline, circle frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "drop, dots top-left, bottom-left"
   },
   {
    "byte": 42,
    "hex": "2a",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "bookmark rotated 180 deg, filled, square frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "drop, dots top-left, bottom-right"
   },
   {
    "byte": 43,
    "hex": "2b",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "bookmark rotated 180 deg, filled, circle frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "drop, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 44,
    "hex": "2c",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "bookmark rotated 270 deg, outline, square frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "drop, dots top-left, top-right"
   },
   {
    "byte": 45,
    "hex": "2d",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "bookmark rotated 270 deg, outline, circle frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "drop, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 46,
    "hex": "2e",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "bookmark rotated 270 deg, filled, square frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "drop, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 47,
    "hex": "2f",
-   "symbol": "bookmark",
-   "symbol_index": 2,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "bookmark rotated 270 deg, filled, circle frame"
+   "icon": "drop",
+   "icon_index": 2,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "drop, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 48,
    "hex": "30",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "crown rotated 0 deg, outline, square frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 0,
+   "dots": [],
+   "text": "moon, no dots"
   },
   {
    "byte": 49,
    "hex": "31",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "crown rotated 0 deg, outline, circle frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "moon, dot bottom-left"
   },
   {
    "byte": 50,
    "hex": "32",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "crown rotated 0 deg, filled, square frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "moon, dot bottom-right"
   },
   {
    "byte": 51,
    "hex": "33",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "crown rotated 0 deg, filled, circle frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "moon, dots bottom-right, bottom-left"
   },
   {
    "byte": 52,
    "hex": "34",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "crown rotated 90 deg, outline, square frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "moon, dot top-right"
   },
   {
    "byte": 53,
    "hex": "35",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "crown rotated 90 deg, outline, circle frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "moon, dots top-right, bottom-left"
   },
   {
    "byte": 54,
    "hex": "36",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "crown rotated 90 deg, filled, square frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "moon, dots top-right, bottom-right"
   },
   {
    "byte": 55,
    "hex": "37",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "crown rotated 90 deg, filled, circle frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "moon, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 56,
    "hex": "38",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "crown rotated 180 deg, outline, square frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "moon, dot top-left"
   },
   {
    "byte": 57,
    "hex": "39",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "crown rotated 180 deg, outline, circle frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "moon, dots top-left, bottom-left"
   },
   {
    "byte": 58,
    "hex": "3a",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "crown rotated 180 deg, filled, square frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "moon, dots top-left, bottom-right"
   },
   {
    "byte": 59,
    "hex": "3b",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "crown rotated 180 deg, filled, circle frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "moon, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 60,
    "hex": "3c",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "crown rotated 270 deg, outline, square frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "moon, dots top-left, top-right"
   },
   {
    "byte": 61,
    "hex": "3d",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "crown rotated 270 deg, outline, circle frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "moon, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 62,
    "hex": "3e",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "crown rotated 270 deg, filled, square frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "moon, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 63,
    "hex": "3f",
-   "symbol": "crown",
-   "symbol_index": 3,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "crown rotated 270 deg, filled, circle frame"
+   "icon": "moon",
+   "icon_index": 3,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "moon, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 64,
    "hex": "40",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "drop rotated 0 deg, outline, square frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 0,
+   "dots": [],
+   "text": "crown, no dots"
   },
   {
    "byte": 65,
    "hex": "41",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "drop rotated 0 deg, outline, circle frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "crown, dot bottom-left"
   },
   {
    "byte": 66,
    "hex": "42",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "drop rotated 0 deg, filled, square frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "crown, dot bottom-right"
   },
   {
    "byte": 67,
    "hex": "43",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "drop rotated 0 deg, filled, circle frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "crown, dots bottom-right, bottom-left"
   },
   {
    "byte": 68,
    "hex": "44",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "drop rotated 90 deg, outline, square frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "crown, dot top-right"
   },
   {
    "byte": 69,
    "hex": "45",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "drop rotated 90 deg, outline, circle frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "crown, dots top-right, bottom-left"
   },
   {
    "byte": 70,
    "hex": "46",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "drop rotated 90 deg, filled, square frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "crown, dots top-right, bottom-right"
   },
   {
    "byte": 71,
    "hex": "47",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "drop rotated 90 deg, filled, circle frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "crown, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 72,
    "hex": "48",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "drop rotated 180 deg, outline, square frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "crown, dot top-left"
   },
   {
    "byte": 73,
    "hex": "49",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "drop rotated 180 deg, outline, circle frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "crown, dots top-left, bottom-left"
   },
   {
    "byte": 74,
    "hex": "4a",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "drop rotated 180 deg, filled, square frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "crown, dots top-left, bottom-right"
   },
   {
    "byte": 75,
    "hex": "4b",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "drop rotated 180 deg, filled, circle frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "crown, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 76,
    "hex": "4c",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "drop rotated 270 deg, outline, square frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "crown, dots top-left, top-right"
   },
   {
    "byte": 77,
    "hex": "4d",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "drop rotated 270 deg, outline, circle frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "crown, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 78,
    "hex": "4e",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "drop rotated 270 deg, filled, square frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "crown, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 79,
    "hex": "4f",
-   "symbol": "drop",
-   "symbol_index": 4,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "drop rotated 270 deg, filled, circle frame"
+   "icon": "crown",
+   "icon_index": 4,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "crown, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 80,
    "hex": "50",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "tee rotated 0 deg, outline, square frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 0,
+   "dots": [],
+   "text": "arrow, no dots"
   },
   {
    "byte": 81,
    "hex": "51",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "tee rotated 0 deg, outline, circle frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "arrow, dot bottom-left"
   },
   {
    "byte": 82,
    "hex": "52",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "tee rotated 0 deg, filled, square frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "arrow, dot bottom-right"
   },
   {
    "byte": 83,
    "hex": "53",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "tee rotated 0 deg, filled, circle frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "arrow, dots bottom-right, bottom-left"
   },
   {
    "byte": 84,
    "hex": "54",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "tee rotated 90 deg, outline, square frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "arrow, dot top-right"
   },
   {
    "byte": 85,
    "hex": "55",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "tee rotated 90 deg, outline, circle frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "arrow, dots top-right, bottom-left"
   },
   {
    "byte": 86,
    "hex": "56",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "tee rotated 90 deg, filled, square frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "arrow, dots top-right, bottom-right"
   },
   {
    "byte": 87,
    "hex": "57",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "tee rotated 90 deg, filled, circle frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "arrow, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 88,
    "hex": "58",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "tee rotated 180 deg, outline, square frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "arrow, dot top-left"
   },
   {
    "byte": 89,
    "hex": "59",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "tee rotated 180 deg, outline, circle frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "arrow, dots top-left, bottom-left"
   },
   {
    "byte": 90,
    "hex": "5a",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "tee rotated 180 deg, filled, square frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "arrow, dots top-left, bottom-right"
   },
   {
    "byte": 91,
    "hex": "5b",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "tee rotated 180 deg, filled, circle frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "arrow, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 92,
    "hex": "5c",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "tee rotated 270 deg, outline, square frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "arrow, dots top-left, top-right"
   },
   {
    "byte": 93,
    "hex": "5d",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "tee rotated 270 deg, outline, circle frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "arrow, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 94,
    "hex": "5e",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "tee rotated 270 deg, filled, square frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "arrow, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 95,
    "hex": "5f",
-   "symbol": "tee",
-   "symbol_index": 5,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "tee rotated 270 deg, filled, circle frame"
+   "icon": "arrow",
+   "icon_index": 5,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "arrow, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 96,
    "hex": "60",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "u rotated 0 deg, outline, square frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 0,
+   "dots": [],
+   "text": "box, no dots"
   },
   {
    "byte": 97,
    "hex": "61",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "u rotated 0 deg, outline, circle frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "box, dot bottom-left"
   },
   {
    "byte": 98,
    "hex": "62",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "u rotated 0 deg, filled, square frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "box, dot bottom-right"
   },
   {
    "byte": 99,
    "hex": "63",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "u rotated 0 deg, filled, circle frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "box, dots bottom-right, bottom-left"
   },
   {
    "byte": 100,
    "hex": "64",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "u rotated 90 deg, outline, square frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "box, dot top-right"
   },
   {
    "byte": 101,
    "hex": "65",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "u rotated 90 deg, outline, circle frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "box, dots top-right, bottom-left"
   },
   {
    "byte": 102,
    "hex": "66",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "u rotated 90 deg, filled, square frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "box, dots top-right, bottom-right"
   },
   {
    "byte": 103,
    "hex": "67",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "u rotated 90 deg, filled, circle frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "box, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 104,
    "hex": "68",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "u rotated 180 deg, outline, square frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "box, dot top-left"
   },
   {
    "byte": 105,
    "hex": "69",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "u rotated 180 deg, outline, circle frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "box, dots top-left, bottom-left"
   },
   {
    "byte": 106,
    "hex": "6a",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "u rotated 180 deg, filled, square frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "box, dots top-left, bottom-right"
   },
   {
    "byte": 107,
    "hex": "6b",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "u rotated 180 deg, filled, circle frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "box, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 108,
    "hex": "6c",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "u rotated 270 deg, outline, square frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "box, dots top-left, top-right"
   },
   {
    "byte": 109,
    "hex": "6d",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "u rotated 270 deg, outline, circle frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "box, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 110,
    "hex": "6e",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "u rotated 270 deg, filled, square frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "box, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 111,
    "hex": "6f",
-   "symbol": "u",
-   "symbol_index": 6,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "u rotated 270 deg, filled, circle frame"
+   "icon": "box",
+   "icon_index": 6,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "box, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 112,
    "hex": "70",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "mountain rotated 0 deg, outline, square frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 0,
+   "dots": [],
+   "text": "triangle, no dots"
   },
   {
    "byte": 113,
    "hex": "71",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "mountain rotated 0 deg, outline, circle frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "triangle, dot bottom-left"
   },
   {
    "byte": 114,
    "hex": "72",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "mountain rotated 0 deg, filled, square frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "triangle, dot bottom-right"
   },
   {
    "byte": 115,
    "hex": "73",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "mountain rotated 0 deg, filled, circle frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "triangle, dots bottom-right, bottom-left"
   },
   {
    "byte": 116,
    "hex": "74",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "mountain rotated 90 deg, outline, square frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "triangle, dot top-right"
   },
   {
    "byte": 117,
    "hex": "75",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "mountain rotated 90 deg, outline, circle frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "triangle, dots top-right, bottom-left"
   },
   {
    "byte": 118,
    "hex": "76",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "mountain rotated 90 deg, filled, square frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "triangle, dots top-right, bottom-right"
   },
   {
    "byte": 119,
    "hex": "77",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "mountain rotated 90 deg, filled, circle frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "triangle, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 120,
    "hex": "78",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "mountain rotated 180 deg, outline, square frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "triangle, dot top-left"
   },
   {
    "byte": 121,
    "hex": "79",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "mountain rotated 180 deg, outline, circle frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "triangle, dots top-left, bottom-left"
   },
   {
    "byte": 122,
    "hex": "7a",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "mountain rotated 180 deg, filled, square frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "triangle, dots top-left, bottom-right"
   },
   {
    "byte": 123,
    "hex": "7b",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "mountain rotated 180 deg, filled, circle frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "triangle, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 124,
    "hex": "7c",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "mountain rotated 270 deg, outline, square frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "triangle, dots top-left, top-right"
   },
   {
    "byte": 125,
    "hex": "7d",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "mountain rotated 270 deg, outline, circle frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "triangle, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 126,
    "hex": "7e",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "mountain rotated 270 deg, filled, square frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "triangle, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 127,
    "hex": "7f",
-   "symbol": "mountain",
-   "symbol_index": 7,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "mountain rotated 270 deg, filled, circle frame"
+   "icon": "triangle",
+   "icon_index": 7,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "triangle, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 128,
    "hex": "80",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "arrow rotated 0 deg, outline, square frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 0,
+   "dots": [],
+   "text": "pie, no dots"
   },
   {
    "byte": 129,
    "hex": "81",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "arrow rotated 0 deg, outline, circle frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "pie, dot bottom-left"
   },
   {
    "byte": 130,
    "hex": "82",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "arrow rotated 0 deg, filled, square frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "pie, dot bottom-right"
   },
   {
    "byte": 131,
    "hex": "83",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "arrow rotated 0 deg, filled, circle frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "pie, dots bottom-right, bottom-left"
   },
   {
    "byte": 132,
    "hex": "84",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "arrow rotated 90 deg, outline, square frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "pie, dot top-right"
   },
   {
    "byte": 133,
    "hex": "85",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "arrow rotated 90 deg, outline, circle frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "pie, dots top-right, bottom-left"
   },
   {
    "byte": 134,
    "hex": "86",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "arrow rotated 90 deg, filled, square frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "pie, dots top-right, bottom-right"
   },
   {
    "byte": 135,
    "hex": "87",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "arrow rotated 90 deg, filled, circle frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "pie, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 136,
    "hex": "88",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "arrow rotated 180 deg, outline, square frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "pie, dot top-left"
   },
   {
    "byte": 137,
    "hex": "89",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "arrow rotated 180 deg, outline, circle frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "pie, dots top-left, bottom-left"
   },
   {
    "byte": 138,
    "hex": "8a",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "arrow rotated 180 deg, filled, square frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "pie, dots top-left, bottom-right"
   },
   {
    "byte": 139,
    "hex": "8b",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "arrow rotated 180 deg, filled, circle frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "pie, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 140,
    "hex": "8c",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "arrow rotated 270 deg, outline, square frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "pie, dots top-left, top-right"
   },
   {
    "byte": 141,
    "hex": "8d",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "arrow rotated 270 deg, outline, circle frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "pie, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 142,
    "hex": "8e",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "arrow rotated 270 deg, filled, square frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "pie, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 143,
    "hex": "8f",
-   "symbol": "arrow",
-   "symbol_index": 8,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "arrow rotated 270 deg, filled, circle frame"
+   "icon": "pie",
+   "icon_index": 8,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "pie, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 144,
    "hex": "90",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "heart rotated 0 deg, outline, square frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 0,
+   "dots": [],
+   "text": "tree, no dots"
   },
   {
    "byte": 145,
    "hex": "91",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "heart rotated 0 deg, outline, circle frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "tree, dot bottom-left"
   },
   {
    "byte": 146,
    "hex": "92",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "heart rotated 0 deg, filled, square frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "tree, dot bottom-right"
   },
   {
    "byte": 147,
    "hex": "93",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "heart rotated 0 deg, filled, circle frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "tree, dots bottom-right, bottom-left"
   },
   {
    "byte": 148,
    "hex": "94",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "heart rotated 90 deg, outline, square frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "tree, dot top-right"
   },
   {
    "byte": 149,
    "hex": "95",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "heart rotated 90 deg, outline, circle frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "tree, dots top-right, bottom-left"
   },
   {
    "byte": 150,
    "hex": "96",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "heart rotated 90 deg, filled, square frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "tree, dots top-right, bottom-right"
   },
   {
    "byte": 151,
    "hex": "97",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "heart rotated 90 deg, filled, circle frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "tree, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 152,
    "hex": "98",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "heart rotated 180 deg, outline, square frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "tree, dot top-left"
   },
   {
    "byte": 153,
    "hex": "99",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "heart rotated 180 deg, outline, circle frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "tree, dots top-left, bottom-left"
   },
   {
    "byte": 154,
    "hex": "9a",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "heart rotated 180 deg, filled, square frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "tree, dots top-left, bottom-right"
   },
   {
    "byte": 155,
    "hex": "9b",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "heart rotated 180 deg, filled, circle frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "tree, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 156,
    "hex": "9c",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "heart rotated 270 deg, outline, square frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "tree, dots top-left, top-right"
   },
   {
    "byte": 157,
    "hex": "9d",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "heart rotated 270 deg, outline, circle frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "tree, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 158,
    "hex": "9e",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "heart rotated 270 deg, filled, square frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "tree, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 159,
    "hex": "9f",
-   "symbol": "heart",
-   "symbol_index": 9,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "heart rotated 270 deg, filled, circle frame"
+   "icon": "tree",
+   "icon_index": 9,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "tree, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 160,
    "hex": "a0",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "crescent rotated 0 deg, outline, square frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 0,
+   "dots": [],
+   "text": "plus, no dots"
   },
   {
    "byte": 161,
    "hex": "a1",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "crescent rotated 0 deg, outline, circle frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "plus, dot bottom-left"
   },
   {
    "byte": 162,
    "hex": "a2",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "crescent rotated 0 deg, filled, square frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "plus, dot bottom-right"
   },
   {
    "byte": 163,
    "hex": "a3",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "crescent rotated 0 deg, filled, circle frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "plus, dots bottom-right, bottom-left"
   },
   {
    "byte": 164,
    "hex": "a4",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "crescent rotated 90 deg, outline, square frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "plus, dot top-right"
   },
   {
    "byte": 165,
    "hex": "a5",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "crescent rotated 90 deg, outline, circle frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "plus, dots top-right, bottom-left"
   },
   {
    "byte": 166,
    "hex": "a6",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "crescent rotated 90 deg, filled, square frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "plus, dots top-right, bottom-right"
   },
   {
    "byte": 167,
    "hex": "a7",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "crescent rotated 90 deg, filled, circle frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "plus, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 168,
    "hex": "a8",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "crescent rotated 180 deg, outline, square frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "plus, dot top-left"
   },
   {
    "byte": 169,
    "hex": "a9",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "crescent rotated 180 deg, outline, circle frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "plus, dots top-left, bottom-left"
   },
   {
    "byte": 170,
    "hex": "aa",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "crescent rotated 180 deg, filled, square frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "plus, dots top-left, bottom-right"
   },
   {
    "byte": 171,
    "hex": "ab",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "crescent rotated 180 deg, filled, circle frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "plus, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 172,
    "hex": "ac",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "crescent rotated 270 deg, outline, square frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "plus, dots top-left, top-right"
   },
   {
    "byte": 173,
    "hex": "ad",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "crescent rotated 270 deg, outline, circle frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "plus, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 174,
    "hex": "ae",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "crescent rotated 270 deg, filled, square frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "plus, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 175,
    "hex": "af",
-   "symbol": "crescent",
-   "symbol_index": 10,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "crescent rotated 270 deg, filled, circle frame"
+   "icon": "plus",
+   "icon_index": 10,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "plus, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 176,
    "hex": "b0",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "cloud rotated 0 deg, outline, square frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 0,
+   "dots": [],
+   "text": "flag, no dots"
   },
   {
    "byte": 177,
    "hex": "b1",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "cloud rotated 0 deg, outline, circle frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "flag, dot bottom-left"
   },
   {
    "byte": 178,
    "hex": "b2",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "cloud rotated 0 deg, filled, square frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "flag, dot bottom-right"
   },
   {
    "byte": 179,
    "hex": "b3",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "cloud rotated 0 deg, filled, circle frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "flag, dots bottom-right, bottom-left"
   },
   {
    "byte": 180,
    "hex": "b4",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "cloud rotated 90 deg, outline, square frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "flag, dot top-right"
   },
   {
    "byte": 181,
    "hex": "b5",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "cloud rotated 90 deg, outline, circle frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "flag, dots top-right, bottom-left"
   },
   {
    "byte": 182,
    "hex": "b6",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "cloud rotated 90 deg, filled, square frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "flag, dots top-right, bottom-right"
   },
   {
    "byte": 183,
    "hex": "b7",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "cloud rotated 90 deg, filled, circle frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "flag, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 184,
    "hex": "b8",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "cloud rotated 180 deg, outline, square frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "flag, dot top-left"
   },
   {
    "byte": 185,
    "hex": "b9",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "cloud rotated 180 deg, outline, circle frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "flag, dots top-left, bottom-left"
   },
   {
    "byte": 186,
    "hex": "ba",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "cloud rotated 180 deg, filled, square frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "flag, dots top-left, bottom-right"
   },
   {
    "byte": 187,
    "hex": "bb",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "cloud rotated 180 deg, filled, circle frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "flag, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 188,
    "hex": "bc",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "cloud rotated 270 deg, outline, square frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "flag, dots top-left, top-right"
   },
   {
    "byte": 189,
    "hex": "bd",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "cloud rotated 270 deg, outline, circle frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "flag, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 190,
    "hex": "be",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "cloud rotated 270 deg, filled, square frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "flag, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 191,
    "hex": "bf",
-   "symbol": "cloud",
-   "symbol_index": 11,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "cloud rotated 270 deg, filled, circle frame"
+   "icon": "flag",
+   "icon_index": 11,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "flag, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 192,
    "hex": "c0",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "snowman rotated 0 deg, outline, square frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 0,
+   "dots": [],
+   "text": "x, no dots"
   },
   {
    "byte": 193,
    "hex": "c1",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "snowman rotated 0 deg, outline, circle frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "x, dot bottom-left"
   },
   {
    "byte": 194,
    "hex": "c2",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "snowman rotated 0 deg, filled, square frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "x, dot bottom-right"
   },
   {
    "byte": 195,
    "hex": "c3",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "snowman rotated 0 deg, filled, circle frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "x, dots bottom-right, bottom-left"
   },
   {
    "byte": 196,
    "hex": "c4",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "snowman rotated 90 deg, outline, square frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "x, dot top-right"
   },
   {
    "byte": 197,
    "hex": "c5",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "snowman rotated 90 deg, outline, circle frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "x, dots top-right, bottom-left"
   },
   {
    "byte": 198,
    "hex": "c6",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "snowman rotated 90 deg, filled, square frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "x, dots top-right, bottom-right"
   },
   {
    "byte": 199,
    "hex": "c7",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "snowman rotated 90 deg, filled, circle frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "x, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 200,
    "hex": "c8",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "snowman rotated 180 deg, outline, square frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "x, dot top-left"
   },
   {
    "byte": 201,
    "hex": "c9",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "snowman rotated 180 deg, outline, circle frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "x, dots top-left, bottom-left"
   },
   {
    "byte": 202,
    "hex": "ca",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "snowman rotated 180 deg, filled, square frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "x, dots top-left, bottom-right"
   },
   {
    "byte": 203,
    "hex": "cb",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "snowman rotated 180 deg, filled, circle frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "x, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 204,
    "hex": "cc",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "snowman rotated 270 deg, outline, square frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "x, dots top-left, top-right"
   },
   {
    "byte": 205,
    "hex": "cd",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "snowman rotated 270 deg, outline, circle frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "x, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 206,
    "hex": "ce",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "snowman rotated 270 deg, filled, square frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "x, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 207,
    "hex": "cf",
-   "symbol": "snowman",
-   "symbol_index": 12,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "snowman rotated 270 deg, filled, circle frame"
+   "icon": "x",
+   "icon_index": 12,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "x, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 208,
    "hex": "d0",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "l rotated 0 deg, outline, square frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 0,
+   "dots": [],
+   "text": "bolt, no dots"
   },
   {
    "byte": 209,
    "hex": "d1",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "l rotated 0 deg, outline, circle frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "bolt, dot bottom-left"
   },
   {
    "byte": 210,
    "hex": "d2",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "l rotated 0 deg, filled, square frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "bolt, dot bottom-right"
   },
   {
    "byte": 211,
    "hex": "d3",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "l rotated 0 deg, filled, circle frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "bolt, dots bottom-right, bottom-left"
   },
   {
    "byte": 212,
    "hex": "d4",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "l rotated 90 deg, outline, square frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "bolt, dot top-right"
   },
   {
    "byte": 213,
    "hex": "d5",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "l rotated 90 deg, outline, circle frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "bolt, dots top-right, bottom-left"
   },
   {
    "byte": 214,
    "hex": "d6",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "l rotated 90 deg, filled, square frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "bolt, dots top-right, bottom-right"
   },
   {
    "byte": 215,
    "hex": "d7",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "l rotated 90 deg, filled, circle frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "bolt, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 216,
    "hex": "d8",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "l rotated 180 deg, outline, square frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "bolt, dot top-left"
   },
   {
    "byte": 217,
    "hex": "d9",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "l rotated 180 deg, outline, circle frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "bolt, dots top-left, bottom-left"
   },
   {
    "byte": 218,
    "hex": "da",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "l rotated 180 deg, filled, square frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "bolt, dots top-left, bottom-right"
   },
   {
    "byte": 219,
    "hex": "db",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "l rotated 180 deg, filled, circle frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "bolt, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 220,
    "hex": "dc",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "l rotated 270 deg, outline, square frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "bolt, dots top-left, top-right"
   },
   {
    "byte": 221,
    "hex": "dd",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "l rotated 270 deg, outline, circle frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "bolt, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 222,
    "hex": "de",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "l rotated 270 deg, filled, square frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "bolt, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 223,
    "hex": "df",
-   "symbol": "l",
-   "symbol_index": 13,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "l rotated 270 deg, filled, circle frame"
+   "icon": "bolt",
+   "icon_index": 13,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "bolt, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 224,
    "hex": "e0",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "trapezoid rotated 0 deg, outline, square frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 0,
+   "dots": [],
+   "text": "star, no dots"
   },
   {
    "byte": 225,
    "hex": "e1",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "trapezoid rotated 0 deg, outline, circle frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "star, dot bottom-left"
   },
   {
    "byte": 226,
    "hex": "e2",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "trapezoid rotated 0 deg, filled, square frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "star, dot bottom-right"
   },
   {
    "byte": 227,
    "hex": "e3",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "trapezoid rotated 0 deg, filled, circle frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "star, dots bottom-right, bottom-left"
   },
   {
    "byte": 228,
    "hex": "e4",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "trapezoid rotated 90 deg, outline, square frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "star, dot top-right"
   },
   {
    "byte": 229,
    "hex": "e5",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "trapezoid rotated 90 deg, outline, circle frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "star, dots top-right, bottom-left"
   },
   {
    "byte": 230,
    "hex": "e6",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "trapezoid rotated 90 deg, filled, square frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "star, dots top-right, bottom-right"
   },
   {
    "byte": 231,
    "hex": "e7",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "trapezoid rotated 90 deg, filled, circle frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "star, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 232,
    "hex": "e8",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "trapezoid rotated 180 deg, outline, square frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "star, dot top-left"
   },
   {
    "byte": 233,
    "hex": "e9",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "trapezoid rotated 180 deg, outline, circle frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "star, dots top-left, bottom-left"
   },
   {
    "byte": 234,
    "hex": "ea",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "trapezoid rotated 180 deg, filled, square frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "star, dots top-left, bottom-right"
   },
   {
    "byte": 235,
    "hex": "eb",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "trapezoid rotated 180 deg, filled, circle frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "star, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 236,
    "hex": "ec",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "trapezoid rotated 270 deg, outline, square frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "star, dots top-left, top-right"
   },
   {
    "byte": 237,
    "hex": "ed",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "trapezoid rotated 270 deg, outline, circle frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "star, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 238,
    "hex": "ee",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "trapezoid rotated 270 deg, filled, square frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "star, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 239,
    "hex": "ef",
-   "symbol": "trapezoid",
-   "symbol_index": 14,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "trapezoid rotated 270 deg, filled, circle frame"
+   "icon": "star",
+   "icon_index": 14,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "star, dots top-left, top-right, bottom-right, bottom-left"
   },
   {
    "byte": 240,
    "hex": "f0",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "square",
-   "text": "pacman rotated 0 deg, outline, square frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 0,
+   "dots": [],
+   "text": "fish, no dots"
   },
   {
    "byte": 241,
    "hex": "f1",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 0,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "pacman rotated 0 deg, outline, circle frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 1,
+   "dots": [
+    "bottom-left"
+   ],
+   "text": "fish, dot bottom-left"
   },
   {
    "byte": 242,
    "hex": "f2",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "square",
-   "text": "pacman rotated 0 deg, filled, square frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 2,
+   "dots": [
+    "bottom-right"
+   ],
+   "text": "fish, dot bottom-right"
   },
   {
    "byte": 243,
    "hex": "f3",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 0,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "pacman rotated 0 deg, filled, circle frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 3,
+   "dots": [
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "fish, dots bottom-right, bottom-left"
   },
   {
    "byte": 244,
    "hex": "f4",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "square",
-   "text": "pacman rotated 90 deg, outline, square frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 4,
+   "dots": [
+    "top-right"
+   ],
+   "text": "fish, dot top-right"
   },
   {
    "byte": 245,
    "hex": "f5",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 90,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "pacman rotated 90 deg, outline, circle frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 5,
+   "dots": [
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "fish, dots top-right, bottom-left"
   },
   {
    "byte": 246,
    "hex": "f6",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "square",
-   "text": "pacman rotated 90 deg, filled, square frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 6,
+   "dots": [
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "fish, dots top-right, bottom-right"
   },
   {
    "byte": 247,
    "hex": "f7",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 90,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "pacman rotated 90 deg, filled, circle frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 7,
+   "dots": [
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "fish, dots top-right, bottom-right, bottom-left"
   },
   {
    "byte": 248,
    "hex": "f8",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "square",
-   "text": "pacman rotated 180 deg, outline, square frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 8,
+   "dots": [
+    "top-left"
+   ],
+   "text": "fish, dot top-left"
   },
   {
    "byte": 249,
    "hex": "f9",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 180,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "pacman rotated 180 deg, outline, circle frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 9,
+   "dots": [
+    "top-left",
+    "bottom-left"
+   ],
+   "text": "fish, dots top-left, bottom-left"
   },
   {
    "byte": 250,
    "hex": "fa",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "square",
-   "text": "pacman rotated 180 deg, filled, square frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 10,
+   "dots": [
+    "top-left",
+    "bottom-right"
+   ],
+   "text": "fish, dots top-left, bottom-right"
   },
   {
    "byte": 251,
    "hex": "fb",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 180,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "pacman rotated 180 deg, filled, circle frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 11,
+   "dots": [
+    "top-left",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "fish, dots top-left, bottom-right, bottom-left"
   },
   {
    "byte": 252,
    "hex": "fc",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "square",
-   "text": "pacman rotated 270 deg, outline, square frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 12,
+   "dots": [
+    "top-left",
+    "top-right"
+   ],
+   "text": "fish, dots top-left, top-right"
   },
   {
    "byte": 253,
    "hex": "fd",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 270,
-   "fill": "outline",
-   "frame": "circle",
-   "text": "pacman rotated 270 deg, outline, circle frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 13,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-left"
+   ],
+   "text": "fish, dots top-left, top-right, bottom-left"
   },
   {
    "byte": 254,
    "hex": "fe",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "square",
-   "text": "pacman rotated 270 deg, filled, square frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 14,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right"
+   ],
+   "text": "fish, dots top-left, top-right, bottom-right"
   },
   {
    "byte": 255,
    "hex": "ff",
-   "symbol": "pacman",
-   "symbol_index": 15,
-   "rotation_deg": 270,
-   "fill": "filled",
-   "frame": "circle",
-   "text": "pacman rotated 270 deg, filled, circle frame"
+   "icon": "fish",
+   "icon_index": 15,
+   "dots_value": 15,
+   "dots": [
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left"
+   ],
+   "text": "fish, dots top-left, top-right, bottom-right, bottom-left"
   }
  ],
  "sequences": [
   {
    "hex": "00",
    "glyphs": [
-    "house rotated 0 deg, outline, square frame"
+    "house, no dots"
    ],
    "image": "vectors/row-00.png"
   },
   {
    "hex": "ff",
    "glyphs": [
-    "pacman rotated 270 deg, filled, circle frame"
+    "fish, dots top-left, top-right, bottom-right, bottom-left"
    ],
    "image": "vectors/row-ff.png"
   },
   {
    "hex": "8a3a3a6609eb",
    "glyphs": [
-    "arrow rotated 180 deg, filled, square frame",
-    "crown rotated 180 deg, filled, square frame",
-    "crown rotated 180 deg, filled, square frame",
-    "u rotated 90 deg, filled, square frame",
-    "house rotated 180 deg, outline, circle frame",
-    "trapezoid rotated 180 deg, filled, circle frame"
+    "pie, dots top-left, bottom-right",
+    "moon, dots top-left, bottom-right",
+    "moon, dots top-left, bottom-right",
+    "box, dots top-right, bottom-right",
+    "house, dots top-left, bottom-left",
+    "star, dots top-left, bottom-right, bottom-left"
    ],
    "image": "vectors/row-8a3a3a6609eb.png"
   },
   {
    "hex": "e8ed3798c6ff",
    "glyphs": [
-    "trapezoid rotated 180 deg, outline, square frame",
-    "trapezoid rotated 270 deg, outline, circle frame",
-    "crown rotated 90 deg, filled, circle frame",
-    "heart rotated 180 deg, outline, square frame",
-    "snowman rotated 90 deg, filled, square frame",
-    "pacman rotated 270 deg, filled, circle frame"
+    "star, dot top-left",
+    "star, dots top-left, top-right, bottom-left",
+    "moon, dots top-right, bottom-right, bottom-left",
+    "tree, dot top-left",
+    "x, dots top-right, bottom-right",
+    "fish, dots top-left, top-right, bottom-right, bottom-left"
    ],
    "image": "vectors/row-e8ed3798c6ff.png"
   },
   {
    "hex": "0123456789abcdef",
    "glyphs": [
-    "house rotated 0 deg, outline, circle frame",
-    "bookmark rotated 0 deg, filled, circle frame",
-    "drop rotated 90 deg, outline, circle frame",
-    "u rotated 90 deg, filled, circle frame",
-    "arrow rotated 180 deg, outline, circle frame",
-    "crescent rotated 180 deg, filled, circle frame",
-    "snowman rotated 270 deg, outline, circle frame",
-    "trapezoid rotated 270 deg, filled, circle frame"
+    "house, dot bottom-left",
+    "drop, dots bottom-right, bottom-left",
+    "crown, dots top-right, bottom-left",
+    "box, dots top-right, bottom-right, bottom-left",
+    "pie, dots top-left, bottom-left",
+    "plus, dots top-left, bottom-right, bottom-left",
+    "x, dots top-left, top-right, bottom-left",
+    "star, dots top-left, top-right, bottom-right, bottom-left"
    ],
    "image": "vectors/row-0123456789abcdef.png"
   },
   {
    "hex": "deadbeef",
    "glyphs": [
-    "l rotated 270 deg, filled, square frame",
-    "crescent rotated 270 deg, outline, circle frame",
-    "cloud rotated 270 deg, filled, square frame",
-    "trapezoid rotated 270 deg, filled, circle frame"
+    "bolt, dots top-left, top-right, bottom-right",
+    "plus, dots top-left, top-right, bottom-left",
+    "flag, dots top-left, top-right, bottom-right",
+    "star, dots top-left, top-right, bottom-right, bottom-left"
    ],
    "image": "vectors/row-deadbeef.png"
   }
  ],
- "photos": [
-  {
-   "image": "vectors/photo-01.jpg",
-   "expected": "e8ed3798c6ff",
-   "note": "marker on a dot-grid notebook, 2026-09-22; the snowman's circles are nearly equal, so a reader may rank c6 and ce close"
-  }
- ]
+ "photos": []
 }

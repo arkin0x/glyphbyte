@@ -1,6 +1,6 @@
 {
   "name": "glyphbyte",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "One drawn glyph is one byte. Read hand-drawn glyph rows from photos on the device, render rows to draw from, and resolve the bytes on nostr as event id and pubkey prefixes.",
   "type": "module",
   "main": "src/index.js",

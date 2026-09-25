@@ -71,7 +71,7 @@ def cmd_sheet(a):
     cv2 = _cv2()
     from .render import render_sheet
     cv2.imwrite(a.out, render_sheet(cell=a.cell, hand=a.hand, seed=a.seed))
-    print(f"wrote {a.out}: rows are symbols 0..15 ({', '.join(SYMBOLS)}); columns are rotations 0,90,180,270 outline then filled")
+    print(f"wrote {a.out}: row = icon, first hex digit ({', '.join(SYMBOLS)}); column = corner dots, second hex digit")
 
 
 def cmd_synth(a):
@@ -123,11 +123,11 @@ def cmd_backdrops(a):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="glyphbyte", description="hand-drawn symbols to bytes")
+    p = argparse.ArgumentParser(prog="glyphbyte", description="hand-drawn glyphs to bytes (format v2)")
     p.add_argument("--version", action="version", version=f"glyphbyte {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    d = sub.add_parser("decode", help="read the symbols in a photo and print the bytes as hex")
+    d = sub.add_parser("decode", help="read the glyphs in a photo and print the bytes as hex")
     d.add_argument("image", nargs="+")
     d.add_argument("--json", action="store_true", help="full result with candidates and warnings")
     d.add_argument("-v", "--verbose", action="store_true", help="show alternatives and warnings on stderr")
@@ -137,7 +137,7 @@ def main(argv=None):
     d.add_argument("--debug", default=None, help="write a detection overlay image here")
     d.set_defaults(fn=cmd_decode)
 
-    e = sub.add_parser("encode", help="render bytes as a row of symbols")
+    e = sub.add_parser("encode", help="render bytes as a row of glyphs")
     e.add_argument("hex")
     e.add_argument("--out", default="glyphbyte-row.png")
     e.add_argument("--cell", type=int, default=120)
@@ -146,7 +146,7 @@ def main(argv=None):
     e.add_argument("--no-baseline", action="store_true")
     e.set_defaults(fn=cmd_encode)
 
-    s = sub.add_parser("sheet", help="render the reference sheet of all symbols")
+    s = sub.add_parser("sheet", help="render the reference sheet of all 256 glyphs")
     s.add_argument("--out", default="glyphbyte-sheet.png")
     s.add_argument("--cell", type=int, default=90)
     s.add_argument("--hand", type=float, default=0.0)
@@ -182,7 +182,7 @@ def main(argv=None):
     t.add_argument("--seed", type=int, default=0)
     t.set_defaults(fn=cmd_train)
 
-    w = sub.add_parser("serve", help="run the web app: bytes to symbols, photo to bytes")
+    w = sub.add_parser("serve", help="run the web app: bytes to glyphs, photo to bytes")
     w.add_argument("--host", default="127.0.0.1")
     w.add_argument("--port", type=int, default=8765)
     w.add_argument("--model", default=None)

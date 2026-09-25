@@ -12,9 +12,13 @@ from .synth import PATCH
 
 @dataclass
 class PatchScores:
-    sym_rot: np.ndarray   # 64 probabilities over symbol * 4 + rotation, renormalized without junk
-    fill: np.ndarray      # 2 probabilities
-    junk: float = 0.0     # probability that the patch is not a symbol at all (0 for 64-way models)
+    icon: np.ndarray      # 16 probabilities over the icons, renormalized without junk
+    dots: np.ndarray      # 4 probabilities that each corner dot is present, top-left first
+    junk: float = 0.0     # probability that the patch is not a glyph at all
+
+
+def _sigmoid(x: np.ndarray) -> np.ndarray:
+    return 1.0 / (1.0 + np.exp(-x))
 
 
 def _softmax(x: np.ndarray) -> np.ndarray:
@@ -41,19 +45,19 @@ class Classifier:
         variants = [x]
         if tta:
             variants.append(1.0 - x)  # the model is polarity invariant; averaging both views steadies it
-        sym = None
-        fill = np.zeros((len(patches), 2), np.float64)
+        icon = None
+        dots = np.zeros((len(patches), 4), np.float64)
         for v in variants:
-            ls, lf = self.session.run(None, {self.input_name: v})
-            sym = _softmax(ls) if sym is None else sym + _softmax(ls)
-            fill += _softmax(lf)
-        sym /= len(variants)
-        fill /= len(variants)
+            li, ld = self.session.run(None, {self.input_name: v})
+            icon = _softmax(li) if icon is None else icon + _softmax(li)
+            dots += _sigmoid(ld)
+        icon /= len(variants)
+        dots /= len(variants)
         out = []
         for i in range(len(patches)):
-            junk = float(sym[i, 64]) if sym.shape[1] > 64 else 0.0
-            real = sym[i, :64] / max(sym[i, :64].sum(), 1e-12)
-            out.append(PatchScores(sym_rot=real, fill=fill[i], junk=junk))
+            junk = float(icon[i, 16])
+            real = icon[i, :16] / max(icon[i, :16].sum(), 1e-12)
+            out.append(PatchScores(icon=real, dots=dots[i], junk=junk))
         return out
 
     def junk_probabilities(self, patches: list[np.ndarray]) -> np.ndarray:

@@ -1,4 +1,4 @@
-"""Render glyphbyte glyphs, frames and rows, either clean or in a hand-drawn style.
+"""Render glyphbyte v2 glyphs, frames and rows, either clean or in a hand-drawn style.
 
 Coordinates are image coordinates (y down). Rotation r in quarter turns is
 clockwise on screen. Canvases are uint8 grayscale, white paper, dark ink.
@@ -12,21 +12,8 @@ from dataclasses import dataclass, field
 import cv2
 import numpy as np
 
-from .symbols import FRAME_CIRCLE, Glyph, unpack, load_canonical, pack
-
-_SHAPES: list[dict] | None = None
-
-
-def shapes() -> list[dict]:
-    global _SHAPES
-    if _SHAPES is None:
-        raw = load_canonical()
-        _SHAPES = [
-            {"name": s["name"], "outer": np.asarray(s["outer"], dtype=np.float64),
-             "features": [np.asarray(f, dtype=np.float64) for f in s["features"]]}
-            for s in raw
-        ]
-    return _SHAPES
+from .icons import DOT_CORNERS, DOT_OFFSET, DOT_RADIUS, ICON_SCALE, strokes
+from .symbols import FRAME_CIRCLE, FRAME_SQUARE, Glyph, unpack
 
 
 # ----------------------------------------------------------------------------- geometry
@@ -110,40 +97,77 @@ def draw_path(canvas: np.ndarray, pts_px: np.ndarray, thickness: float, color: i
         cv2.polylines(canvas, [np.round(seg).astype(np.int32)], False, color, max(1, int(round(th))), cv2.LINE_AA)
 
 
-def draw_glyph(canvas: np.ndarray, glyph: Glyph, center, size: float, thickness: float, color: int = 0,
-               rng: np.random.Generator | None = None, amount: float = 0.0, paper: int = 255) -> None:
-    """Draw one symbol (no frame). size is the glyph's bounding size in pixels."""
-    rng = rng or np.random.default_rng(0)
-    s = shapes()[glyph.symbol]
-    R = rot_matrix(glyph.rotation * math.pi / 2)
-    outer = perturb(s["outer"], rng, amount) @ R.T
-    feats = [perturb(f, rng, amount) @ R.T for f in s["features"]]
-    outer_px = _px(outer, center, size)
-    feats_px = [_px(f, center, size) for f in feats]
-    if glyph.fill:
-        cv2.fillPoly(canvas, [np.round(outer_px).astype(np.int32)], color, cv2.LINE_AA)
-        for f in feats_px:
-            cv2.fillPoly(canvas, [np.round(f).astype(np.int32)], paper, cv2.LINE_AA)
-            draw_path(canvas, f, thickness, color, rng, amount)
-        if amount > 0:
-            # hand fill: scribble streaks that leave a little paper showing through
-            mask = np.zeros(canvas.shape[:2], np.uint8)
-            cv2.fillPoly(mask, [np.round(outer_px).astype(np.int32)], 1)
-            streaks = np.zeros_like(canvas)
-            n_streaks = int(rng.integers(0, 10) * amount)
-            ang = rng.uniform(0, math.pi)
-            d = np.array([math.cos(ang), math.sin(ang)])
-            for _ in range(n_streaks):
-                off = (rng.uniform(-0.5, 0.5, size=2) * size) + np.asarray(center)
-                a, b = off - d * size, off + d * size
-                cv2.line(streaks, tuple(np.round(a).astype(int)), tuple(np.round(b).astype(int)), 255, 1, cv2.LINE_AA)
-            lift = (streaks.astype(np.float32) * (mask > 0) * rng.uniform(0.3, 0.7))
-            canvas[:] = np.clip(canvas.astype(np.float32) + lift, 0, 255).astype(np.uint8)
-        draw_path(canvas, outer_px, thickness, color, rng, amount)
+def _resample(points: np.ndarray, closed: bool, step: float = 0.02) -> np.ndarray:
+    """Evenly spaced points along a polyline, so the wobble model has a smooth path to bend."""
+    p = np.vstack([points, points[:1]]) if closed else points
+    seg = np.linalg.norm(np.diff(p, axis=0), axis=1)
+    s = np.concatenate([[0], np.cumsum(seg)])
+    n = max(8, int(s[-1] / step))
+    t = np.linspace(0, s[-1], n, endpoint=not closed)
+    # keep the corners: a hand slows down at a corner and keeps it
+    t = np.unique(np.concatenate([t, s[:-1] if closed else s]))
+    return np.stack([np.interp(t, s, p[:, 0]), np.interp(t, s, p[:, 1])], axis=1)
+
+
+def _open_wobble(points: np.ndarray, rng: np.random.Generator, amount: float) -> np.ndarray:
+    """perturb() for an open stroke: the same wobble without assuming the path closes."""
+    n = len(points)
+    t = np.linspace(0, 1, n)
+    disp = np.zeros((n, 2))
+    for _ in range(2):
+        f = rng.uniform(0.5, 2.5)
+        disp += rng.uniform(0, 0.025) * amount * np.sin(2 * math.pi * f * t[:, None] + rng.uniform(0, 2 * math.pi, 2))
+    return points + disp + rng.normal(0, 0.004 * amount, (n, 2))
+
+
+def draw_dot(canvas: np.ndarray, center, r: float, thickness: float, color: int,
+             rng: np.random.Generator | None = None, amount: float = 0.0) -> None:
+    """A dot as people draw one: usually a filled blob, sometimes a scribble or a tiny ring."""
+    c = np.asarray(center, np.float64)
+    if amount <= 0 or rng is None:
+        cv2.circle(canvas, tuple(np.round(c * 4).astype(int)), max(1, int(round(r * 4))), color, -1, cv2.LINE_AA, shift=2)
+        return
+    r = r * rng.uniform(0.7, 1.4)
+    style = rng.random()
+    if style < 0.1:      # a tiny ring; with a thick tool it fills in
+        cv2.circle(canvas, tuple(np.round(c * 4).astype(int)), max(1, int(round(r * 0.8 * 4))), color,
+                   max(1, int(round(max(thickness, r * 0.6)))), cv2.LINE_AA, shift=2)
+    elif style < 0.35:   # a scribbled blob
+        k = 12
+        t = np.linspace(0, 2 * math.pi, k, endpoint=False)
+        rr = r * (1 + rng.normal(0, 0.18, k))
+        pts = np.stack([c[0] + rr * np.cos(t), c[1] + rr * np.sin(t)], 1)
+        cv2.fillPoly(canvas, [np.round(pts * 4).astype(np.int32)], color, cv2.LINE_AA, shift=2)
     else:
-        draw_path(canvas, outer_px, thickness, color, rng, amount)
-        for f in feats_px:
-            draw_path(canvas, f, thickness, color, rng, amount)
+        cv2.circle(canvas, tuple(np.round(c * 4).astype(int)), max(1, int(round(r * 4))), color, -1, cv2.LINE_AA, shift=2)
+
+
+def draw_glyph(canvas: np.ndarray, glyph: Glyph, center, frame_size: float, thickness: float, color: int = 0,
+               rng: np.random.Generator | None = None, amount: float = 0.0) -> None:
+    """Draw one glyph's icon and corner dots (no frame). frame_size is the frame side in pixels."""
+    rng = rng or np.random.default_rng(0)
+    c = np.asarray(center, dtype=np.float64)
+    size = frame_size * ICON_SCALE
+    if amount > 0:
+        # the writer's icon: a little bigger or smaller, a little off centre, tilted, sheared
+        size *= 1 + rng.normal(0, 0.1 * amount)
+        c = c + rng.normal(0, 0.03 * frame_size * amount, 2)
+        theta = rng.normal(0, math.radians(5) * amount)
+        A = rot_matrix(theta) @ (np.eye(2) + rng.normal(0, 0.05 * amount, (2, 2)))
+    else:
+        A = np.eye(2)
+    for pts, closed in strokes(glyph.icon):
+        q = _resample(pts, closed)
+        if amount > 0:
+            q = perturb(q, rng, amount * 0.8) if closed else _open_wobble(q, rng, amount)
+        draw_path(canvas, _px(q @ A.T, c, size), thickness, color, rng, amount, closed=closed)
+    fc = np.asarray(center, dtype=np.float64)
+    for i, (dx, dy) in enumerate(DOT_CORNERS):
+        if glyph.dots >> (3 - i) & 1:
+            p = fc + np.array([dx, dy]) * DOT_OFFSET * frame_size
+            if amount > 0:
+                p = p + rng.normal(0, 0.02 * frame_size * amount, 2)
+            draw_dot(canvas, p, DOT_RADIUS * frame_size, thickness, color, rng, amount)
 
 
 def draw_frame(canvas: np.ndarray, frame: int, center, size: float, thickness: float, color: int = 0,
@@ -182,12 +206,8 @@ class CellGeometry:
 def draw_cell(canvas: np.ndarray, byte: int, center, frame_size: float, thickness: float, color: int = 0,
               rng: np.random.Generator | None = None, amount: float = 0.0, paper: int = 255) -> CellGeometry:
     rng = rng or np.random.default_rng(0)
-    g = unpack(byte)
-    ratio = 0.62 if g.frame == 0 else 0.56
-    ratio *= 1 + rng.normal(0, 0.06 * amount)
-    c = np.asarray(center, dtype=np.float64) + rng.normal(0, 0.02 * frame_size * amount, size=2)
-    draw_frame(canvas, g.frame, center, frame_size, thickness, color, rng, amount)
-    draw_glyph(canvas, g, c, frame_size * ratio, thickness, color, rng, amount, paper)
+    draw_frame(canvas, FRAME_SQUARE, center, frame_size, thickness, color, rng, amount)
+    draw_glyph(canvas, unpack(byte), center, frame_size, thickness, color, rng, amount)
     h = frame_size / 2
     corners = np.array([[center[0] - h, center[1] - h], [center[0] + h, center[1] - h],
                         [center[0] + h, center[1] + h], [center[0] - h, center[1] + h]])
@@ -235,17 +255,11 @@ def render_row(data: bytes, cell: int = 120, thickness: float | None = None, han
 
 
 def render_sheet(cell: int = 90, hand: float = 0.0, seed: int = 0) -> np.ndarray:
-    """Reference sheet: one row per symbol; columns are 4 rotations outline then 4 filled,
-    alternating square and circle frames."""
+    """Reference sheet: all 256 glyphs, row = icon (first hex digit), column = dots (second)."""
     rng = np.random.default_rng(seed)
-    rows, cols = 16, 8
-    pitch = int(cell * 1.25)
-    canvas = np.full((pitch * rows + cell, pitch * cols + cell), 255, np.uint8)
-    for s in range(16):
-        for c in range(cols):
-            fill, rot = divmod(c, 4)
-            frame = (s + c) % 2
-            b = pack(s, rot, fill, frame)
-            draw_cell(canvas, b, (cell * 0.5 + pitch * c + cell * 0.1, cell * 0.5 + pitch * s + cell * 0.1),
-                      cell, max(2, cell * 0.045), 0, rng, hand)
+    pitch = int(cell * 1.2)
+    canvas = np.full((pitch * 16 + cell // 2, pitch * 16 + cell // 2), 255, np.uint8)
+    for b in range(256):
+        r, c = divmod(b, 16)
+        draw_cell(canvas, b, (cell * 0.75 + pitch * c, cell * 0.75 + pitch * r), cell, max(2, cell * 0.04), 0, rng, hand)
     return canvas

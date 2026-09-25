@@ -164,6 +164,78 @@ def photometric(img: np.ndarray, rng: np.random.Generator, amount: float = 1.0) 
     return x
 
 
+# ----------------------------------------------------------------------------- media beyond pen and paper
+
+MEDIA = ("ink", "chalk", "crop")
+MEDIUM_P = (0.7, 0.15, 0.15)
+STROKE = {"ink": (0.025, 0.08), "chalk": (0.06, 0.12), "crop": (0.07, 0.14)}   # stroke width / frame side
+
+
+def pick_medium(rng: np.random.Generator) -> str:
+    return MEDIA[int(rng.choice(len(MEDIA), p=MEDIUM_P))]
+
+
+def _noise(rng, h, w, sigma):
+    n = rng.normal(0, 1, (h, w)).astype(np.float32)
+    return cv2.GaussianBlur(n, (0, 0), sigma) if sigma > 0 else n
+
+
+def _pavement(rng, h, w):
+    base = rng.uniform(40, 120)
+    g = base + 54 * _noise(rng, h, w, 1.0) + 60 * _noise(rng, h, w, 6)
+    if rng.random() < 0.5:  # slab joints
+        s = int(rng.integers(max(60, w // 3), max(61, w)))
+        xx = np.arange(w)[None, :].repeat(h, 0)
+        g[(xx % s) < 2] -= 30
+    g = np.clip(g, 0, 255).astype(np.uint8)
+    return np.clip(cv2.cvtColor(g, cv2.COLOR_GRAY2BGR).astype(np.float32) * rng.uniform(0.9, 1.1, 3), 0, 255).astype(np.uint8)
+
+
+def _field(rng, h, w):
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    ang = rng.uniform(0, math.pi)
+    u = xx * math.cos(ang) + yy * math.sin(ang)
+    rows = 0.5 + 0.5 * np.sin(2 * math.pi * u / rng.uniform(4, 10))
+    tex = 0.6 * rows + 0.4 * (0.5 + 0.75 * _noise(rng, h, w, 1.2))
+    green = np.array([rng.uniform(30, 70), rng.uniform(90, 150), rng.uniform(40, 90)], np.float32)
+    bgr = green[None, None, :] * (0.7 + 0.6 * tex[..., None])
+    if rng.random() < 0.5:  # tramlines
+        sp = rng.uniform(w * 0.3, w * 0.9)
+        v = -xx * math.sin(ang) + yy * math.cos(ang)
+        bgr[np.abs((v % sp) - sp / 2) < 2] *= 0.75
+    return np.clip(bgr, 0, 255).astype(np.uint8)
+
+
+def composite_medium(canvas: np.ndarray, medium: str, rng: np.random.Generator,
+                     backdrops: list[np.ndarray]) -> tuple[np.ndarray, bool]:
+    """Ink canvas (white paper, dark ink) as a photo of pen/marker, chalk on pavement, or a
+    pattern flattened into a crop field. Returns (bgr, light_ink)."""
+    h, w = canvas.shape[:2]
+    if medium == "ink":
+        return composite_ink(canvas, random_backdrop(rng, backdrops, h, w), rng)
+    alpha = (255 - canvas.astype(np.float32)) / 255.0
+    if medium == "chalk":
+        bd = _pavement(rng, h, w) if (not backdrops or rng.random() < 0.7) else random_backdrop(rng, backdrops, h, w)
+        keep = np.clip((_noise(rng, h, w, rng.uniform(0.5, 1.5)) * 3 + rng.uniform(0.5, 1.5)) / 2, 0, 1)
+        a = alpha * keep * rng.uniform(0.6, 0.95)
+        a = np.maximum(a, cv2.GaussianBlur(alpha, (0, 0), 3) * 0.15)          # dust
+        col = np.array([rng.uniform(190, 250)] * 3, np.float32) * rng.uniform(0.85, 1.0, 3)
+        if rng.random() < 0.3:
+            col = np.array([rng.uniform(120, 250), rng.uniform(120, 250), rng.uniform(120, 250)], np.float32)
+        light = float(bd.mean()) < 150
+        if not light:  # chalk on a bright surface would vanish; use dark chalk there
+            col = 255 - col
+        out = bd.astype(np.float32) * (1 - a[..., None]) + col * a[..., None]
+        return np.clip(out, 0, 255).astype(np.uint8), light
+    bd = _field(rng, h, w)
+    ragged = cv2.GaussianBlur(alpha, (0, 0), 1.5) + 1.05 * _noise(rng, h, w, 1.0)
+    a = np.clip((ragged - 0.35) * 3, 0, 1)
+    flat = np.array([rng.uniform(80, 140), rng.uniform(170, 220), rng.uniform(170, 220)], np.float32)
+    tex = 0.85 + 0.3 * _noise(rng, h, w, 2)[..., None]
+    out = bd.astype(np.float32) * (1 - a[..., None]) + flat * tex * a[..., None]
+    return np.clip(out, 0, 255).astype(np.uint8), True
+
+
 # ----------------------------------------------------------------------------- patches
 
 def normalize_patch(gray: np.ndarray, light_ink: bool = False) -> np.ndarray:
@@ -194,9 +266,8 @@ def rectify(gray: np.ndarray, corners: np.ndarray, size: int = PATCH) -> np.ndar
 class PatchSample:
     image: np.ndarray      # PATCH x PATCH uint8, normalized
     byte: int
-    sym_rot: int           # symbol * 4 + rotation
-    fill: int
-    frame: int
+    icon: int              # high nibble
+    dots: int              # low nibble
 
 
 def make_patch(rng: np.random.Generator, backdrops: list[np.ndarray], byte: int | None = None,
@@ -207,9 +278,10 @@ def make_patch(rng: np.random.Generator, backdrops: list[np.ndarray], byte: int 
     pad = int(cell * 0.45)
     W = H = cell + 2 * pad
     canvas = np.full((H, W), 255, np.uint8)
-    thickness = cell * rng.uniform(0.025, 0.08)
+    medium = pick_medium(rng)
+    thickness = cell * rng.uniform(*STROKE[medium])
     geo = draw_cell(canvas, byte, (W / 2, H / 2), cell, thickness, 0, rng, hand)
-    bgr, light_ink = composite_ink(canvas, random_backdrop(rng, backdrops, H, W), rng)
+    bgr, light_ink = composite_medium(canvas, medium, rng, backdrops)
     Hm = random_homography(rng, W, H, rng.uniform(0, 0.22))
     warped = cv2.warpPerspective(bgr, Hm, (W, H), borderMode=cv2.BORDER_REFLECT)
     warped = photometric(warped, rng)
@@ -227,8 +299,7 @@ def make_patch(rng: np.random.Generator, backdrops: list[np.ndarray], byte: int 
         corners = c + (corners - c) @ R.T
     patch = rectify(gray, corners.astype(np.float32))
     patch = normalize_patch(patch, light_ink)
-    g = byte
-    return PatchSample(image=patch, byte=g, sym_rot=(g >> 4) * 4 + ((g >> 2) & 3), fill=(g >> 1) & 1, frame=g & 1)
+    return PatchSample(image=patch, byte=byte, icon=byte >> 4, dots=byte & 15)
 
 
 def make_junk_patch(rng: np.random.Generator, backdrops: list[np.ndarray]) -> np.ndarray:
@@ -243,7 +314,7 @@ def make_junk_patch(rng: np.random.Generator, backdrops: list[np.ndarray]) -> np
     elif kind < 0.65:
         canvas = np.full((H, W), 255, np.uint8)          # a frame with nothing inside
         from .render import draw_frame
-        draw_frame(canvas, int(rng.integers(0, 2)), (W / 2, H / 2), cell, cell * rng.uniform(0.025, 0.08), 0,
+        draw_frame(canvas, 0, (W / 2, H / 2), cell, cell * rng.uniform(0.025, 0.08), 0,
                    rng, float(rng.uniform(0, 1)))
     else:
         # a row fragment off-centre: between cells, on the baseline, on the start dot
@@ -295,7 +366,9 @@ def make_scene(rng: np.random.Generator, backdrops: list[np.ndarray], data: byte
     hand = float(rng.uniform(0.2, 1.0)) if hand is None else hand
     perspective = float(rng.uniform(0.0, 0.2)) if perspective is None else perspective
     cell = int(rng.integers(70, 150))
-    row = render_row(data, cell=cell, thickness=cell * rng.uniform(0.03, 0.07), hand=hand, rng=rng,
+    medium = pick_medium(rng)
+    lo, hi = STROKE[medium]
+    row = render_row(data, cell=cell, thickness=cell * rng.uniform(max(lo, 0.03), min(hi, 0.07) if medium == "ink" else hi), hand=hand, rng=rng,
                      baseline=baseline)
     rh, rw = row.canvas.shape
     # place the row on a larger canvas so the scene has context around it
@@ -304,7 +377,7 @@ def make_scene(rng: np.random.Generator, backdrops: list[np.ndarray], data: byte
     big = np.full((H, W), 255, np.uint8)
     ox, oy = int(rng.integers(0, W - rw + 1)), int(rng.integers(0, H - rh + 1))
     big[oy:oy + rh, ox:ox + rw] = row.canvas
-    bgr, light_ink = composite_ink(big, random_backdrop(rng, backdrops, H, W), rng)
+    bgr, light_ink = composite_medium(big, medium, rng, backdrops)
 
     def proj_with(M, pts):
         p = np.asarray(pts, np.float32).reshape(-1, 1, 2) + [ox, oy]

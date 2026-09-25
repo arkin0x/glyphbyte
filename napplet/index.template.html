@@ -31,16 +31,16 @@
 </head>
 <body>
 <main>
-  <h1>glyphbyte <small>hand-drawn symbols, one byte each</small></h1>
+  <h1>glyphbyte <small>hand-drawn glyphs, one byte each</small></h1>
   <section>
-    <h2>Bytes to symbols</h2>
+    <h2>Bytes to glyphs</h2>
     <input id="hex" type="text" placeholder="hex, npub, note, nevent, nprofile or naddr" autocomplete="off" spellcheck="false" autocapitalize="off">
     <div class="row"><span class="muted">bytes to draw:</span><label><input type="radio" name="nbytes" value="4"> 4</label><label><input type="radio" name="nbytes" value="6" checked> 6</label><label><input type="radio" name="nbytes" value="8"> 8</label><label><input type="radio" name="nbytes" value="0"> all</label><span id="entity" class="muted"></span></div>
     <canvas id="row" class="render" hidden></canvas>
     <ol id="describe" class="symbols"></ol>
     <div class="row"><button id="sheetBtn">reference sheet</button><button id="lookupHexBtn">look up on relay</button></div>
     <canvas id="sheet" class="render" hidden></canvas>
-    <p class="muted">Draw each symbol inside its frame, underline the row, and put a fat dot at the start of the underline, about a quarter of a symbol across. Filled means scribble it in.</p>
+    <p class="muted">Draw a square frame, the icon upright and small in the middle, and the corner dots so they touch nothing. Underline the row and put a fat dot at the start of the underline, about a quarter of a frame across.</p>
   </section>
   <section>
     <h2>Photo to bytes</h2>
@@ -59,7 +59,7 @@
 <div id="modal" hidden><div class="box"><div class="row" style="justify-content:space-between"><b id="modalTitle"></b><button id="modalClose">close</button></div><pre id="modalBody"></pre></div></div>
 <script>
 /*__CORE__*/
-const SHAPES = /*__SHAPES__*/[];
+const SHAPES = /*__SHAPES__*/{};
 const MODEL = loadWeights(/*__MANIFEST__*/{}, Uint8Array.from(atob('/*__WEIGHTS_B64__*/'), c => c.charCodeAt(0)));
 /*__APP__*/
 </script>

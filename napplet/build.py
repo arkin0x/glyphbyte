@@ -14,29 +14,17 @@ def strip_module(src: str) -> str:
     return src
 
 
-def resample(points, n):
-    import numpy as np
-    pts = np.asarray(points, dtype=float)
-    pts = np.vstack([pts, pts[:1]])
-    seg = np.linalg.norm(np.diff(pts, axis=0), axis=1)
-    cum = np.concatenate([[0.0], np.cumsum(seg)])
-    out = []
-    for t in np.linspace(0, cum[-1], n, endpoint=False):
-        k = min(max(int(np.searchsorted(cum, t, side="right") - 1), 0), len(seg) - 1)
-        a = (t - cum[k]) / seg[k] if seg[k] > 0 else 0.0
-        out.append((pts[k] * (1 - a) + pts[k + 1] * a).round(4).tolist())
-    return out
-
-
 def build(weights_path, manifest_path, out_path):
     core = "\n".join(strip_module(open(os.path.join(HERE, "src", f)).read()) for f in ORDER)
     app = open(os.path.join(HERE, "src", "app.js")).read()
-    shapes = json.load(open(os.path.join(HERE, "..", "glyphbyte", "data", "canonical.json")))
-    shapes = [{"name": s["name"], "outer": resample(s["outer"], 80), "features": [resample(f, 48) for f in s["features"]]} for s in shapes]
+    # the icons and frame geometry, generated from glyphbyte/icons.py by scripts/make_spec_assets.py
+    shapes = json.load(open(os.path.join(HERE, "..", "spec", "glyphs.json")))
+    with open(os.path.join(HERE, "shapes.json"), "w") as f:
+        json.dump(shapes, f)
     weights_b64 = base64.b64encode(open(weights_path, "rb").read()).decode()
     manifest = json.load(open(manifest_path))
     html = open(os.path.join(HERE, "index.template.html")).read()
-    html = html.replace("/*__CORE__*/", core).replace("/*__SHAPES__*/[]", json.dumps(shapes, separators=(",", ":")))
+    html = html.replace("/*__CORE__*/", core).replace("/*__SHAPES__*/{}", json.dumps(shapes, separators=(",", ":")))
     html = html.replace("/*__MANIFEST__*/{}", json.dumps(manifest, separators=(",", ":"))).replace("/*__WEIGHTS_B64__*/", weights_b64)
     import subprocess, datetime
     try:

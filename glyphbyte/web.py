@@ -1,4 +1,4 @@
-"""Web app: bytes to symbols, photo to bytes. `glyphbyte serve` runs it; deploy/ has the containers."""
+"""Web app: bytes to glyphs, photo to bytes. `glyphbyte serve` runs it; deploy/ has the containers."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def create_app(model_path: str | None = None) -> FastAPI:
 
     @app.get("/api/symbols")
     def symbols():
-        return {"symbols": SYMBOLS, "layout": "high nibble symbol, bits 3..2 rotation cw quarter turns, bit 1 fill, bit 0 frame (0 square, 1 circle)"}
+        return {"format": 2, "symbols": SYMBOLS, "layout": "high nibble icon; low nibble corner dots: top-left 8, top-right 4, bottom-right 2, bottom-left 1"}
 
     @app.get("/api/describe")
     def describe(hex: str = Query(..., min_length=2)):
@@ -80,8 +80,7 @@ def create_app(model_path: str | None = None) -> FastAPI:
 
 def _glyph(b: int) -> dict:
     g = unpack(b)
-    return {"name": g.name, "rotation": g.rotation * 90, "fill": "filled" if g.fill else "outline",
-            "frame": "circle" if g.frame else "square", "text": g.describe()}
+    return {"name": g.name, "icon": g.icon, "dots": g.dots, "dot_corners": g.dot_corners(), "text": g.describe()}
 
 
 def serve(host: str = "127.0.0.1", port: int = 8765, model_path: str | None = None):

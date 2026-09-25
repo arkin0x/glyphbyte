@@ -5,13 +5,13 @@ Pipeline
   1. gray, downscale to at most MAX_SIDE
   2. binarize twice (dark ink, light ink) with a local threshold; keep the polarity
      that yields more frames
-  3. frames = ink rings whose hole contains ink; square vs circle by the area of
+  3. frames = ink rings whose hole contains ink. v2 frames are squares; the area of
      the largest quadrilateral inscribed in the hole's hull (1.0 for a quad, 2/pi
-     for an ellipse, and perspective does not change either)
+     for an ellipse, in any perspective) marks confidently round rings as unlikely
   4. baseline = the long thin component next to the frames; start dot = a blob at
      one end, or the end that is thicker than the line
-  5. rectify: squares by homography from their four corners, circles by an affine
-     map of the fitted ellipse; "up" and reading order come from the baseline
+  5. rectify: by homography from the frame's four corners (an ellipse fit is the
+     fallback); "up" and reading order come from the baseline
 """
 
 from __future__ import annotations
@@ -227,10 +227,11 @@ def find_frames(ink: np.ndarray) -> list[Frame]:
         q *= 1.0 if off_c <= 0.22 else 0.5
         q *= 1.0 if share >= 0.5 else (0.6 if share >= 0.3 else 0.3)
         if kind == FRAME_CIRCLE:
+            q *= 1.0 - 0.5 * conf       # v2 frames are squares: a confidently round ring is likely not one
             size = math.sqrt(px / math.pi) * 2
         fr = Frame(kind=kind, center=center, size=size, outer=ring_outer if ring_outer is not None else hull,
                    hole=region.reshape(-1, 2), ink_fraction=frac, quad_ratio=conf, stroke=stroke, quality=q)
-        if kind == FRAME_SQUARE and quad is not None:
+        if quad is not None:   # every v2 frame is a square, even one wobbly enough to score round
             fr.corners = center + (quad - center) * (1 + 0.5 * stroke / max(size, 1))
         if len(region) >= 5:
             (cx, cy), (MA, ma), ang = cv2.fitEllipse(region)
@@ -612,7 +613,7 @@ def circle_matrix(ellipse, d: np.ndarray, size: int = PATCH) -> np.ndarray:
 
 
 def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, light_ink: bool) -> np.ndarray:
-    if f.kind == FRAME_SQUARE and f.corners is not None:
+    if f.corners is not None:
         patch = rectify(gray, order_corners(f.corners, f.center, d, up))
     elif f.ellipse is not None:
         M = circle_matrix(f.ellipse, d)
