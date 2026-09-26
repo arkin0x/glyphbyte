@@ -82,7 +82,8 @@ def cmd_synth(a):
     rng = np.random.default_rng(a.seed)
     with open(os.path.join(a.out, "truth.jsonl"), "w") as f:
         for i in range(a.n):
-            sc = make_scene(rng, bd, n_bytes=a.bytes, hand=a.hand, perspective=a.perspective, baseline=not a.no_baseline)
+            sc = make_scene(rng, bd, n_bytes=a.bytes, hand=a.hand, perspective=a.perspective, baseline=not a.no_baseline,
+                            medium=None if a.media == "all" else a.media)
             name = f"scene_{i:04d}.jpg"
             cv2.imwrite(os.path.join(a.out, name), sc.image, [cv2.IMWRITE_JPEG_QUALITY, 92])
             f.write(json.dumps({"image": name, "hex": sc.data.hex(), "hand": round(sc.hand, 3),
@@ -161,6 +162,8 @@ def main(argv=None):
     y.add_argument("--hand", type=float, default=None)
     y.add_argument("--perspective", type=float, default=None)
     y.add_argument("--no-baseline", action="store_true")
+    y.add_argument("--media", default="all", choices=["all", "ink", "chalk", "crop"],
+                   help="all: pen or marker 70%%, chalk 15%%, crop field 15%%; or one medium only")
     y.add_argument("--seed", type=int, default=0)
     y.set_defaults(fn=cmd_synth)
 

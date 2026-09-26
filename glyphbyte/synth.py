@@ -359,14 +359,14 @@ class Scene:
 
 def make_scene(rng: np.random.Generator, backdrops: list[np.ndarray], data: bytes | None = None,
                n_bytes: int | None = None, hand: float | None = None, perspective: float | None = None,
-               size: int = 1280, baseline: bool = True) -> Scene:
+               size: int = 1280, baseline: bool = True, medium: str | None = None) -> Scene:
     if data is None:
         n = n_bytes or int(rng.integers(2, 9))
         data = bytes(rng.integers(0, 256, size=n).tolist())
     hand = float(rng.uniform(0.2, 1.0)) if hand is None else hand
     perspective = float(rng.uniform(0.0, 0.2)) if perspective is None else perspective
     cell = int(rng.integers(70, 150))
-    medium = pick_medium(rng)
+    medium = medium or pick_medium(rng)
     lo, hi = STROKE[medium]
     row = render_row(data, cell=cell, thickness=cell * rng.uniform(max(lo, 0.03), min(hi, 0.07) if medium == "ink" else hi), hand=hand, rng=rng,
                      baseline=baseline)

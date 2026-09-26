@@ -1,22 +1,77 @@
 # Benchmark
 
-Numbers are on synthetic scenes only. No real handwriting has been measured yet.
+Numbers are on synthetic scenes only. No real v2 handwriting has been measured yet.
 
-## Reproduce
+## Reproduce (format v2)
 
 ```
 glyphbyte backdrops --out bench/backdrops --n 48          # public-domain photos from picsum.photos
-glyphbyte synth --out bench/synth/v1 --n 200 --backdrops bench/backdrops --seed 1
-glyphbyte bench bench/synth/v1 --out bench/out/v1.json
+glyphbyte synth --out bench/synth/v2-ink --n 200 --backdrops bench/backdrops --seed 1 --media ink
+glyphbyte synth --out bench/synth/v2 --n 200 --backdrops bench/backdrops --seed 1
+glyphbyte bench bench/synth/v2-ink --out bench/out/v2-ink.json
+glyphbyte bench bench/synth/v2 --out bench/out/v2.json
 ```
 
 `synth` draws 2 to 8 random bytes per scene in a hand-drawn style of random severity,
 on a photo or a procedural surface (paper, wood, tiles, concrete, lined paper, dark
 board with light ink), sometimes on a paper patch, under random perspective (up to
 0.2), any camera roll, lighting gradients, shadows, blur, motion blur, noise and JPEG.
-The whole row is always inside the picture.
+The whole row is always inside the picture. `--media ink` is pen or marker only, like the
+v1 suite; the default mixes in chalk on pavement (15%) and paths flattened into a crop
+field seen from the air (15%).
 
-## Results, 2026-09-22 (corrected canonical shapes)
+## Results, 2026-09-26 (format v2)
+
+Models: `glyphbyte/data/model.onnx` (big, channels 32-64-128-192) and `model-small.onnx`
+(the browser's, 16-32-64-96), each trained 12 epochs x 40,000 synthetic patches.
+
+### Pen and marker, `bench/synth/v2-ink` (200 scenes)
+
+| metric | big (Python) | small (browser) |
+|---|---|---|
+| whole row exact (top-1) | 0.630 | 0.620 |
+| truth among candidate readings | 0.650 | 0.640 |
+| frames found | 0.885 | 0.894 |
+| byte accuracy, where the frame count matched | 0.950 | 0.937 |
+| icon right | 0.968 | 0.956 |
+| dots right | 0.953 | 0.939 |
+
+### With chalk and crop fields, `bench/synth/v2` (200 scenes)
+
+| metric | big (Python) | small (browser) |
+|---|---|---|
+| whole row exact (top-1) | 0.425 | 0.385 |
+| truth among candidate readings | 0.460 | 0.445 |
+| frames found | 0.834 | 0.852 |
+| byte accuracy, where the frame count matched | 0.882 | 0.857 |
+| icon right | 0.935 | 0.922 |
+| dots right | 0.889 | 0.868 |
+
+### Compared with v1 (big model; v1 on its own pen-and-marker suite)
+
+| metric | v1 (2026-09-25, after the start-dot fix) | v2 |
+|---|---|---|
+| whole row exact | 0.555 | 0.630 |
+| frames found | 0.866 | 0.885 |
+| byte accuracy, aligned | 0.943 | 0.950 |
+
+What moved the numbers, in order:
+
+- The glyphs vote on which way is up. In v2 scenes the underline's side was wrong in 9 of 96
+  rows (a ruled line or a paper edge taken for the underline); v1 had the same 9 in 100 and no
+  way to recover. With the vote, whole rows went from 0.570 to 0.630 for the big model.
+- A second binarization of the blurred picture rejoins grainy strokes: frames found on the
+  mixed suite went from 0.811 to 0.868 in its first test.
+- Chalk and crop fields remain the weak cases at the scene level (light ink on a dark surface:
+  see the buckets in the JSON reports). The first v2 small model read crop-field patches at
+  0.985 and chalk at 0.88 on their own; finding the frames is what fails.
+
+The JavaScript reader matches the Python reader: on 40 exported scenes both return 20
+rows exactly, and its network matches PyTorch within 1.3e-3 in probability.
+
+## v1 results (the first alphabet, kept for reference)
+
+### Results, 2026-09-22 (corrected canonical shapes)
 
 Suite `bench/synth/v1`: 200 scenes, 996 symbols, seed 1, regenerated after the canonical crown,
 house, chevron and bookmark were fixed (the first extraction had flood-filled the gaps of the

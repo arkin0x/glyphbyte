@@ -8,14 +8,18 @@ bytes. It was built to carry partial nostr event ids attached to physical places
 where a wrong read costs one extra relay query and nothing else.
 
 ```
-$ glyphbyte decode photo.jpg
-8a3a3a6609eb
-$ glyphbyte decode photo.jpg -v
-8a3a3a6609eb
-  8a3a3a6609eb  p=0.91
-  8a3a3a6609e3  p=0.06
-  [0] arrow rotated 180 deg, filled, square frame (0.99)
-  [5] trapezoid rotated 180 deg, filled, circle frame (0.71)  or trapezoid rotated 0 deg, filled, circle frame (0.22)
+$ glyphbyte decode row.jpg
+e8ed3798c6ff
+$ glyphbyte decode row.jpg -v          # the same row, photographed upside down, no hint given
+e8ed3798c6ff
+  e8ed3798c6ff  p=0.641
+  e8ec3798c6ff  p=0.359
+  [0] star, dot top-left (0.97)
+  [1] star, dots top-left, top-right, bottom-left (0.60)  or star, dots top-left, top-right (0.34)
+  [2] moon, dots top-right, bottom-right, bottom-left (0.96)
+  [3] tree, dot top-left (0.93)
+  [4] x, dots top-right, bottom-right (0.94)
+  [5] fish, dots top-left, top-right, bottom-right, bottom-left (0.96)
 ```
 
 No network at runtime. Dependencies: numpy, OpenCV, onnxruntime.
