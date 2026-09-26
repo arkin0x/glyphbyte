@@ -59,10 +59,14 @@ function softmax(v) {
   return e.map(x => x / s);
 }
 
+// A model's format shows in its layers: format 2 has icon, dots, junk and orient heads; format 1
+// has sym (64 pictogram x rotation classes plus junk) and fill.
+export function modelFormat(model) { return model.w.orient_w ? 2 : 1; }
+
 // patch: Float32Array of PATCH*PATCH values in 0..1.
-// Returns {icon: 16 probabilities (upright patch), dots: 4 probabilities, top-left first,
-//          junk: probability of "not a glyph" in any rotation, orient: 4 probabilities that the
-//          glyph is turned k quarter turns counter-clockwise}
+// Format 2 returns {fmt: 2, icon: 16 probabilities (upright patch), dots: 4 probabilities, top-left first,
+//   junk: probability of "not a glyph" in any rotation, orient: 4 probabilities that the glyph is turned k
+//   quarter turns counter-clockwise}. Format 1 returns {fmt: 1, symRot: 64 probabilities, fill: 2, junk}.
 export function classify(model, patch, size) {
   const { w, manifest } = model;
   const ch = manifest.channels;
@@ -78,5 +82,9 @@ export function classify(model, patch, size) {
   const dense = (name) => { const W_ = w[name + "_w"], b = w[name + "_b"].data, n = W_.shape[0], out = new Array(n);
     for (let o = 0; o < n; o++) { let s = b[o]; for (let c = 0; c < C; c++) s += W_.data[o * C + c] * feat[c]; out[o] = s; } return out; };
   const sig = v => 1 / (1 + Math.exp(-v));
-  return { icon: softmax(dense("sym")), dots: dense("dots").map(sig), junk: sig(dense("junk")[0]), orient: softmax(dense("orient")) };
+  if (!w.orient_w) {
+    const sym = softmax(dense("sym")), real = sym.slice(0, 64), rs = real.reduce((a, b) => a + b, 0) || 1;
+    return { fmt: 1, symRot: real.map(p => p / rs), fill: softmax(dense("fill")), junk: sym[64] };
+  }
+  return { fmt: 2, icon: softmax(dense("sym")), dots: dense("dots").map(sig), junk: sig(dense("junk")[0]), orient: softmax(dense("orient")) };
 }

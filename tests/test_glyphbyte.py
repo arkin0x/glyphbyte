@@ -121,7 +121,8 @@ def test_spec_photo_vectors():
     for ph in v["photos"]:
         img = cv2.imread(os.path.join(spec_dir, ph["image"]))
         res = read_image(img)
-        assert any(b.hex() == ph["expected"] for b, _ in res.sequences), res.to_dict()
+        assert res.fmt == ph["format"], res.to_dict()
+        assert any(r.bytes.hex() == ph["expected"] for r in res.sequences), res.to_dict()
 
 
 @pytest.mark.skipif(not os.path.exists(MODEL), reason="model not trained")
@@ -140,3 +141,31 @@ def test_handedness():
     from glyphbyte.detect import handed
     assert list(handed(np.array([0.0, -1.0]))) == [1.0, 0.0]      # upright: read to the right
     assert list(handed(np.array([1.0, 0.0]))) == [-0.0, 1.0]      # up points right: read downward
+
+
+def test_v1_layout_still_defined():
+    from glyphbyte import v1
+    for b in range(256):
+        g = v1.unpack(b)
+        assert v1.pack(g.symbol, g.rotation, g.fill, g.frame) == b
+    assert v1.unpack(0x8A).describe() == "arrow rotated 180 deg, filled, square frame"
+    assert v1.turned(0x8A, 2) == 0x82 and v1.turned(0x82, 2) == 0x8A
+    from glyphbyte.symbols import describe
+    assert describe(0x8A, 1) == v1.unpack(0x8A).describe() and describe(0x8A) == unpack(0x8A).describe()
+
+
+def test_render_row_both_formats_differ():
+    a = render_row(bytes.fromhex("8a3a"), cell=80).canvas
+    b = render_row(bytes.fromhex("8a3a"), cell=80, fmt=1).canvas
+    assert a.shape == b.shape and (a != b).any()
+
+
+@pytest.mark.skipif(not os.path.exists(MODEL), reason="model not trained")
+@pytest.mark.parametrize("fmt", [1, 2])
+def test_auto_format(fmt):
+    """One reader, either format: the row says which it is."""
+    from glyphbyte.pipeline import read_image
+    data = bytes.fromhex("8a3a3a6609eb")
+    row = render_row(data, cell=110, hand=0.4, rng=np.random.default_rng(9), fmt=fmt)
+    res = read_image(cv2.cvtColor(row.canvas, cv2.COLOR_GRAY2BGR))
+    assert res.fmt == fmt and res.best == data, res.to_dict()

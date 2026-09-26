@@ -4,9 +4,11 @@
   spec/glyphs.svg          all 256 glyphs: row = icon (first hex digit), column = corner dots (second)
   spec/test-vectors.json   all 256 bytes decoded, plus byte sequences with their glyph descriptions and rendered rows
   spec/vectors/row-*.png   reference renderings of the sequences
+  spec/glyphs-v1.json      format 1's pictograms (copied from glyphbyte/data); spec/glyphs-v1.svg is its sheet
 """
 import json
 import os
+import shutil
 
 import cv2
 
@@ -18,8 +20,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SPEC = os.path.join(ROOT, "spec")
 SEQUENCES = ["00", "ff", "8a3a3a6609eb", "e8ed3798c6ff", "0123456789abcdef", "deadbeef"]
-# real photographs of hand-drawn v2 rows: (file in spec/vectors, expected hex, note)
-PHOTOS: list[tuple[str, str, str]] = []
+# real photographs of hand-drawn rows: (file in spec/vectors, format, expected hex, note)
+PHOTOS: list[tuple[str, int, str, str]] = [
+    ("v1-photo-01.jpg", 1, "e8ed3798c6ff",
+     "format 1, marker on a dot-grid notebook, 2026-09-22; the snowman's circles are nearly equal, so readers may rank c6 below ce"),
+    ("v1-photo-02.jpg", 1, "0c9e5e17",
+     "format 1, marker on a dot-grid card on a dark table, 2026-09-25; the underline's run passes its start dot"),
+]
 
 
 def glyph_svg(b, x, y, s, sw):
@@ -61,6 +68,7 @@ def main():
                                for i, (dx, dy) in enumerate(DOT_CORNERS)],
                "icons": as_json()}, open(os.path.join(SPEC, "glyphs.json"), "w"))
     svg_sheet(os.path.join(SPEC, "glyphs.svg"))
+    shutil.copyfile(os.path.join(ROOT, "glyphbyte", "data", "glyphs-v1.json"), os.path.join(SPEC, "glyphs-v1.json"))
     byte_table = []
     for b in range(256):
         g = unpack(b)
@@ -73,7 +81,7 @@ def main():
         name = f"vectors/row-{hx}.png"
         cv2.imwrite(os.path.join(SPEC, name), row.canvas)
         seqs.append({"hex": hx, "glyphs": [unpack(b).describe() for b in data], "image": name})
-    photos = [{"image": f"vectors/{f}", "expected": hx, "note": note} for f, hx, note in PHOTOS]
+    photos = [{"image": f"vectors/{f}", "format": fm, "expected": hx, "note": note} for f, fm, hx, note in PHOTOS]
     json.dump({"format": FORMAT_VERSION,
                "bit_layout": "byte = icon_index << 4 | dots; dots: top-left 8, top-right 4, bottom-right 2, bottom-left 1",
                "symbols": SYMBOLS, "bytes": byte_table, "sequences": seqs, "photos": photos},

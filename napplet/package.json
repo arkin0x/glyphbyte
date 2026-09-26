@@ -12,7 +12,10 @@
     "!src/app.js",
     "weights.bin",
     "weights.bin.json",
+    "weights-v1.bin",
+    "weights-v1.bin.json",
     "shapes.json",
+    "shapes-v1.json",
     "README.md"
   ],
   "scripts": {

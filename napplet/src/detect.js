@@ -3,6 +3,7 @@ import { resizeGray, gaussianBlur, adaptiveThreshold, morphClose3, removeSpecks,
 import { convexHull, polygonArea, polygonPerimeter, polygonCentroid, pointInPolygon, approxPolyDP, maxInscribedQuad, eigen2, homography, mat3mul, mat3inv } from './geom.js';
 
 export const PATCH = 64, PATCH_MARGIN = 0.12, MAX_SIDE = 1280, JUNK_TOP_K = 24;
+const ROUND_PENALTY = 0.5;   // a round copy of a frame yields to a square copy this much weaker
 export const FRAME_SQUARE = 0, FRAME_CIRCLE = 1;
 
 export function prepare(gray, W, H) {
@@ -115,7 +116,6 @@ export function findFrames(ink, W, H) {
     q *= 0.5 + 0.5 * conf;
     q *= offC <= 0.22 ? 1 : 0.5;
     q *= share >= 0.5 ? 1 : (share >= 0.3 ? 0.6 : 0.3);
-    if (kind === FRAME_CIRCLE) q *= 1 - 0.5 * conf;   // v2 frames are squares: a confidently round ring is likely not one
     if (kind === FRAME_CIRCLE) size = Math.sqrt(px / Math.PI) * 2;
     const fr = { kind, center, size, hull, outer: ringOuter || hull, corners: null, ellipse: null, inkFraction: frac, conf, stroke, quality: q, lightInk: false, junk: 0 };
     if (quad) fr.corners =   // every v2 frame is a square, even one wobbly enough to score round
@@ -369,9 +369,11 @@ function circleMatrix(e, d, size = PATCH) {
   const P = homography([[-1, -1], [1, -1], [1, 1], [-1, 1]], targetQuad(size));
   return mat3mul(P, N);
 }
-export function rectifyFrame(gray, W, H, f, d, up, lightInk) {
+// the frame as an upright classifier patch. Format 2 frames are squares and are cut by their
+// corners; format 1 cuts a round frame through its fitted ellipse, as its model was trained.
+export function rectifyFrame(gray, W, H, f, d, up, lightInk, fmt = 2) {
   let patch;
-  if (f.corners) {
+  if (f.corners && (fmt === 2 || f.kind === FRAME_SQUARE)) {
     const src = orderCorners(f.corners, f.center, d, up), M = homography(targetQuad(), src);   // dst -> src
     patch = warp(gray, W, H, M, PATCH, PATCH);
   } else if (f.ellipse) {
@@ -389,6 +391,7 @@ export function rectifyFrame(gray, W, H, f, d, up, lightInk) {
 // the reading direction for a given "up" (y down): a quarter turn clockwise, so [0, -1] reads along [1, 0]
 export function handed(up) { return [-up[1], up[0]]; }
 
+// junkFn(gray, W, H, frames) -> probability that each frame holds no glyph, in any format and rotation
 export function detect(grayIn, Win, Hin, junkFn = null) {
   const { gray, W, H, scale } = prepare(grayIn, Win, Hin);
   const inks = {}; let pool = [];
@@ -401,11 +404,18 @@ export function detect(grayIn, Win, Hin, junkFn = null) {
   }
   pool.sort((a, b) => b.quality - a.quality);
   let merged = [];
-  for (const f of pool) { if (merged.some(g => Math.hypot(f.center[0] - g.center[0], f.center[1] - g.center[1]) < 0.35 * g.size && f.size / g.size > 0.6 && f.size / g.size < 1.6)) continue; merged.push(f); }
+  for (const f of pool) {
+    const k = merged.findIndex(g => Math.hypot(f.center[0] - g.center[0], f.center[1] - g.center[1]) < 0.35 * g.size && f.size / g.size > 0.6 && f.size / g.size < 1.6);
+    if (k < 0) merged.push(f);
+    // the same frame seen square by another pass: its corners cut a better patch. A round copy only
+    // ever yields to a square one; round rows (format 1) are scored as they are
+    else if (merged[k].kind === FRAME_CIRCLE && f.kind === FRAME_SQUARE && f.quality >= (1 - ROUND_PENALTY * merged[k].conf) * merged[k].quality) merged[k] = f;
+  }
+  merged.sort((a, b) => b.quality - a.quality);
   if (junkFn && merged.length) {
     // the network is the expensive part: ask it only about the best-looking candidates
     const top = merged.slice(0, JUNK_TOP_K);
-    const pj = junkFn(top.map(f => rectifyFrame(gray, W, H, f, [1, 0], [0, -1], f.lightInk)));
+    const pj = junkFn(gray, W, H, top);
     top.forEach((f, i) => { f.junk = pj[i]; f.quality *= Math.max(0.05, 1 - pj[i]); });
     merged = top.filter(f => f.junk < 0.9);
   }

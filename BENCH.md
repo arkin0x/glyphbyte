@@ -10,6 +10,8 @@ glyphbyte synth --out bench/synth/v2-ink --n 200 --backdrops bench/backdrops --s
 glyphbyte synth --out bench/synth/v2 --n 200 --backdrops bench/backdrops --seed 1
 glyphbyte bench bench/synth/v2-ink --out bench/out/v2-ink.json
 glyphbyte bench bench/synth/v2 --out bench/out/v2.json
+glyphbyte synth --out bench/synth/v1 --n 200 --backdrops bench/backdrops --seed 1 --format 1 --media ink
+glyphbyte bench bench/synth/v1 --out bench/out/v1.json            # format 1 scenes (the numbers below used the suite v0.1 generated, same seed)
 ```
 
 `synth` draws 2 to 8 random bytes per scene in a hand-drawn style of random severity,
@@ -46,6 +48,21 @@ Models: `glyphbyte/data/model.onnx` (big, channels 32-64-128-192) and `model-sma
 | byte accuracy, where the frame count matched | 0.882 | 0.857 |
 | icon right | 0.935 | 0.922 |
 | dots right | 0.889 | 0.868 |
+
+### Reading either format (the default: `--format auto`)
+
+The reader tries both formats on every photo. Same suites, big models; the v1 suite is the one
+drawn in format 1 (`bench/synth/v1`, `--truth-format 1`).
+
+| suite | format read right | whole row exact | truth among candidates | reading only the right format |
+|---|---|---|---|---|
+| format 1, `bench/synth/v1` | 0.920 | 0.560 | 0.580 | 0.555 (the v1 reader, 2026-09-25) |
+| format 2, pen and marker | 0.965 | 0.630 | 0.650 | 0.630 |
+| format 2, with chalk and crop | 0.965 | 0.420 | 0.450 | 0.425 |
+
+Rows sent to the wrong format are rows that do not read correctly in the right one either, so
+reading both formats costs format 2 nothing measurable, and format 1 rows read slightly better
+than with the v1 reader (the grain pass and the handedness rule help them too).
 
 ### Compared with v1 (big model; v1 on its own pen-and-marker suite)
 

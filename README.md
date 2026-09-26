@@ -51,6 +51,12 @@ filled x square or circle frame. Rotations, fills and a second frame shape were 
 people found hard to draw; the reasoning and the evidence are in the spec and in
 `research/v2/`.
 
+**Rows in the first alphabet still read.** `glyphbyte decode` reads a photo as both formats
+and keeps the one that explains the glyphs better; it prints which (`-v`, and `"format"` in
+`--json`), and when the two are close the other format's readings stay among the candidates.
+`--format 1` or `--format 2` reads only one. `glyphbyte encode HEX --format 1` and `glyphbyte
+sheet --format 1` still draw format 1; the web reader has the same switch.
+
 ## How to write a row
 
 1. Draw a square frame for each byte, left to right, roughly the same size, with a gap
@@ -86,6 +92,7 @@ eight bytes, a wrong candidate simply matches nothing.
 | which way is up | the icons vote: a fourth network head says how each glyph is turned, and a clear vote turns the whole row (a ruled line or a paper edge taken for the underline, or no underline at all); a close vote keeps both readings |
 | classify | a 4-block CNN (about 0.9M parameters) on 64x64 contrast-normalized patches, four heads: the icon (16 classes), the four corner dots (one yes/no each), not-a-glyph (in any rotation) and the glyph's turn (4 classes); polarity-invariant; ONNX on CPU |
 | decode | joint probability over the 256 bytes per cell (icon times each dot), then a beam over cells |
+| which format | the same frames read with the format 1 model too; the format that explains the glyphs better wins (per-glyph log-likelihood, 0.5 in favour of format 2); close calls keep both formats' readings |
 
 The classifier is trained only on synthetic data rendered from the icon strokes:
 wobble, stroke breathing, pen gaps, dots drawn as blobs, scribbles or tiny rings,
@@ -97,9 +104,9 @@ crop field. See `glyphbyte train`.
 
 | command | does |
 |---|---|
-| `glyphbyte decode IMG... [-v] [--json] [--debug out.png]` | read a photo; `--json` gives candidates and warnings; `--debug` writes the detection overlay |
-| `glyphbyte encode HEX --out row.png [--hand 0.7]` | render bytes as a row |
-| `glyphbyte sheet --out sheet.png` | the reference sheet, all 256 glyphs |
+| `glyphbyte decode IMG... [-v] [--json] [--debug out.png] [--format auto\|1\|2]` | read a photo in either format; `--json` gives candidates and warnings; `--debug` writes the detection overlay |
+| `glyphbyte encode HEX --out row.png [--hand 0.7] [--format 1]` | render bytes as a row, in format 2 or 1 |
+| `glyphbyte sheet --out sheet.png [--format 1]` | the reference sheet, all 256 glyphs |
 | `glyphbyte synth --out DIR --n 200 --backdrops DIR` | generate photo-like test scenes with ground truth |
 | `glyphbyte bench DIR` | decode a synth directory and report accuracy |
 | `glyphbyte backdrops --out bench/backdrops` | fetch public-domain photos from picsum.photos for synth |

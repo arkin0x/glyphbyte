@@ -13,3 +13,7 @@ research/v2/out/*.log
 research/v2/__pycache__/
 bench/v2/
 bench/v2b/
+bench/js-v1/
+bench/js-v2/
+bench/auto/
+bench/auto2/

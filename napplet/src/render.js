@@ -1,9 +1,23 @@
 // Canvas rendering: bytes to glyphs to copy from, the reference sheet, and the detection overlay.
-// SHAPES is the icon list (shapes.json): {icons: [{name, strokes: [{points: [[x, y]...], closed}]}], icon_scale,
-// dot_offset, dot_radius} in a unit box, y down, upright.
+// SHAPES picks the format. Format 2 (shapes.json): {icons: [{name, strokes: [{points: [[x, y]...], closed}]}],
+// icon_scale, dot_offset, dot_radius}. Format 1 (shapes-v1.json): [{name, outer: [[x, y]...], features: [...]}],
+// pictograms drawn rotated, outline or filled, in a square or circle frame. Unit box, y down.
+
+function drawCellV1(ctx, SHAPES, byte, cx, cy, cell) {
+  const rot = (byte >> 2) & 3, fill = (byte >> 1) & 1, circle = byte & 1, shape = SHAPES[byte >> 4];
+  ctx.beginPath();
+  if (circle) ctx.arc(cx, cy, cell / 2, 0, 2 * Math.PI); else ctx.rect(cx - cell / 2, cy - cell / 2, cell, cell);
+  ctx.stroke();
+  const size = cell * (circle ? 0.56 : 0.62), t = rot * Math.PI / 2, c = Math.cos(t), s = Math.sin(t);
+  const put = poly => { poly.forEach((p, i) => { const x = cx + (p[0] * c - p[1] * s) * size, y = cy + (p[0] * s + p[1] * c) * size; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); };
+  ctx.beginPath(); put(shape.outer); for (const f of shape.features) put(f);
+  if (fill) ctx.fill('evenodd');
+  ctx.stroke();
+}
 
 export function drawCell(ctx, SHAPES, byte, cx, cy, cell, lw) {
   ctx.lineWidth = lw; ctx.strokeStyle = '#000'; ctx.fillStyle = '#000'; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (Array.isArray(SHAPES)) return drawCellV1(ctx, SHAPES, byte, cx, cy, cell);
   ctx.beginPath(); ctx.rect(cx - cell / 2, cy - cell / 2, cell, cell); ctx.stroke();
   const size = cell * SHAPES.icon_scale;
   for (const st of SHAPES.icons[byte >> 4].strokes) {
@@ -35,7 +49,8 @@ export function drawRow(canvas, SHAPES, bytes, cell = 120, baseline = true) {
   return { W, H };
 }
 
-// all 256 glyphs: row = icon (first hex digit), column = corner dots (second)
+// all 256 glyphs: row = high nibble (format 2: the icon), column = low nibble (format 2: the dots;
+// format 1: rotation, fill and frame)
 export function drawSheet(canvas, SHAPES, cell = 48) {
   const pitch = Math.round(cell * 1.2);
   canvas.width = pitch * 16 + cell / 2; canvas.height = pitch * 16 + cell / 2;

@@ -3141,5 +3141,18 @@
    "image": "vectors/row-deadbeef.png"
   }
  ],
- "photos": []
+ "photos": [
+  {
+   "image": "vectors/v1-photo-01.jpg",
+   "format": 1,
+   "expected": "e8ed3798c6ff",
+   "note": "format 1, marker on a dot-grid notebook, 2026-09-22; the snowman's circles are nearly equal, so readers may rank c6 below ce"
+  },
+  {
+   "image": "vectors/v1-photo-02.jpg",
+   "format": 1,
+   "expected": "0c9e5e17",
+   "note": "format 1, marker on a dot-grid card on a dark table, 2026-09-25; the underline's run passes its start dot"
+  }
+ ]
 }

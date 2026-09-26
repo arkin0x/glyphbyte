@@ -53,6 +53,18 @@ def unpack(byte: int) -> Glyph:
     return Glyph(icon=byte >> 4, dots=byte & 15)
 
 
+FORMATS = (1, 2)
+DEFAULT_FORMAT = 2
+
+
+def describe(byte: int, fmt: int = DEFAULT_FORMAT) -> str:
+    """One line describing the drawing of `byte` in format `fmt`."""
+    if fmt == 1:
+        from . import v1
+        return v1.unpack(byte).describe()
+    return unpack(byte).describe()
+
+
 def crc8(data: bytes, poly: int = 0x07, init: int = 0x00) -> int:
     """CRC-8/ATM (poly 0x07). One trailing glyph carries it when --crc is used."""
     crc = init

@@ -10,7 +10,7 @@ What goes where:
 
     napplet/dist/index.html      -> dist/app/index.html          the reader, byte for byte (built first if missing)
     spec/GLYPHBYTE.md            -> dist/spec/index.html         rendered with the `markdown` package
-    spec/{test-vectors,glyphs}.json, spec/glyphs.svg, spec/vectors/*  -> dist/spec/...
+    spec/{test-vectors,glyphs,glyphs-v1}.json, spec/glyphs{,-v1}.svg, spec/vectors/*  -> dist/spec/...
     spec/glyphs.svg              -> dist/sheet.svg
     spec/vectors/row-<hex>.png   -> dist/img/                    the reference row on the landing page
     spec/glyphs.json (house)     -> dist/favicon.svg
@@ -121,7 +121,7 @@ def build():
         shutil.rmtree(DIST)
 
     copy(app, os.path.join(DIST, "app", "index.html"))
-    for name in ("test-vectors.json", "glyphs.json", "glyphs.svg"):
+    for name in ("test-vectors.json", "glyphs.json", "glyphs.svg", "glyphs-v1.json", "glyphs-v1.svg"):
         copy(os.path.join(SPEC, name), os.path.join(DIST, "spec", name))
     vectors = sorted(os.listdir(os.path.join(SPEC, "vectors")))
     for name in vectors:

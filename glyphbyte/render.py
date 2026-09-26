@@ -204,10 +204,17 @@ class CellGeometry:
 
 
 def draw_cell(canvas: np.ndarray, byte: int, center, frame_size: float, thickness: float, color: int = 0,
-              rng: np.random.Generator | None = None, amount: float = 0.0, paper: int = 255) -> CellGeometry:
+              rng: np.random.Generator | None = None, amount: float = 0.0, paper: int = 255,
+              fmt: int = 2) -> CellGeometry:
+    """One glyph with its frame. fmt=2 (default) is the icon-and-dots format; fmt=1 draws the
+    v1 glyph (pictogram, rotation, fill, square or circle frame) for the same byte."""
     rng = rng or np.random.default_rng(0)
-    draw_frame(canvas, FRAME_SQUARE, center, frame_size, thickness, color, rng, amount)
-    draw_glyph(canvas, unpack(byte), center, frame_size, thickness, color, rng, amount)
+    if fmt == 1:
+        from . import v1
+        v1.draw_cell(canvas, byte, center, frame_size, thickness, color, rng, amount, paper)
+    else:
+        draw_frame(canvas, FRAME_SQUARE, center, frame_size, thickness, color, rng, amount)
+        draw_glyph(canvas, unpack(byte), center, frame_size, thickness, color, rng, amount)
     h = frame_size / 2
     corners = np.array([[center[0] - h, center[1] - h], [center[0] + h, center[1] - h],
                         [center[0] + h, center[1] + h], [center[0] - h, center[1] + h]])
@@ -224,8 +231,9 @@ class RowRender:
 
 def render_row(data: bytes, cell: int = 120, thickness: float | None = None, hand: float = 0.0,
                rng: np.random.Generator | None = None, baseline: bool = True, margin: int | None = None,
-               color: int = 0, paper: int = 255) -> RowRender:
-    """Render a sequence of bytes as a row of framed symbols on an underline with a start dot."""
+               color: int = 0, paper: int = 255, fmt: int = 2) -> RowRender:
+    """Render a sequence of bytes as a row of framed glyphs on an underline with a start dot,
+    in format 2 (default) or 1."""
     rng = rng or np.random.default_rng(0)
     n = len(data)
     thickness = thickness or max(2.0, cell * 0.045)
@@ -238,7 +246,7 @@ def render_row(data: bytes, cell: int = 120, thickness: float | None = None, han
     y = margin + cell * 0.55
     for i, b in enumerate(data):
         x = margin + cell * 0.6 + pitch * i
-        out.cells.append(draw_cell(canvas, b, (x, y), cell, thickness, color, rng, hand, paper))
+        out.cells.append(draw_cell(canvas, b, (x, y), cell, thickness, color, rng, hand, paper, fmt))
     if baseline:
         y0 = y + cell * 0.72
         x0, x1 = margin * 0.5, W - margin * 0.5
@@ -254,12 +262,15 @@ def render_row(data: bytes, cell: int = 120, thickness: float | None = None, han
     return out
 
 
-def render_sheet(cell: int = 90, hand: float = 0.0, seed: int = 0) -> np.ndarray:
-    """Reference sheet: all 256 glyphs, row = icon (first hex digit), column = dots (second)."""
+def render_sheet(cell: int = 90, hand: float = 0.0, seed: int = 0, fmt: int = 2) -> np.ndarray:
+    """Reference sheet of all 256 glyphs, row = high nibble, column = low nibble. In format 2 the
+    row is the icon and the column the dots; in format 1 the row is the pictogram and the
+    column its rotation (bits 3..2), fill (bit 1) and frame (bit 0)."""
     rng = np.random.default_rng(seed)
     pitch = int(cell * 1.2)
     canvas = np.full((pitch * 16 + cell // 2, pitch * 16 + cell // 2), 255, np.uint8)
     for b in range(256):
         r, c = divmod(b, 16)
-        draw_cell(canvas, b, (cell * 0.75 + pitch * c, cell * 0.75 + pitch * r), cell, max(2, cell * 0.04), 0, rng, hand)
+        draw_cell(canvas, b, (cell * 0.75 + pitch * c, cell * 0.75 + pitch * r), cell, max(2, cell * 0.04), 0, rng, hand,
+                  fmt=fmt)
     return canvas

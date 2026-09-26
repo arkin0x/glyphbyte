@@ -118,6 +118,9 @@ work like this, and a compatible reader MUST produce the same bytes for the same
    and each of the four corner dots.
 6. Assemble bytes. Where a glyph is uncertain, keep the alternatives and return the most
    probable whole sequences, ranked, so the client can query all of them.
+7. Tell the format. A reader SHOULD also read format 1 (below), so rows drawn before v2 keep
+   working: read the same frames as format 1, and pick the format whose glyphs are better
+   explained (see "Format 1"). Every returned sequence says which format it was read as.
 
 Readers MUST NOT silently drop a glyph they could not read; a missing byte shifts every later
 byte. They SHOULD report how many frames they found and any assumption they made.
@@ -155,18 +158,20 @@ reader's user picks the event by kind and `d` tag among the author's addressable
 - `bytes`: all 256 bytes with the icon, the dots and a one-line description.
 - `sequences`: hex strings with their glyph descriptions and a rendered reference row
   (`vectors/row-<hex>.png`), drawn cleanly by the reference renderer.
-- `photos`: real photographs of hand-drawn rows with the bytes they carry. v2 starts with none;
-  photographs are added as people draw them.
+- `photos`: real photographs of hand-drawn rows with their `format` and the bytes they carry.
+  The first two are format 1 rows drawn with a marker; v2 photographs are added as people draw
+  them.
 
 A conforming encoder MUST reproduce `bytes` and the descriptions in `sequences`. A conforming
 reader SHOULD return the `expected` bytes of every entry in `photos` as its top reading, and
-MUST include them among its candidates.
+MUST include them among its candidates; a reader that reads format 1 MUST report each photo's
+`format`.
 
 ## Reference implementations
 
 - Python package `glyphbyte`: encoder, renderer, reader, relay lookup, training of the
-  classifier from synthetic data. `glyphbyte encode HEX` renders a row; `glyphbyte decode
-  PHOTO` reads one.
+  classifier from synthetic data. `glyphbyte encode HEX` renders a row (`--format 1` for the
+  first alphabet); `glyphbyte decode PHOTO` reads one in either format.
 - JavaScript, in `napplet/src`: the same reader and encoder with no dependencies, bundled
   into a single-file napplet (NIP-5D) that runs on the phone and queries a relay.
 
@@ -177,6 +182,32 @@ prefix resolves to, and the person decides whether that is what they were lookin
 short prefix on a large relay may resolve to several objects; clients MUST show all of them.
 Readers process photos on the device; nothing in this specification requires sending an
 image anywhere.
+
+## Format 1
+
+The first alphabet (v0.1, 2026-09-22) is still read and can still be drawn. Its byte is
+
+| bits | field | values |
+|---|---|---|
+| 7..4 | symbol | 0 house, 1 chevron, 2 bookmark, 3 crown, 4 drop, 5 tee, 6 u, 7 mountain, 8 arrow, 9 heart, a crescent, b cloud, c snowman, d l, e trapezoid, f pacman |
+| 3..2 | rotation | quarter turns **clockwise** from upright |
+| 1 | fill | 0 outline, 1 filled (scribbled solid) |
+| 0 | frame | 0 square, 1 circle |
+
+`byte = symbol << 4 | rotation << 2 | fill << 1 | frame`. The pictograms are polygons in
+`glyphs-v1.json` (unit box, y down, rotation 0), drawn at 0.62 of a square frame or 0.56 of a
+circle's diameter; `glyphs-v1.svg` is the sheet. Rows use the same underline and start dot.
+
+Reading both formats. A reader finds the frames once, cuts each frame into a patch for each
+format (format 1 cuts a circle frame through its fitted ellipse), and scores each format by
+the summed log probability of every glyph's most likely byte, after format 2's orientation
+vote. Format 1 is chosen when its score per glyph beats format 2's by more than 0.5 nats;
+within 0.5 of that threshold, the other format's readings are also returned as candidates.
+On the reference readers' synthetic benchmark (2026-09-26) this picks the right format for
+92% of format 1 rows and 96-97% of format 2 rows, and the wrong picks fall on rows that do
+not read correctly anyway. Format 1 glyphs are drawn in every rotation and cannot vote on
+"up": with no start dot, the row turned 180 degrees (reversed, each rotation plus two) is
+returned as a candidate.
 
 ## Changes from v0.1
 

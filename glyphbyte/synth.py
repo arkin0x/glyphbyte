@@ -355,11 +355,12 @@ class Scene:
     light_ink: bool = False
     hand: float = 0.0
     perspective: float = 0.0
+    fmt: int = 2
 
 
 def make_scene(rng: np.random.Generator, backdrops: list[np.ndarray], data: bytes | None = None,
                n_bytes: int | None = None, hand: float | None = None, perspective: float | None = None,
-               size: int = 1280, baseline: bool = True, medium: str | None = None) -> Scene:
+               size: int = 1280, baseline: bool = True, medium: str | None = None, fmt: int = 2) -> Scene:
     if data is None:
         n = n_bytes or int(rng.integers(2, 9))
         data = bytes(rng.integers(0, 256, size=n).tolist())
@@ -368,7 +369,7 @@ def make_scene(rng: np.random.Generator, backdrops: list[np.ndarray], data: byte
     cell = int(rng.integers(70, 150))
     medium = medium or pick_medium(rng)
     lo, hi = STROKE[medium]
-    row = render_row(data, cell=cell, thickness=cell * rng.uniform(max(lo, 0.03), min(hi, 0.07) if medium == "ink" else hi), hand=hand, rng=rng,
+    row = render_row(data, cell=cell, thickness=cell * rng.uniform(max(lo, 0.03), min(hi, 0.07) if medium == "ink" else hi), hand=hand, rng=rng, fmt=fmt,
                      baseline=baseline)
     rh, rw = row.canvas.shape
     # place the row on a larger canvas so the scene has context around it
@@ -406,4 +407,4 @@ def make_scene(rng: np.random.Generator, backdrops: list[np.ndarray], data: byte
     cells = [{"byte": c.byte, "corners": proj(c.corners)} for c in row.cells]
     bl = proj(np.array(row.baseline)) if row.baseline else None
     return Scene(image=warped, data=data, cells=cells, baseline=bl, light_ink=light_ink,
-                 hand=hand, perspective=perspective)
+                 hand=hand, perspective=perspective, fmt=fmt)

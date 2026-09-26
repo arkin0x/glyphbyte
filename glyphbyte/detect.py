@@ -28,6 +28,7 @@ from .synth import PATCH, normalize_patch, patch_target_quad, rectify
 
 MAX_SIDE = 1600
 JUNK_TOP_K = 24      # candidates offered to the classifier's junk check
+ROUND_PENALTY = 0.5    # a round copy of a frame yields to a square copy this much weaker
 _DEBUG = bool(__import__("os").environ.get("GLYPHBYTE_DEBUG"))
 
 
@@ -238,11 +239,10 @@ def find_frames(ink: np.ndarray) -> list[Frame]:
         q *= 1.0 if off_c <= 0.22 else 0.5
         q *= 1.0 if share >= 0.5 else (0.6 if share >= 0.3 else 0.3)
         if kind == FRAME_CIRCLE:
-            q *= 1.0 - 0.5 * conf       # v2 frames are squares: a confidently round ring is likely not one
             size = math.sqrt(px / math.pi) * 2
         fr = Frame(kind=kind, center=center, size=size, outer=ring_outer if ring_outer is not None else hull,
                    hole=region.reshape(-1, 2), ink_fraction=frac, quad_ratio=conf, stroke=stroke, quality=q)
-        if quad is not None:   # every v2 frame is a square, even one wobbly enough to score round
+        if quad is not None:   # a v2 frame is a square even when wobbly enough to score round
             fr.corners = center + (quad - center) * (1 + 0.5 * stroke / max(size, 1))
         if len(region) >= 5:
             (cx, cy), (MA, ma), ang = cv2.fitEllipse(region)
@@ -623,8 +623,11 @@ def circle_matrix(ellipse, d: np.ndarray, size: int = PATCH) -> np.ndarray:
     return P @ N
 
 
-def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, light_ink: bool) -> np.ndarray:
-    if f.corners is not None:
+def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, light_ink: bool, fmt: int = 2) -> np.ndarray:
+    """The frame as an upright classifier patch. Format 2 frames are squares and are cut by
+    their corners; format 1 cuts a round frame through its fitted ellipse, as its model was
+    trained."""
+    if f.corners is not None and (fmt == 2 or f.kind == FRAME_SQUARE):
         patch = rectify(gray, order_corners(f.corners, f.center, d, up))
     elif f.ellipse is not None:
         M = circle_matrix(f.ellipse, d)
@@ -650,7 +653,8 @@ def handed(up: np.ndarray) -> np.ndarray:
 
 
 def detect(image: np.ndarray, junk_fn=None) -> Detection:
-    """junk_fn(list of patches) -> array of probabilities that each patch is not a symbol.
+    """junk_fn(gray, frames) -> array of probabilities that each frame holds no glyph, in any
+    format and any rotation (the pipeline builds it from its classifiers).
     When given, candidates are scored by it before the row is chosen, so texture that
     looks like a frame geometrically does not get to outvote the real row."""
     gray, scale = prepare(image)
@@ -675,16 +679,21 @@ def detect(image: np.ndarray, junk_fn=None) -> Detection:
     pool.sort(key=lambda f: -f.quality)
     merged: list[Frame] = []
     for f in pool:
-        if any(np.linalg.norm(f.center - g.center) < 0.35 * g.size and 0.6 < f.size / g.size < 1.6 for g in merged):
-            continue
-        merged.append(f)
+        k = next((i for i, g in enumerate(merged)
+                  if np.linalg.norm(f.center - g.center) < 0.35 * g.size and 0.6 < f.size / g.size < 1.6), None)
+        if k is None:
+            merged.append(f)
+        elif (merged[k].kind == FRAME_CIRCLE and f.kind == FRAME_SQUARE
+              and f.quality >= (1.0 - ROUND_PENALTY * merged[k].quad_ratio) * merged[k].quality):
+            # the same frame seen square by another pass: its corners cut a better patch. A round
+            # copy only ever yields to a square one; round rows (format 1) are scored as they are
+            merged[k] = f
+    merged.sort(key=lambda f: -f.quality)
     if junk_fn is not None and merged:
-        # provisional rectification with the image axes: junk is junk in any rotation.
         # only the best-looking candidates are worth the network's time (the same cap
         # keeps the JavaScript port usable on a phone)
         merged = merged[:JUNK_TOP_K]
-        provisional = [rectify_frame(gray, f, np.array([1.0, 0.0]), np.array([0.0, -1.0]), f.light_ink) for f in merged]
-        p_junk = np.asarray(junk_fn(provisional), dtype=np.float64)
+        p_junk = np.asarray(junk_fn(gray, merged), dtype=np.float64)
         for f, pj in zip(merged, p_junk):
             f.junk = float(pj)
             f.quality *= max(0.05, 1.0 - float(pj))
