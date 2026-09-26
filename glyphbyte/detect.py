@@ -5,13 +5,13 @@ Pipeline
   1. gray, downscale to at most MAX_SIDE
   2. binarize twice (dark ink, light ink) with a local threshold; keep the polarity
      that yields more frames
-  3. frames = ink rings whose hole contains ink; square vs circle by the area of
+  3. frames = ink rings whose hole contains ink. v2 frames are squares; the area of
      the largest quadrilateral inscribed in the hole's hull (1.0 for a quad, 2/pi
-     for an ellipse, and perspective does not change either)
+     for an ellipse, in any perspective) marks confidently round rings as unlikely
   4. baseline = the long thin component next to the frames; start dot = a blob at
      one end, or the end that is thicker than the line
-  5. rectify: squares by homography from their four corners, circles by an affine
-     map of the fitted ellipse; "up" and reading order come from the baseline
+  5. rectify: by homography from the frame's four corners (an ellipse fit is the
+     fallback); "up" and reading order come from the baseline
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from .synth import PATCH, normalize_patch, patch_target_quad, rectify
 
 MAX_SIDE = 1600
 JUNK_TOP_K = 24      # candidates offered to the classifier's junk check
+ROUND_PENALTY = 0.5    # a round copy of a frame yields to a square copy this much weaker
 _DEBUG = bool(__import__("os").environ.get("GLYPHBYTE_DEBUG"))
 
 
@@ -38,14 +39,15 @@ class Frame:
     size: float
     outer: np.ndarray
     hole: np.ndarray
-    corners: np.ndarray | None = None        # 4x2 unordered, squares only
-    ellipse: tuple | None = None             # ((cx, cy), (MA, ma), angle), circles only
+    corners: np.ndarray | None = None        # 4x2 unordered, from the largest inscribed quadrilateral
+    ellipse: tuple | None = None             # ((cx, cy), (MA, ma), angle), the fallback for rectifying
     ink_fraction: float = 0.0
     quad_ratio: float = 0.0        # confidence of the square/circle decision, 0..1
     stroke: float = 0.0
     quality: float = 1.0           # how much this looks like a drawn frame with a glyph in it
     light_ink: bool = False        # polarity this frame was found in
-    junk: float = 0.0              # classifier's probability that this is not a symbol
+    smooth: bool = False           # found in the grain pass (blurred before binarizing)
+    junk: float = 0.0              # classifier's probability that this is not a glyph
 
 
 @dataclass
@@ -75,13 +77,23 @@ def prepare(image: np.ndarray) -> tuple[np.ndarray, float]:
     return gray, s
 
 
-def binarize(gray: np.ndarray, light_ink: bool) -> np.ndarray:
+def smooth_sigma(gray: np.ndarray) -> float:
+    """Blur for the grain pass: enough to join chalk grain and ragged field paths into strokes."""
+    return max(1.5, min(gray.shape) / 500.0)
+
+
+def binarize(gray: np.ndarray, light_ink: bool, smooth: bool = False) -> np.ndarray:
+    """Local threshold at one polarity. smooth=True is the grain pass: the picture is blurred
+    first and gaps are closed wider, so a stroke made of specks (chalk, a mown path) becomes
+    one closed line again."""
+    if smooth:
+        gray = cv2.GaussianBlur(gray, (0, 0), smooth_sigma(gray))
     src = 255 - gray if light_ink else gray
     side = min(gray.shape)
     block = max(31, (side // 14) | 1)
-    ink = cv2.adaptiveThreshold(src, 1, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block, 10)
-    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, k)
+    ink = cv2.adaptiveThreshold(src, 1, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block, 10 if not smooth else 6)
+    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))    # a plus; applied twice it closes a diamond of radius 2
+    ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, k, iterations=2 if smooth else 1)
     # drop specks
     n, lab, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
     min_area = max(6, (side / 250) ** 2)
@@ -230,7 +242,7 @@ def find_frames(ink: np.ndarray) -> list[Frame]:
             size = math.sqrt(px / math.pi) * 2
         fr = Frame(kind=kind, center=center, size=size, outer=ring_outer if ring_outer is not None else hull,
                    hole=region.reshape(-1, 2), ink_fraction=frac, quad_ratio=conf, stroke=stroke, quality=q)
-        if kind == FRAME_SQUARE and quad is not None:
+        if quad is not None:   # a v2 frame is a square even when wobbly enough to score round
             fr.corners = center + (quad - center) * (1 + 0.5 * stroke / max(size, 1))
         if len(region) >= 5:
             (cx, cy), (MA, ma), ang = cv2.fitEllipse(region)
@@ -611,8 +623,11 @@ def circle_matrix(ellipse, d: np.ndarray, size: int = PATCH) -> np.ndarray:
     return P @ N
 
 
-def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, light_ink: bool) -> np.ndarray:
-    if f.kind == FRAME_SQUARE and f.corners is not None:
+def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, light_ink: bool, fmt: int = 2) -> np.ndarray:
+    """The frame as an upright classifier patch. Format 2 frames are squares and are cut by
+    their corners; format 1 cuts a round frame through its fitted ellipse, as its model was
+    trained."""
+    if f.corners is not None and (fmt == 2 or f.kind == FRAME_SQUARE):
         patch = rectify(gray, order_corners(f.corners, f.center, d, up))
     elif f.ellipse is not None:
         M = circle_matrix(f.ellipse, d)
@@ -631,38 +646,54 @@ def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, lig
 
 # ----------------------------------------------------------------------------- entry
 
+def handed(up: np.ndarray) -> np.ndarray:
+    """The reading direction for a given "up" in image coordinates (y down): a quarter turn
+    clockwise from up, so up (0, -1) reads along (1, 0)."""
+    return np.array([-up[1], up[0]], dtype=np.float64)
+
+
 def detect(image: np.ndarray, junk_fn=None) -> Detection:
-    """junk_fn(list of patches) -> array of probabilities that each patch is not a symbol.
+    """junk_fn(gray, frames) -> array of probabilities that each frame holds no glyph, in any
+    format and any rotation (the pipeline builds it from its classifiers).
     When given, candidates are scored by it before the row is chosen, so texture that
     looks like a frame geometrically does not get to outvote the real row."""
     gray, scale = prepare(image)
     # frames from both polarities go into one pool; the row then decides which polarity
     # the drawing has. strokes are sparse, so a polarity that inks most of the picture
     # has binarized the paper and its frames are penalized.
+    # each polarity is binarized twice: as is, and after a blur that rejoins grainy strokes
+    # (chalk, a path mown through a field). all frames share one pool.
     inks = {}
     pool: list[Frame] = []
-    for light in (False, True):
-        ink = binarize(gray, light)
-        inks[light] = ink
-        coverage = float(ink.mean())
-        penalty = 1.0 - min(0.9, 3.0 * max(0.0, coverage - 0.2))
-        for f in find_frames(ink):
-            f.light_ink = light
-            f.quality *= penalty
-            pool.append(f)
+    for smooth in (False, True):
+        for light in (False, True):
+            ink = binarize(gray, light, smooth)
+            inks[(light, smooth)] = ink
+            coverage = float(ink.mean())
+            penalty = 1.0 - min(0.9, 3.0 * max(0.0, coverage - 0.2))
+            for f in find_frames(ink):
+                f.light_ink = light
+                f.smooth = smooth
+                f.quality *= penalty
+                pool.append(f)
     pool.sort(key=lambda f: -f.quality)
     merged: list[Frame] = []
     for f in pool:
-        if any(np.linalg.norm(f.center - g.center) < 0.35 * g.size and 0.6 < f.size / g.size < 1.6 for g in merged):
-            continue
-        merged.append(f)
+        k = next((i for i, g in enumerate(merged)
+                  if np.linalg.norm(f.center - g.center) < 0.35 * g.size and 0.6 < f.size / g.size < 1.6), None)
+        if k is None:
+            merged.append(f)
+        elif (merged[k].kind == FRAME_CIRCLE and f.kind == FRAME_SQUARE
+              and f.quality >= (1.0 - ROUND_PENALTY * merged[k].quad_ratio) * merged[k].quality):
+            # the same frame seen square by another pass: its corners cut a better patch. A round
+            # copy only ever yields to a square one; round rows (format 1) are scored as they are
+            merged[k] = f
+    merged.sort(key=lambda f: -f.quality)
     if junk_fn is not None and merged:
-        # provisional rectification with the image axes: junk is junk in any rotation.
         # only the best-looking candidates are worth the network's time (the same cap
         # keeps the JavaScript port usable on a phone)
         merged = merged[:JUNK_TOP_K]
-        provisional = [rectify_frame(gray, f, np.array([1.0, 0.0]), np.array([0.0, -1.0]), f.light_ink) for f in merged]
-        p_junk = np.asarray(junk_fn(provisional), dtype=np.float64)
+        p_junk = np.asarray(junk_fn(gray, merged), dtype=np.float64)
         for f, pj in zip(merged, p_junk):
             f.junk = float(pj)
             f.quality *= max(0.05, 1.0 - float(pj))
@@ -670,7 +701,9 @@ def detect(image: np.ndarray, junk_fn=None) -> Detection:
     frames, warnings = filter_row(merged)
     votes = sum(1 if f.light_ink else -1 for f in frames)
     light_ink = votes > 0
-    ink = inks[light_ink]
+    same = [f for f in frames if f.light_ink == light_ink]
+    smooth = sum(1 if f.smooth else -1 for f in same) > 0
+    ink = inks[(light_ink, smooth)]
 
     up = np.array([0.0, -1.0])
     d = np.array([1.0, 0.0])
@@ -682,7 +715,14 @@ def detect(image: np.ndarray, junk_fn=None) -> Detection:
         d = (p_end - p_start) / max(1e-6, np.linalg.norm(p_end - p_start))
         baseline = np.stack([p_start, p_end])
         if not start_known:
-            warnings.append("baseline found but no start dot: reading left to right")
+            warnings.append("baseline found but no start dot: reading order follows from which side is up")
+        elif float(d[0] * up[1] - d[1] * up[0]) > 0:   # d must be a quarter turn clockwise from up
+            warnings.append("the start dot disagrees with which side of the underline the glyphs are on; trusting the side")
+            start_known = False
+        # a photo is never mirrored: once "up" is known, reading runs to its right
+        d = handed(up)
+        if float((p_end - p_start) @ d) < 0:
+            baseline = baseline[::-1].copy()
     else:
         warnings.append("no baseline: assuming the photo is upright and reads left to right")
 

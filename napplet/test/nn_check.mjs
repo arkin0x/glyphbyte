@@ -8,8 +8,10 @@ const fx = JSON.parse(fs.readFileSync(`${dir}/fixtures.json`, 'utf8'));
 let maxErr = 0, t0 = Date.now();
 for (const f of fx) {
   const r = classify(model, Float32Array.from(f.patch), manifest.patch);
-  for (let i = 0; i < 64; i++) maxErr = Math.max(maxErr, Math.abs(r.symRot[i] - f.symRot[i]));
-  maxErr = Math.max(maxErr, Math.abs(r.junk - f.junk), Math.abs(r.fill[0] - f.fill[0]));
+  for (let i = 0; i < 16; i++) maxErr = Math.max(maxErr, Math.abs(r.icon[i] - f.icon[i]));
+  for (let i = 0; i < 4; i++) maxErr = Math.max(maxErr, Math.abs(r.dots[i] - f.dots[i]));
+  for (let i = 0; i < 4; i++) maxErr = Math.max(maxErr, Math.abs(r.orient[i] - f.orient[i]));
+  maxErr = Math.max(maxErr, Math.abs(r.junk - f.junk));
 }
 console.log(`patches ${fx.length}  max abs prob diff vs torch ${maxErr.toExponential(2)}  ${((Date.now() - t0) / fx.length).toFixed(0)} ms/patch`);
 process.exit(maxErr < 2e-2 ? 0 : 1);

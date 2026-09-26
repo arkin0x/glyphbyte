@@ -10,7 +10,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from icons import ICONS, NAMES  # noqa: E402
+sys.path.insert(0, str(HERE.parents[1]))
+from glyphbyte.icons import DOT_OFFSET, DOT_RADIUS, ICON_SCALE, NAMES, strokes  # noqa: E402
 
 SS = 2                       # supersampling
 W, H = 2400, 1790
@@ -49,19 +50,15 @@ def glyph(d, byte, x, y, s, w, icon=True, dots=True):
     """byte's glyph in a square of side s with top-left (x, y)."""
     m = w / 2
     line(d, [(x + m, y + m), (x + s - m, y + m), (x + s - m, y + s - m), (x + m, y + s - m)], w, closed=True)
-    cx, cy, size = x + s / 2, y + s / 2, s * 0.52
+    cx, cy, size = x + s / 2, y + s / 2, s * ICON_SCALE
     if icon:
-        for st in ICONS[NAMES[byte >> 4]]:
-            if st[0] == "circle":
-                ccx, ccy, r = cx + st[1] * size, cy + st[2] * size, st[3] * size
-                d.ellipse([P(ccx - r), P(ccy - r), P(ccx + r), P(ccy + r)], outline=INK, width=int(P(w)))
-            else:
-                line(d, [(cx + a * size, cy + b * size) for a, b in st[1]], w, closed=st[2])
+        for pts, closed in strokes(byte >> 4):
+            line(d, [(cx + a * size, cy + b * size) for a, b in pts], w, closed=closed)
     if dots:
-        r = s * 0.065
+        r = s * DOT_RADIUS
         for i, (dx, dy) in enumerate(DOTS):
             if byte >> (3 - i) & 1:
-                px, py = cx + dx * s * 0.36, cy + dy * s * 0.36
+                px, py = cx + dx * s * DOT_OFFSET, cy + dy * s * DOT_OFFSET
                 d.ellipse([P(px - r), P(py - r), P(px + r), P(py + r)], fill=INK)
 
 
@@ -75,7 +72,7 @@ def main():
     L = 90
     text(d, (L, 70), "glyphbyte v2", TITLE)
     tw = d.textlength("glyphbyte v2", font=TITLE) / SS
-    text(d, (L + tw + 28, 84), "draft glyph set for review", H2, MUTED)
+    text(d, (L + tw + 28, 84), "the glyph set", H2, MUTED)
     text(d, (L, 150), "One glyph carries one byte. The icon gives the first hex digit, the corner dots give the second.", BODY, MUTED)
 
     # icons
@@ -134,9 +131,9 @@ def main():
     for i, t in enumerate(rules):
         text(d, (rx, y2 + 150 + i * 40), t, BODY)
 
-    text(d, (L, H - 70), "Draft 2026-09-25 · glyphbyte.dev · CC BY-SA 4.0", SMALL, MUTED)
+    text(d, (L, H - 70), "Format v2 · 2026-09-25 · glyphbyte.dev · CC BY-SA 4.0", SMALL, MUTED)
     img = img.resize((W, H), Image.LANCZOS)
-    out = HERE / "out" / "glyphbyte-v2-draft.png"
+    out = HERE / "out" / "glyphbyte-v2-sheet.png"
     img.save(out, optimize=True)
     print("wrote", out)
 

@@ -1,4 +1,4 @@
-// Page logic. Expects the globals MODEL (loaded weights) and SHAPES to exist; everything else is in this file's scope.
+// Page logic. Expects the globals MODELS ({1, 2}: loaded weights), SHAPES and SHAPES_V1; everything else is in this file's scope.
 const $ = id => document.getElementById(id);
 const hexClean = s => s.trim().replace(/[^0-9a-fA-F]/g, '').toLowerCase();
 const toBytes = h => { const out = []; for (let i = 0; i + 1 < h.length; i += 2) out.push(parseInt(h.slice(i, i + 2), 16)); return out; };
@@ -11,6 +11,12 @@ function parseEntry(raw) {
   }
   return { hex: hexClean(v), entity: null };
 }
+function drawFormat() { const r = document.querySelector('input[name=fmt]:checked'); return r ? +r.value : 2; }
+const shapesFor = fmt => fmt === 1 ? SHAPES_V1 : SHAPES;
+const HINTS = {
+  2: 'Draw a square frame, the icon upright and small in the middle, and the corner dots so they touch nothing. Underline the row and put a fat dot at the start of the underline, about a quarter of a frame across.',
+  1: 'Format v1: draw each pictogram rotated as shown inside its square or circle frame, filled ones scribbled solid. Underline the row and put a fat dot at the start of the underline. The reader still reads v1; v2 is easier to draw.',
+};
 function nBytes() { const r = document.querySelector('input[name=nbytes]:checked'); return r ? +r.value : 6; }
 function currentPrefix() {
   const { hex } = parseEntry($('hex').value); const n = nBytes();
@@ -27,12 +33,16 @@ function renderEncode() {
     const b = $('useHint'); if (b) b.addEventListener('click', () => { $('relay').value = b.dataset.relay; $('relay').dispatchEvent(new Event('input')); });
   } else { note.className = 'muted'; note.textContent = hex.length > 2 * n && n ? `drawing the first ${n} of ${hex.length / 2} bytes` : ''; }
   if (h.length < 2) { $('row').hidden = true; $('describe').innerHTML = ''; return; }
-  const bytes = toBytes(h);
-  drawRow($('row'), SHAPES, bytes, 140); $('row').hidden = false;
-  $('describe').innerHTML = bytes.map(b => `<li><code>${b.toString(16).padStart(2, '0')}</code> ${describe(b)}</li>`).join('');
+  const bytes = toBytes(h), fmt = drawFormat();
+  drawRow($('row'), shapesFor(fmt), bytes, 140); $('row').hidden = false;
+  $('describe').innerHTML = bytes.map(b => `<li><code>${b.toString(16).padStart(2, '0')}</code> ${describe(b, fmt)}</li>`).join('');
 }
 let timer; $('hex').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(renderEncode, 200); });
-$('sheetBtn').addEventListener('click', () => { const c = $('sheet'); drawSheet(c, SHAPES, 56); c.hidden = !c.hidden; });
+$('sheetBtn').addEventListener('click', () => { const c = $('sheet'); drawSheet(c, shapesFor(drawFormat()), 56); c.hidden = !c.hidden; });
+for (const r of document.querySelectorAll('input[name=fmt]')) r.addEventListener('change', () => {
+  $('drawHint').textContent = HINTS[drawFormat()]; renderEncode();
+  if (!$('sheet').hidden) drawSheet($('sheet'), shapesFor(drawFormat()), 56);
+});
 
 $('file').addEventListener('change', () => readFile($('file').files[0]));   // no capture attribute: the phone offers camera and library together
 async function readFile(f) {
@@ -47,7 +57,7 @@ async function readFile(f) {
     const img = ctx.getImageData(0, 0, cv.width, cv.height);
     await new Promise(r => setTimeout(r, 20));
     const t0 = performance.now();
-    const res = readImage(toGray(img.data, cv.width, cv.height), cv.width, cv.height, MODEL);
+    const res = readImage(toGray(img.data, cv.width, cv.height), cv.width, cv.height, MODELS);
     show(res, Math.round(performance.now() - t0));
     drawDetection(ctx, res.detection); cv.hidden = false;
   } catch (e) { $('result').innerHTML = `<p class="warn">could not read that image: ${e}</p>`; }
@@ -56,18 +66,22 @@ async function readFile(f) {
 
 function show(d, ms) {
   let h = '';
-  if (!d.sequences.length) h += `<p class="warn">no symbols found</p>`;
+  if (!d.sequences.length) h += `<p class="warn">no glyphs found</p>`;
   else {
-    h += `<p>Most likely: <code class="big">${d.best}</code> <span class="muted">${ms} ms</span></p>`;
-    if (d.sequences.length > 1) h += `<p class="muted">Not sure about some symbols. Pick the reading that matches what you see, or query all of them:</p>`;
-    h += `<div class="seq">` + d.sequences.map(s => `<button data-hex="${s.hex}">${s.hex} <span class="muted">${Math.round(s.p * 100)}%</span></button>`).join('') + `</div>`;
-    h += `<ol class="symbols">` + d.reads.map(r => { const alts = r.candidates.slice(1).map(([b, p]) => `${describe(b)} (${Math.round(p * 100)}%)`).join('; ');
-      return `<li><code>${r.byte.toString(16).padStart(2, '0')}</code> ${describe(r.byte)} <span class="muted">${Math.round(r.p * 100)}%</span>${alts ? `<div class="alts">or ${alts}</div>` : ''}</li>`; }).join('') + `</ol>`;
+    h += `<p>Most likely: <code class="big">${d.best}</code> <span class="muted">${d.format === 1 ? 'format v1 · ' : ''}${ms} ms</span></p>`;
+    if (d.sequences.length > 1) h += `<p class="muted">Not sure about some glyphs. Pick the reading that matches what you see, or query all of them:</p>`;
+    h += `<div class="seq">` + d.sequences.map(s => `<button data-hex="${s.hex}" data-fmt="${s.format}">${s.hex} <span class="muted">${Math.round(s.p * 100)}%${s.format !== d.format ? ' v' + s.format : ''}</span></button>`).join('') + `</div>`;
+    h += `<ol class="symbols">` + d.reads.map(r => { const alts = r.candidates.slice(1).map(([b, p]) => `${describe(b, d.format)} (${Math.round(p * 100)}%)`).join('; ');
+      return `<li><code>${r.byte.toString(16).padStart(2, '0')}</code> ${describe(r.byte, d.format)} <span class="muted">${Math.round(r.p * 100)}%</span>${alts ? `<div class="alts">or ${alts}</div>` : ''}</li>`; }).join('') + `</ol>`;
   }
   h += d.warnings.map(w => `<p class="warn">${w}</p>`).join('');
   $('result').innerHTML = h;
   if (d.sequences.length) runLookup(d.sequences.map(s => s.hex));
-  for (const b of $('result').querySelectorAll('button[data-hex]')) b.addEventListener('click', () => { $('hex').value = b.dataset.hex; renderEncode(); b.textContent = b.dataset.hex + ' ✓'; window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  // tapping a reading shows it drawn, in the format it was read in
+  for (const b of $('result').querySelectorAll('button[data-hex]')) b.addEventListener('click', () => {
+    $('hex').value = b.dataset.hex; const fr = document.querySelector(`input[name=fmt][value="${b.dataset.fmt}"]`); if (fr) fr.checked = true;
+    $('drawHint').textContent = HINTS[drawFormat()]; renderEncode(); b.textContent = b.dataset.hex + ' ✓'; window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 }
 
 

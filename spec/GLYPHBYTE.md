@@ -2,26 +2,23 @@
 
 Hand-drawn glyphs that carry bytes. One glyph is one byte.
 
-`draft` `v0.1` `2026-09-22`
+`draft` `v2` `2026-09-25`
 
 ## Abstract
 
 GlyphByte is a way to write a short byte string, typically the first bytes of a Nostr event
 id or public key, by hand on any surface, so that a phone camera can read it back. Each byte
-is one glyph drawn inside a frame. A row of glyphs is underlined, and a fat dot marks the
-start of the underline. Readers recover the bytes and, when unsure about a glyph, return
-several candidate readings rather than one wrong answer. A client then resolves the bytes on
-a relay that supports prefix queries.
-
-The alphabet was designed so that every glyph stays distinct from every other glyph in all
-four rotations and whether it is filled or not, using only features that survive sloppy
-handwriting: silhouettes and counts, never small appendages.
+is one glyph: a square frame holding an upright icon for the first hex digit and up to four
+corner dots for the second. A row of glyphs is underlined, and a fat dot marks the start of
+the underline. Readers recover the bytes and, when unsure about a glyph, return several
+candidate readings rather than one wrong answer. A client then resolves the bytes on a relay
+that supports prefix queries.
 
 ## Why
 
 QR codes need a printer and read as noise to people. A GlyphByte row can be drawn with a
-marker on a wall, a sticker, a menu, a cast, and a person can read it too: "trapezoid,
-trapezoid, crown, heart, snowman, pac-man". It carries enough bits to identify an event or a
+marker on a wall, chalk on a sidewalk, or a path mown through a field, and a person can read
+it too: "star, star, moon, tree, x, fish". It carries enough bits to identify an event or a
 pubkey among everything on a relay, and an extra relay query costs nothing, so a reader may
 be uncertain and still be useful.
 
@@ -29,59 +26,61 @@ be uncertain and still be useful.
 
 | bits | field | values |
 |---|---|---|
-| 7..4 | symbol | index 0 to 15 into the alphabet below |
-| 3..2 | rotation | quarter turns **clockwise** from the upright glyph: 0, 90, 180, 270 degrees |
-| 1 | fill | 0 outline, 1 filled |
-| 0 | frame | 0 square frame, 1 circle frame |
+| 7..4 | icon | index 0 to 15 into the alphabet below |
+| 3 | top-left dot | 1 when present |
+| 2 | top-right dot | 1 when present |
+| 1 | bottom-right dot | 1 when present |
+| 0 | bottom-left dot | 1 when present |
 
-`byte = symbol << 4 | rotation << 2 | fill << 1 | frame`. Every byte has exactly one drawing
-and every drawing is exactly one byte. The 16 x 4 x 2 x 2 = 256 combinations are in
-`test-vectors.json` under `bytes`.
+`byte = icon << 4 | dots`. The first hex digit names the icon; the second is the sum of the
+dots, reading clockwise from the top-left corner: 8, 4, 2, 1. Every byte has exactly one
+drawing and every drawing is exactly one byte. All 256 are in `test-vectors.json` under
+`bytes` and drawn in `glyphs.svg`.
 
 ## The alphabet
 
-Index is the high nibble. "Upright" is the orientation drawn in `glyphs.svg` under rotation 0.
+Index is the first hex digit. Every icon is drawn upright, with one or two pen strokes.
 
-| index | name | upright description | what makes it distinct |
+| hex | name | drawing | what makes it distinct |
 |---|---|---|---|
-| 0 | house | a square with a pointed roof | one point, flat base |
-| 1 | chevron | a house whose base is cut by a chevron, an upward notch | pointed both ends, same direction |
-| 2 | bookmark | a rectangle with a chevron cut into its bottom | flat top, notched bottom |
-| 3 | crown | a rectangle with three points on top | three points |
-| 4 | drop | a teardrop, point up | one point, round body |
-| 5 | tee | the letter T in block form | a bar on a stem |
-| 6 | u | the letter U in block form | one open side, square corners |
-| 7 | mountain | a triangle whose apex is split into two peaks | two peaks, slanted sides |
-| 8 | arrow | a chevron head on a shaft, pointing up | a shaft |
-| 9 | heart | a heart | two lobes and a point |
-| 10 | crescent | a thick crescent lying like a bowl, horns up | thin, curved, open |
-| 11 | cloud | a dome with three scallops underneath | scallops |
-| 12 | snowman | a small circle merged onto a larger circle, small one on top | two round lobes of different size |
-| 13 | l | the letter L in block form | one corner, two unequal arms |
-| 14 | trapezoid | narrow top, wide bottom | four corners, two parallel sides of different length |
-| 15 | pacman | a disc with a wedge bitten out of the top | a fat disc with a bite |
+| 0 | house | a square body under a pointed roof | one point on top, flat base |
+| 1 | heart | a heart | two lobes and a point below |
+| 2 | drop | a teardrop, point up | one point on top, round body |
+| 3 | moon | a crescent opening to the right | curved, opens right |
+| 4 | crown | a band with three points on top | three points |
+| 5 | arrow | a shaft with an open head, pointing up | open lines, a shaft |
+| 6 | box | a small square, about a third of the frame | four corners, no point |
+| 7 | triangle | a triangle, point up | three corners |
+| 8 | pie | a disc with a wedge missing on the left | round, opens left |
+| 9 | tree | a circle on a stem | a circle above a line |
+| a | plus | a vertical and a horizontal line crossing | two straight lines, parallel to the frame |
+| b | flag | a pole with a triangle flying right from its top | a line with a pennant |
+| c | x | two diagonal lines crossing, kept small | two straight lines, diagonal to the frame |
+| d | bolt | a zigzag lightning bolt, upright | sharp corners, one open stroke |
+| e | star | a five-point star in one stroke | five points |
+| f | fish | an oval body with a tail on the left | an oval and a tail |
 
-The canonical shapes are polygons in a unit box, y down, upright, in `glyphs.json`. Readers
-are not expected to match these polygons literally; they define the intended silhouette and
-are what reference implementations render and train from.
+The icons are pen strokes in a unit box, y down, upright, in `glyphs.json`, together with the
+frame geometry: the icon's size relative to the frame (`icon_scale`), where the dots sit
+(`dot_offset`, `dot_radius`). Readers are not expected to match these strokes literally; they
+define the intended drawing and are what reference implementations render and train from.
 
-Rotation is a property of the glyph, not of the photo: readers determine "up" from the row's
+No two icons differ only by a rotation or a mirror image: people confuse those forms more
+than any other, and a sloppy hand turns them anyway. "Up" for the whole row comes from its
 underline (see Reading), so a photo taken sideways reads the same as one taken upright.
 
 ## Drawing a glyph
 
-1. **Frame first.** Draw a square or a circle. Frames should be about the same size across the
-   row, and neighbouring frames should not touch: leave a gap of roughly a third of a frame.
-2. **Glyph inside.** Draw the glyph in the frame's middle at about six tenths of the frame's
-   width, without touching the frame. Rotate it as the byte requires.
-3. **Fill.** For a filled byte, scribble the whole inside so it reads as a solid blob. For an
-   outline byte, one clean stroke. A filled glyph must keep its silhouette; that is why the
-   alphabet has no glyph whose rotation cue lives inside it.
-4. **Keep points pointy.** The house's roof, the crown's points and the mountain's peaks are
-   the whole difference between those glyphs and a square or a rectangle. Make points at
-   least a third of the glyph tall.
-5. **Snowman:** the small circle must be clearly smaller, about half the diameter of the big
-   one, or it reads as a pac-man.
+1. **Frame first.** Draw a square. Frames should be about the same size across the row, and
+   neighbouring frames should not touch: leave a gap of roughly a third of a frame.
+2. **Icon in the middle,** upright, about half the frame's width, one or two strokes, touching
+   nothing. Keep the box and the x small, well inside the frame: a big box reads as a second
+   frame, and the x's arms point at the corner dots.
+3. **Corner dots.** A dot is a filled blob about a sixth of the frame across, placed in the
+   corner area between the icon and the frame. A dot must touch neither the frame nor the
+   icon: a dot that touches a line becomes part of it and is lost.
+4. **Keep points pointy.** The house's roof, the crown's points and the triangle's corners are
+   the difference between those icons and a box or a band.
 
 ## Drawing a row
 
@@ -91,9 +90,9 @@ underline (see Reading), so a photo taken sideways reads the same as one taken u
 3. **Start dot:** a solid dot at the start end of the underline, about a quarter of a frame
    across. The underline tells a reader which way is up; the dot tells it where to start.
 
-A row without an underline is readable only if the photo is upright and left to right; a
-reader MUST warn when it had to assume that. A row with an underline but no dot has two
-readings, forward and reversed; a reader SHOULD return both.
+A row without an underline is still readable: its glyphs show which way is up. A reader MUST
+warn when it had to decide "up" from the glyphs alone, and SHOULD return the runner-up
+orientation's reading as a candidate when the glyphs do not agree clearly.
 
 Recommended lengths for Nostr references: **6 bytes** (48 bits) for an event id or pubkey
 prefix in ordinary use, **8 bytes** for something meant to stay unambiguous for years, **4
@@ -106,15 +105,22 @@ random one collides with a k-byte prefix is about N / 2^(8k): for N = 10^8, 4 by
 A reader takes a photo and returns byte sequences. The reference readers in this repository
 work like this, and a compatible reader MUST produce the same bytes for the same drawing:
 
-1. Find the frames: closed rings of ink that contain a compact blob of ink. Square or circle
-   is decided from the frame's shape; it is the frame bit.
+1. Find the frames: closed squares of ink that contain ink, taken in any perspective.
 2. Find the row: the frames that share a line and a smooth size trend.
 3. Find the underline: a long stroke parallel to the row just outside it, and its fat end.
-   "Up" is the side of the underline the frames are on; reading order starts at the dot.
-4. Rectify each frame into an upright patch and classify the glyph, its rotation and its
-   fill.
-5. Assemble bytes. Where a glyph is uncertain, keep the alternatives and return the most
+   "Up" is the side of the underline the frames are on. A photo is never mirrored, so reading
+   runs a quarter turn clockwise from up; the dot confirms where the row starts.
+4. Check "up" against the glyphs. Every icon except box, plus and x has a top, so the glyphs
+   of a row vote on how the row is turned. When the vote clearly disagrees with the underline
+   (a ruled line on lined paper, a paper edge), the glyphs win; when it is close, both
+   readings are returned as candidates. Without an underline the glyphs alone decide.
+5. Rectify each frame into an upright patch from its four corners, and classify the icon
+   and each of the four corner dots.
+6. Assemble bytes. Where a glyph is uncertain, keep the alternatives and return the most
    probable whole sequences, ranked, so the client can query all of them.
+7. Tell the format. A reader SHOULD also read format 1 (below), so rows drawn before v2 keep
+   working: read the same frames as format 1, and pick the format whose glyphs are better
+   explained (see "Format 1"). Every returned sequence says which format it was read as.
 
 Readers MUST NOT silently drop a glyph they could not read; a missing byte shifts every later
 byte. They SHOULD report how many frames they found and any assumption they made.
@@ -149,22 +155,23 @@ reader's user picks the event by kind and `d` tag among the author's addressable
 
 `test-vectors.json` holds:
 
-- `bytes`: all 256 bytes with symbol, rotation, fill, frame and a one-line description.
+- `bytes`: all 256 bytes with the icon, the dots and a one-line description.
 - `sequences`: hex strings with their glyph descriptions and a rendered reference row
   (`vectors/row-<hex>.png`), drawn cleanly by the reference renderer.
-- `photos`: real photographs with the bytes they carry. `vectors/photo-01.jpg` is a marker
-  drawing of `e8ed3798c6ff` in a notebook, the first six bytes of the author's pubkey; the
-  reference readers return it as the top reading.
+- `photos`: real photographs of hand-drawn rows with their `format` and the bytes they carry.
+  The first two are format 1 rows drawn with a marker; v2 photographs are added as people draw
+  them.
 
 A conforming encoder MUST reproduce `bytes` and the descriptions in `sequences`. A conforming
 reader SHOULD return the `expected` bytes of every entry in `photos` as its top reading, and
-MUST include them among its candidates.
+MUST include them among its candidates; a reader that reads format 1 MUST report each photo's
+`format`.
 
 ## Reference implementations
 
 - Python package `glyphbyte`: encoder, renderer, reader, relay lookup, training of the
-  classifier from synthetic data. `glyphbyte encode HEX` renders a row; `glyphbyte decode
-  PHOTO` reads one.
+  classifier from synthetic data. `glyphbyte encode HEX` renders a row (`--format 1` for the
+  first alphabet); `glyphbyte decode PHOTO` reads one in either format.
 - JavaScript, in `napplet/src`: the same reader and encoder with no dependencies, bundled
   into a single-file napplet (NIP-5D) that runs on the phone and queries a relay.
 
@@ -175,6 +182,53 @@ prefix resolves to, and the person decides whether that is what they were lookin
 short prefix on a large relay may resolve to several objects; clients MUST show all of them.
 Readers process photos on the device; nothing in this specification requires sending an
 image anywhere.
+
+## Format 1
+
+The first alphabet (v0.1, 2026-09-22) is still read and can still be drawn. Its byte is
+
+| bits | field | values |
+|---|---|---|
+| 7..4 | symbol | 0 house, 1 chevron, 2 bookmark, 3 crown, 4 drop, 5 tee, 6 u, 7 mountain, 8 arrow, 9 heart, a crescent, b cloud, c snowman, d l, e trapezoid, f pacman |
+| 3..2 | rotation | quarter turns **clockwise** from upright |
+| 1 | fill | 0 outline, 1 filled (scribbled solid) |
+| 0 | frame | 0 square, 1 circle |
+
+`byte = symbol << 4 | rotation << 2 | fill << 1 | frame`. The pictograms are polygons in
+`glyphs-v1.json` (unit box, y down, rotation 0), drawn at 0.62 of a square frame or 0.56 of a
+circle's diameter; `glyphs-v1.svg` is the sheet. Rows use the same underline and start dot.
+
+Reading both formats. A reader finds the frames once, cuts each frame into a patch for each
+format (format 1 cuts a circle frame through its fitted ellipse), and scores each format by
+the summed log probability of every glyph's most likely byte, after format 2's orientation
+vote. Format 1 is chosen when its score per glyph beats format 2's by more than 0.5 nats;
+within 0.5 of that threshold, the other format's readings are also returned as candidates.
+On the reference readers' synthetic benchmark (2026-09-26) this picks the right format for
+92% of format 1 rows and 96-97% of format 2 rows, and the wrong picks fall on rows that do
+not read correctly anyway. Format 1 glyphs are drawn in every rotation and cannot vote on
+"up": with no start dot, the row turned 180 degrees (reversed, each rotation plus two) is
+returned as a candidate.
+
+## Changes from v0.1
+
+v0.1 (2026-09-22) spent its eight bits on 16 pictograms, 4 rotations, outline or filled, and
+a square or circle frame. v2 keeps one byte per glyph and replaces the parts people found hard
+to draw:
+
+| v0.1 | v2 | why |
+|---|---|---|
+| rotation, 2 bits | corner dots | people confuse rotated and mirrored forms more than any other difference, and drawing a pictogram sideways is slow |
+| fill, 1 bit | corner dot | a scribbled fill is slow and smears in chalk and in fields |
+| square or circle frame, 1 bit | corner dot | one frame shape to remember |
+| hollow letters T, U, L; bookmark, trapezoid, chevron, cloud, snowman | tree, plus, flag, bolt, star, fish, box, x | 6 to 8 corners each, or too close to another icon once rotation is gone |
+| pac-man | pie, facing left | a generic name, and it now opens away from the moon |
+| mountain | triangle | it is a triangle |
+
+The design follows published evidence on what people draw easily (lines, circles, crosses and
+squares are copied by age 4, diagonals and diamonds later), on what they confuse (mirror and
+rotated forms), on counting (up to four items are seen at a glance), and on markers that
+people draw by hand (blobs that never touch their region's edge). The research notes and the
+comparison are in `research/v2/` in the repository.
 
 ## License
 
