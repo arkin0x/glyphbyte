@@ -56,13 +56,17 @@ drawn in format 1 (`bench/synth/v1`, `--truth-format 1`).
 
 | suite | format read right | whole row exact | truth among candidates | reading only the right format |
 |---|---|---|---|---|
-| format 1, `bench/synth/v1` | 0.920 | 0.560 | 0.580 | 0.555 (the v1 reader, 2026-09-25) |
-| format 2, pen and marker | 0.965 | 0.630 | 0.650 | 0.630 |
-| format 2, with chalk and crop | 0.965 | 0.420 | 0.450 | 0.425 |
+| format 1, `bench/synth/v1` | 0.910 | 0.565 | 0.595 | 0.555 (the v1 reader, 2026-09-25) |
+| format 2, pen and marker | 0.970 | 0.630 | 0.670 | 0.630 |
+| format 2, with chalk and crop | 0.965 | 0.450 | 0.515 | 0.425 (before the colour channel) |
 
-Rows sent to the wrong format are rows that do not read correctly in the right one either, so
-reading both formats costs format 2 nothing measurable, and format 1 rows read slightly better
-than with the v1 reader (the grain pass and the handedness rule help them too).
+Format 2 goes first and format 1 is read only when format 2 cannot explain the row, so a
+format 2 photo reads exactly as it would in format 2 alone. Rows sent to the wrong format are
+rows that do not read correctly in the right one either, and format 1 rows read slightly better
+than with the v1 reader (the grain pass, the colour channel and the handedness rule help them
+too). The colour channel (2026-09-27) added no measurable cost on these suites and fixed real
+chalk photos that the synthetic chalk, white on dark pavement, never modelled: light blue chalk
+on tan concrete, `spec/vectors/v2-photo-0*.jpg`, read exactly now and not at all before.
 
 ### Compared with v1 (big model; v1 on its own pen-and-marker suite)
 

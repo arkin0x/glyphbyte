@@ -84,7 +84,7 @@ eight bytes, a wrong candidate simply matches nothing.
 
 | stage | method |
 |---|---|
-| binarize | local threshold at both polarities (dark ink on light, light ink on dark), each also after a blur that rejoins grainy strokes (chalk, mown paths), specks removed |
+| binarize | local threshold at both polarities (dark ink on light, light ink on dark), each also after a blur that rejoins grainy strokes (chalk, mown paths); in a colour photo also the ink's colour difference from the surface, projected on the ink's own hue (blue chalk on concrete is nearly invisible in gray); specks removed |
 | frames | interiors of ink squares that hold ink; frames with a pen gap are recovered from their convex hull; a stroke-width check by ray marching rejects paper regions and thick texture; confidently round rings score lower |
 | the row | the set of frames sharing a line and a smooth size trend with the highest total quality, so tiles and windows in the backdrop lose |
 | baseline and start | parallel offsets scored by ink coverage in the gaps between frames; each candidate line is refined and tested for a fat end; a line with a dot beats a lined-paper line |
@@ -92,7 +92,7 @@ eight bytes, a wrong candidate simply matches nothing.
 | which way is up | the icons vote: a fourth network head says how each glyph is turned, and a clear vote turns the whole row (a ruled line or a paper edge taken for the underline, or no underline at all); a close vote keeps both readings |
 | classify | a 4-block CNN (about 0.9M parameters) on 64x64 contrast-normalized patches, four heads: the icon (16 classes), the four corner dots (one yes/no each), not-a-glyph (in any rotation) and the glyph's turn (4 classes); polarity-invariant; ONNX on CPU |
 | decode | joint probability over the 256 bytes per cell (icon times each dot), then a beam over cells |
-| which format | the same frames read with the format 1 model too; the format that explains the glyphs better wins (per-glyph log-likelihood, 0.5 in favour of format 2); close calls keep both formats' readings |
+| which format | format 2 first; only when it cannot explain the row is the row re-chosen with the format 1 model's second look and read as format 1; the better-explained format wins (per-glyph log-likelihood, 0.5 in favour of format 2), close calls keep both formats' readings |
 
 The classifier is trained only on synthetic data rendered from the icon strokes:
 wobble, stroke breathing, pen gaps, dots drawn as blobs, scribbles or tiny rings,

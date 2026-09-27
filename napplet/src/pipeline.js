@@ -2,7 +2,7 @@
 // The row is found once, then read as format 2 (icons and corner dots, the default) and as format 1 (the
 // first alphabet of rotated, filled pictograms). The better-explained format wins; when the two are close,
 // the other format's readings stay among the candidates, each tagged with its format.
-import { detect, rectifyFrame } from './detect.js';
+import { detect, findCandidates, rectifyFrame } from './detect.js';
 import { classify, modelFormat } from './nn.js';
 
 export const SYMBOLS = ['house', 'heart', 'drop', 'moon', 'crown', 'arrow', 'box', 'triangle', 'pie', 'tree', 'plus', 'flag', 'x', 'bolt', 'star', 'fish'];
@@ -108,42 +108,63 @@ function readV1(det, model, o) {
   return { fmt: 1, reads, sequences: seqs, ll: rowLL(dists), warnings, frames, patches, up: det.up, d: det.direction };
 }
 
+// Probability that a candidate frame holds no glyph, in any rotation. The first format in fmts decides; later
+// ones get a second look only at what it rejects and overrule only when sure (RESCUE). cache keeps each
+// model's answer per candidate across row choices.
+function junkJudge(byFmt, fmts, cache) {
+  const judge = (fm, chans, w, h, f) => {
+    const k = `${fm}:${f.candId}`;
+    if (!cache.has(k)) cache.set(k, classify(byFmt[fm], rectifyFrame(chans[f.channel], w, h, f, [1, 0], [0, -1], f.lightInk, fm), 64).junk);
+    return cache.get(k);
+  };
+  return (chans, w, h, frames) => {
+    const pj = frames.map(f => judge(fmts[0], chans, w, h, f));
+    for (const fm of fmts.slice(1)) frames.forEach((f, i) => { if (pj[i] > 0.5) { const p = judge(fm, chans, w, h, f); if (p < RESCUE) pj[i] = Math.min(pj[i], p); } });
+    return pj;
+  };
+}
+
 // models: one loaded model (its format only) or {1: model, 2: model}. opts.format: 'auto' (default), 1 or 2.
+// opts.rgba: the photo's RGBA pixels (same W x H); coloured ink on a coloured surface needs them.
+// Format 2 goes first: its model picks the row and reads it. Format 1 is tried only when format 2 cannot
+// explain the row; then the row is picked again with format 1's second
+// look at the candidates format 2 rejected, and read as format 1. Same as pipeline.py.
 export function readImage(gray, W, H, models, opts = {}) {
   const o = { maxSeq: opts.maxSequences || 8, forkRatio: opts.forkRatio || 0.2, maxPer: opts.maxPerSymbol || 4 };
   let byFmt = models && models.w ? { [modelFormat(models)]: models } : { ...models };
   if (opts.format && opts.format !== 'auto') byFmt = { [opts.format]: byFmt[opts.format] };
-  const fmts = Object.keys(byFmt).map(Number).filter(f => byFmt[f]).sort((a, b) => b - a);
-  // junk: format 2 decides; format 1 gets a second look only at what format 2 rejects
-  const junkFn = (g, w, h, frames) => {
-    const pj = frames.map(f => classify(byFmt[fmts[0]], rectifyFrame(g, w, h, f, [1, 0], [0, -1], f.lightInk, fmts[0]), 64).junk);
-    // only a clear glyph of the other format overrules (RESCUE as in pipeline.py)
-    for (const fm of fmts.slice(1)) frames.forEach((f, i) => { if (pj[i] > 0.5) { const p = classify(byFmt[fm], rectifyFrame(g, w, h, f, [1, 0], [0, -1], f.lightInk, fm), 64).junk; if (p < RESCUE) pj[i] = Math.min(pj[i], p); } });
-    return pj;
-  };
-  const det = detect(gray, W, H, junkFn);
-  const warnings = det.warnings.slice();
-  if (!det.frames.length) return { reads: [], sequences: [], format: fmts[0], warnings: warnings.concat(['no glyphs found']), detection: det };
-  // format 1 wins only by beating format 2 by FORMAT_BIAS per glyph and scores at most 0, so it is not
-  // read when format 2 is above -FORMAT_BIAS per glyph (fmts is sorted 2 before 1)
-  const results = {};
-  for (const f of fmts) {
-    if (f === 1 && results[2] && results[2].ll / Math.max(1, det.frames.length) > -FORMAT_BIAS) continue;
-    results[f] = (f === 1 ? readV1 : readV2)(det, byFmt[f], o);
+  const fmts = Object.keys(byFmt).map(Number).filter(f => byFmt[f]).sort((a, b) => b - a), first = fmts[0];
+  const cands = findCandidates(gray, W, H, opts.rgba || null), cache = new Map();
+  const dets = { [first]: detect(cands, W, H, junkJudge(byFmt, [first], cache)) }, results = {};
+  if (dets[first].frames.length) results[first] = (first === 1 ? readV1 : readV2)(dets[first], byFmt[first], o);
+  // format 1 is tried only when format 2 cannot explain its row: format 1 wins only by beating it by
+  // FORMAT_BIAS per glyph, and a log-likelihood is at most 0
+  const r2 = results[2];
+  if (first === 2 && byFmt[1] && (!r2 || r2.ll / Math.max(1, r2.frames.length) <= -FORMAT_BIAS)) {
+    dets[1] = detect(cands, W, H, junkJudge(byFmt, [2, 1], cache));
+    if (dets[1].frames.length) results[1] = readV1(dets[1], byFmt[1], o);
   }
+  if (!results[1] && !results[2]) { const det = dets[first]; return { reads: [], sequences: [], format: first, warnings: det.warnings.concat(['no glyphs found']), detection: det }; }
+  const warnings = [];
   let chosen, seqs;
   if (!(results[1] && results[2])) { chosen = results[2] || results[1]; seqs = chosen.sequences; }
   else {
-    const n = Math.max(1, det.frames.length), margin = (results[1].ll - results[2].ll) / n - FORMAT_BIAS;   // per glyph; > 0 favours format 1
-    chosen = margin > 0 ? results[1] : results[2]; const other = margin > 0 ? results[2] : results[1];
+    const r1 = results[1], margin = r1.ll / Math.max(1, r1.frames.length) - r2.ll / Math.max(1, r2.frames.length) - FORMAT_BIAS;   // per glyph; > 0 favours format 1
+    chosen = margin > 0 ? r1 : r2; const other = margin > 0 ? r2 : r1;
     seqs = chosen.sequences;
     if (Math.abs(margin) < FORMAT_FORK) {
-      const w = 1 / (1 + Math.exp(Math.abs(margin) * n));
-      seqs = merge(chosen.sequences, 1 - w, other.sequences, w, o.maxSeq);
+      const w = 1 / (1 + Math.exp(Math.abs(margin) * Math.max(1, chosen.frames.length)));
+      // the chosen format's best reading leads, so the result's format and its best reading agree;
+      // probabilities of different formats' readings are not comparable one by one
+      const top = chosen.sequences[0];
+      seqs = [{ ...top, p: top.p * (1 - w) }].concat(merge(chosen.sequences.slice(1), 1 - w, other.sequences, w, o.maxSeq - 1));
       warnings.push(`the row could be format ${other.fmt}: its readings are among the candidates`);
     }
     if (chosen.fmt === 1) warnings.push('read as format 1, the first glyphbyte alphabet');
   }
+  const det = dets[chosen.fmt];
   Object.assign(det, { frames: chosen.frames, patches: chosen.patches, up: chosen.up, direction: chosen.d });
-  return { reads: chosen.reads, sequences: seqs, best: seqs[0].hex, format: chosen.fmt, warnings: warnings.concat(chosen.warnings), detection: det };
+  const formatScores = {}; for (const f in results) formatScores[f] = results[f].ll;
+  return { reads: chosen.reads, sequences: seqs, best: seqs[0].hex, format: chosen.fmt, formatScores,
+           warnings: det.warnings.concat(warnings, chosen.warnings), detection: det };
 }

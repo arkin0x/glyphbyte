@@ -1,5 +1,5 @@
 // Port of glyphbyte/detect.py: frames, baseline, start dot, rectification. Same numbers, same order.
-import { resizeGray, gaussianBlur, adaptiveThreshold, morphClose3, removeSpecks, labelComponents, distanceTransform, dilate, warp, normalizePatch } from './imgops.js';
+import { resizeGray, colorChannel, gaussianBlur, adaptiveThreshold, morphClose3, removeSpecks, labelComponents, distanceTransform, dilate, warp, normalizePatch } from './imgops.js';
 import { convexHull, polygonArea, polygonPerimeter, polygonCentroid, pointInPolygon, approxPolyDP, maxInscribedQuad, eigen2, homography, mat3mul, mat3inv } from './geom.js';
 
 export const PATCH = 64, PATCH_MARGIN = 0.12, MAX_SIDE = 1280, JUNK_TOP_K = 24;
@@ -133,10 +133,27 @@ export function findFrames(ink, W, H) {
   };
 
   // A) holes: background components not touching the border
+  const byParent = new Map();
   for (let k = 1; k <= bgLab.n; k++) {
     const s = bgLab.stats[k]; if (s.border) continue;
-    const big = Math.max(s.x1 - s.x0 + 1, s.y1 - s.y0 + 1); if (big < minSize || big > maxSize) continue;
-    consider(convexHull(boundaryPoints(bgLab.labels, W, H, k, s)), s.area, null);
+    const big = Math.max(s.x1 - s.x0 + 1, s.y1 - s.y0 + 1);
+    const pts = boundaryPoints(bgLab.labels, W, H, k, s);
+    if (big >= minSize / 3 && pts.length) {
+      // the ink around this hole: the pixel left of its leftmost boundary point
+      let lp = pts[0]; for (const q of pts) if (q[0] < lp[0]) lp = q;
+      const parent = lp[0] > 0 ? inkLab.labels[lp[1] * W + lp[0] - 1] : 0;
+      if (parent) { if (!byParent.has(parent)) byParent.set(parent, []); byParent.get(parent).push({ pts, area: s.area }); }
+    }
+    if (big < minSize || big > maxSize) continue;
+    consider(convexHull(pts), s.area, null);
+  }
+  // A2) a split interior: when the glyph touches the frame on two sides (grainy chalk joins them
+  // through specks), the inside is cut into pieces; their joint hull is the whole inside
+  for (const holes of byParent.values()) {
+    if (holes.length < 2) continue;
+    const maxA = Math.max(...holes.map(h => h.area)), big = holes.filter(h => h.area >= 0.05 * maxA);
+    if (big.length < 2) continue;
+    const hull = convexHull(big.flatMap(h => h.pts)); consider(hull, polygonArea(hull), null);
   }
   // B) rings with a pen gap: low-solidity ink components whose hull encloses other ink
   for (let k = 1; k <= inkLab.n; k++) {
@@ -391,18 +408,23 @@ export function rectifyFrame(gray, W, H, f, d, up, lightInk, fmt = 2) {
 // the reading direction for a given "up" (y down): a quarter turn clockwise, so [0, -1] reads along [1, 0]
 export function handed(up) { return [-up[1], up[0]]; }
 
-// junkFn(gray, W, H, frames) -> probability that each frame holds no glyph, in any format and rotation
-export function detect(grayIn, Win, Hin, junkFn = null) {
+// Everything found before the row is chosen (detect can choose a row from it more than once).
+// rgba (optional, full size): adds the colour channel, where ink of any colour is dark
+export function findCandidates(grayIn, Win, Hin, rgba = null) {
   const { gray, W, H, scale } = prepare(grayIn, Win, Hin);
+  const channels = { luma: gray }, color = rgba ? colorChannel(rgba, Win, Hin, W, H) : null;
+  if (color) channels.color = color;
   const inks = {}; let pool = [];
-  // each polarity is binarized twice: as is, and after a blur that rejoins grainy strokes
-  for (const smooth of [false, true]) for (const light of [false, true]) {
-    const ink = binarize(gray, W, H, light, smooth); inks[`${light}${smooth}`] = ink;
+  // each polarity is binarized twice: as is, and after a blur that rejoins grainy strokes; a colour
+  // photo adds the colour channel (ink dark). All frames share one pool.
+  for (const [name, img] of Object.entries(channels)) for (const smooth of [false, true]) for (const light of (name === 'luma' ? [false, true] : [false])) {
+    const ink = binarize(img, W, H, light, smooth); inks[`${name}${light}${smooth}`] = ink;
     let cov = 0; for (let i = 0; i < ink.length; i++) cov += ink[i]; cov /= ink.length;
     const penalty = 1 - Math.min(0.9, 3 * Math.max(0, cov - 0.2));
-    for (const f of findFrames(ink, W, H)) { f.lightInk = light; f.smooth = smooth; f.quality *= penalty; pool.push(f); }
+    for (const f of findFrames(ink, W, H)) { f.lightInk = light; f.smooth = smooth; f.channel = name; f.quality *= penalty; pool.push(f); }
   }
-  pool.sort((a, b) => b.quality - a.quality);
+  // best first; between equals the bigger copy, which saw more of a frame's inside
+  pool.sort((a, b) => (Math.round(b.quality * 100) - Math.round(a.quality * 100)) || (b.size - a.size));
   let merged = [];
   for (const f of pool) {
     const k = merged.findIndex(g => Math.hypot(f.center[0] - g.center[0], f.center[1] - g.center[1]) < 0.35 * g.size && f.size / g.size > 0.6 && f.size / g.size < 1.6);
@@ -412,17 +434,31 @@ export function detect(grayIn, Win, Hin, junkFn = null) {
     else if (merged[k].kind === FRAME_CIRCLE && f.kind === FRAME_SQUARE && f.quality >= (1 - ROUND_PENALTY * merged[k].conf) * merged[k].quality) merged[k] = f;
   }
   merged.sort((a, b) => b.quality - a.quality);
+  merged.forEach((f, i) => { f.candId = i; });
+  return { isCandidates: true, W, H, scale, channels, inks, frames: merged };
+}
+
+// Find the row. input: a gray image (with Win, Hin, rgba) or the result of findCandidates.
+// junkFn(channels, W, H, frames) -> probability that each frame holds no glyph, in any format and rotation
+export function detect(input, Win, Hin, junkFn = null, rgba = null) {
+  const c = input && input.isCandidates ? input : findCandidates(input, Win, Hin, rgba);
+  const { W, H, scale, channels, inks } = c;
+  let merged = c.frames.map(f => ({ ...f }));   // copies: choosing a row adjusts their quality
   if (junkFn && merged.length) {
     // the network is the expensive part: ask it only about the best-looking candidates
     const top = merged.slice(0, JUNK_TOP_K);
-    const pj = junkFn(gray, W, H, top);
+    const pj = junkFn(channels, W, H, top);
     top.forEach((f, i) => { f.junk = pj[i]; f.quality *= Math.max(0.05, 1 - pj[i]); });
     merged = top.filter(f => f.junk < 0.9);
   }
   let { frames, warnings } = filterRow(merged);
-  const votes = frames.reduce((s, f) => s + (f.lightInk ? 1 : -1), 0), lightInk = votes > 0;
-  const smooth = frames.filter(f => f.lightInk === lightInk).reduce((s, f) => s + (f.smooth ? 1 : -1), 0) > 0;
-  const ink = inks[`${lightInk}${smooth}`];
+  // the row's own channel, polarity and pass: the one most of its frames were found in
+  const channel = frames.reduce((s, f) => s + (f.channel === 'color' ? 1 : -1), 0) > 0 ? 'color' : 'luma';
+  let same = frames.filter(f => f.channel === channel); if (!same.length) same = frames;
+  const lightInk = channel === 'luma' && same.reduce((s, f) => s + (f.lightInk ? 1 : -1), 0) > 0;
+  const same2 = same.filter(f => f.lightInk === lightInk), sm = same2.length ? same2 : same;
+  const smooth = sm.reduce((s, f) => s + (f.smooth ? 1 : -1), 0) > 0;
+  const ink = inks[`${channel}${lightInk}${smooth}`] || inks['lumafalsefalse'], grayC = channels[channel];
   let up = [0, -1], d = [1, 0], baseline = null, startKnown = false;
   const bl = findBaseline(ink, W, H, frames);
   if (bl) {
@@ -447,6 +483,6 @@ export function detect(grayIn, Win, Hin, junkFn = null) {
       frames.sort((a, b) => ((a.center[0] - baseline[0][0]) * d[0] + (a.center[1] - baseline[0][1]) * d[1]) - ((b.center[0] - baseline[0][0]) * d[0] + (b.center[1] - baseline[0][1]) * d[1]));
     } else frames.sort((a, b) => a.center[0] - b.center[0]);
   }
-  const patches = frames.map(f => rectifyFrame(gray, W, H, f, d, up, lightInk));
-  return { frames, baseline, startKnown, up, direction: d, lightInk, scale, W, H, gray, warnings, patches };
+  const patches = frames.map(f => rectifyFrame(grayC, W, H, f, d, up, lightInk));
+  return { frames, baseline, startKnown, up, direction: d, lightInk, scale, W, H, gray: grayC, channel, channels, warnings, patches };
 }

@@ -57,7 +57,7 @@ async function readFile(f) {
     const img = ctx.getImageData(0, 0, cv.width, cv.height);
     await new Promise(r => setTimeout(r, 20));
     const t0 = performance.now();
-    const res = readImage(toGray(img.data, cv.width, cv.height), cv.width, cv.height, MODELS);
+    const res = readImage(toGray(img.data, cv.width, cv.height), cv.width, cv.height, MODELS, { rgba: img.data });
     show(res, Math.round(performance.now() - t0));
     drawDetection(ctx, res.detection); cv.hidden = false;
   } catch (e) { $('result').innerHTML = `<p class="warn">could not read that image: ${e}</p>`; }

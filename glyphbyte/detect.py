@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import itertools
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import cv2
 import numpy as np
@@ -29,6 +29,7 @@ from .synth import PATCH, normalize_patch, patch_target_quad, rectify
 MAX_SIDE = 1600
 JUNK_TOP_K = 24      # candidates offered to the classifier's junk check
 ROUND_PENALTY = 0.5    # a round copy of a frame yields to a square copy this much weaker
+COLOR_MIN = 6.0        # a photo whose colour differences stay below this gets no colour pass
 _DEBUG = bool(__import__("os").environ.get("GLYPHBYTE_DEBUG"))
 
 
@@ -47,6 +48,8 @@ class Frame:
     quality: float = 1.0           # how much this looks like a drawn frame with a glyph in it
     light_ink: bool = False        # polarity this frame was found in
     smooth: bool = False           # found in the grain pass (blurred before binarizing)
+    channel: str = "luma"          # "luma" (gray) or "color" (colour difference from the surface)
+    cand_id: int = -1              # position among the candidates, stable across row choices
     junk: float = 0.0              # classifier's probability that this is not a glyph
 
 
@@ -59,22 +62,77 @@ class Detection:
     direction: np.ndarray
     light_ink: bool
     scale: float
-    gray: np.ndarray
+    gray: np.ndarray                  # the channel the row was found in: patches are cut from it
     ink: np.ndarray
     warnings: list[str] = field(default_factory=list)
     patches: list[np.ndarray] = field(default_factory=list)
+    channel: str = "luma"
+    channels: dict = field(default_factory=dict)   # every channel image by name
 
 
 # ----------------------------------------------------------------------------- basics
 
-def prepare(image: np.ndarray) -> tuple[np.ndarray, float]:
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image.copy()
+def prepare(image: np.ndarray) -> tuple[np.ndarray, float, np.ndarray | None]:
+    """(gray, scale, color channel or None), downscaled to at most MAX_SIDE."""
     s = 1.0
-    m = max(gray.shape)
+    m = max(image.shape[:2])
     if m > MAX_SIDE:
         s = MAX_SIDE / m
-        gray = cv2.resize(gray, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
-    return gray, s
+        image = cv2.resize(image, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
+    if image.ndim == 3:
+        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), s, color_channel(image)
+    return image.copy(), s, None
+
+
+def _box_mean(img: np.ndarray, r: int) -> np.ndarray:
+    """Mean over a (2r+1)^2 window clipped to the image, like imgops.js boxMean."""
+    H, W = img.shape
+    S = np.zeros((H + 1, W + 1), np.float64)
+    S[1:, 1:] = img.astype(np.float64).cumsum(0).cumsum(1)
+    y0 = np.clip(np.arange(H) - r, 0, H)
+    y1 = np.clip(np.arange(H) + r + 1, 0, H)
+    x0 = np.clip(np.arange(W) - r, 0, W)
+    x1 = np.clip(np.arange(W) + r + 1, 0, W)
+    tot = S[y1][:, x1] - S[y0][:, x1] - S[y1][:, x0] + S[y0][:, x0]
+    return (tot / ((y1 - y0)[:, None] * (x1 - x0)[None, :])).astype(np.float32)
+
+
+def _hist_percentile(x: np.ndarray, q: float) -> float:
+    """q-quantile of non-negative values from a histogram of 0.25-wide bins, as imgops.js does it."""
+    hist = np.bincount(np.minimum((x * 4).astype(np.int64), 1023).ravel(), minlength=1024)
+    return (int(np.searchsorted(np.cumsum(hist), q * x.size)) + 1) / 4.0
+
+
+def color_channel(bgr: np.ndarray) -> np.ndarray | None:
+    """Ink seen by its colour, as a gray image with the ink dark. Blue chalk on tan concrete is
+    nearly invisible in gray and stands out here; so does any coloured pen, paint or chalk.
+
+    Each pixel's chroma (Cb, Cr) minus the surface's around it is projected on the ink's own
+    colour direction (the mean of the strongest 1% of differences), and only the positive side
+    kept: an unsigned distance would also light a halo of plain surface beside every stroke,
+    where the local average is tinted by the ink. None when the photo has no colour to speak of
+    (pen on white paper), so that case costs nothing."""
+    b = bgr.astype(np.float32)
+    y = b[..., 0] * 0.114 + b[..., 1] * 0.587 + b[..., 2] * 0.299
+    diffs = []
+    R = max(2, min(bgr.shape[:2]) // 25)
+    for c in ((b[..., 0] - y) * 0.564, (b[..., 2] - y) * 0.713):   # Cb, Cr
+        c = _box_mean(c, 1)                      # phone JPEGs keep colour at half resolution
+        diffs.append(c - _box_mean(_box_mean(_box_mean(c, R), R), R))
+    dcb, dcr = diffs
+    mag = np.sqrt(dcb * dcb + dcr * dcr)
+    if _hist_percentile(mag, 0.995) < COLOR_MIN:
+        return None
+    strong = mag >= _hist_percentile(mag, 0.99)
+    u = np.array([float(dcb[strong].mean()), float(dcr[strong].mean())])
+    n = float(np.hypot(*u))
+    if n < 1e-6:
+        return None
+    proj = np.maximum(0.0, (dcb * u[0] + dcr * u[1]) / n)
+    p = _hist_percentile(proj, 0.995)
+    if p < COLOR_MIN:
+        return None
+    return (255 - np.minimum(255, np.floor(proj * 255.0 / p))).astype(np.uint8)
 
 
 def smooth_sigma(gray: np.ndarray) -> float:
@@ -250,10 +308,22 @@ def find_frames(ink: np.ndarray) -> list[Frame]:
         out.append(fr)
 
     # A) holes: a frame's interior survives even when the ring merged with other ink
+    by_parent: dict[int, list[np.ndarray]] = {}
     for i, c in enumerate(cnts):
         if hier[i][3] == -1:
             continue
         consider(c, 0.0, None)
+        by_parent.setdefault(int(hier[i][3]), []).append(c)
+    # A2) a split interior: when the glyph touches the frame on two sides (grainy chalk joins
+    # them through specks), the inside is cut into pieces. Their joint hull is the whole inside;
+    # the fragment candidates above compete with it on quality.
+    for holes in by_parent.values():
+        if len(holes) < 2:
+            continue
+        areas = [cv2.contourArea(h) for h in holes]
+        big = [h for h, a in zip(holes, areas) if a >= 0.05 * max(areas)]
+        if len(big) >= 2:
+            consider(cv2.convexHull(np.vstack(big)), 0.0, None)
     # B) rings with a pen gap: an external contour with low solidity whose hull encloses other ink
     for i, c in enumerate(cnts):
         if hier[i][3] != -1:
@@ -652,31 +722,45 @@ def handed(up: np.ndarray) -> np.ndarray:
     return np.array([-up[1], up[0]], dtype=np.float64)
 
 
-def detect(image: np.ndarray, junk_fn=None) -> Detection:
-    """junk_fn(gray, frames) -> array of probabilities that each frame holds no glyph, in any
-    format and any rotation (the pipeline builds it from its classifiers).
-    When given, candidates are scored by it before the row is chosen, so texture that
-    looks like a frame geometrically does not get to outvote the real row."""
-    gray, scale = prepare(image)
+@dataclass
+class Candidates:
+    """Everything found before the row is chosen; detect() can choose a row from it more than once."""
+    gray: np.ndarray
+    scale: float
+    channels: dict
+    inks: dict
+    frames: list[Frame]           # deduplicated, best first
+
+
+def find_candidates(image: np.ndarray) -> Candidates:
+    gray, scale, color = prepare(image)
     # frames from both polarities go into one pool; the row then decides which polarity
     # the drawing has. strokes are sparse, so a polarity that inks most of the picture
     # has binarized the paper and its frames are penalized.
     # each polarity is binarized twice: as is, and after a blur that rejoins grainy strokes
-    # (chalk, a path mown through a field). all frames share one pool.
+    # (chalk, a path mown through a field). a colour photo adds the colour channel, where ink
+    # of any colour is dark. all frames share one pool.
+    channels = {"luma": gray}
+    if color is not None:
+        channels["color"] = color
     inks = {}
     pool: list[Frame] = []
-    for smooth in (False, True):
-        for light in (False, True):
-            ink = binarize(gray, light, smooth)
-            inks[(light, smooth)] = ink
-            coverage = float(ink.mean())
-            penalty = 1.0 - min(0.9, 3.0 * max(0.0, coverage - 0.2))
-            for f in find_frames(ink):
-                f.light_ink = light
-                f.smooth = smooth
-                f.quality *= penalty
-                pool.append(f)
-    pool.sort(key=lambda f: -f.quality)
+    for name, img in channels.items():
+        for smooth in (False, True):
+            for light in ((False, True) if name == "luma" else (False,)):
+                ink = binarize(img, light, smooth)
+                inks[(name, light, smooth)] = ink
+                coverage = float(ink.mean())
+                penalty = 1.0 - min(0.9, 3.0 * max(0.0, coverage - 0.2))
+                for f in find_frames(ink):
+                    f.light_ink = light
+                    f.smooth = smooth
+                    f.channel = name
+                    f.quality *= penalty
+                    pool.append(f)
+    # best first; between equals the bigger copy, which saw more of a frame's inside (a glyph
+    # touching the frame walls off a pocket, and the pocketless copy is the whole frame)
+    pool.sort(key=lambda f: (-round(f.quality, 2), -f.size))
     merged: list[Frame] = []
     for f in pool:
         k = next((i for i, g in enumerate(merged)
@@ -689,21 +773,40 @@ def detect(image: np.ndarray, junk_fn=None) -> Detection:
             # copy only ever yields to a square one; round rows (format 1) are scored as they are
             merged[k] = f
     merged.sort(key=lambda f: -f.quality)
+    for i, f in enumerate(merged):
+        f.cand_id = i
+    return Candidates(gray=gray, scale=scale, channels=channels, inks=inks, frames=merged)
+
+
+def detect(image, junk_fn=None) -> Detection:
+    """Find the row in a photo (or in Candidates already found from it).
+
+    junk_fn(channels, frames) -> array of probabilities that each frame holds no glyph, in any
+    format and any rotation (the pipeline builds it from its classifiers); channels maps a
+    frame's .channel to the image it was found in. When given, candidates are scored by it
+    before the row is chosen, so texture that looks like a frame geometrically does not get to
+    outvote the real row."""
+    cands = image if isinstance(image, Candidates) else find_candidates(image)
+    scale, channels, inks = cands.scale, cands.channels, cands.inks
+    merged = [replace(f) for f in cands.frames]      # copies: choosing a row adjusts their quality
     if junk_fn is not None and merged:
         # only the best-looking candidates are worth the network's time (the same cap
         # keeps the JavaScript port usable on a phone)
         merged = merged[:JUNK_TOP_K]
-        p_junk = np.asarray(junk_fn(gray, merged), dtype=np.float64)
+        p_junk = np.asarray(junk_fn(channels, merged), dtype=np.float64)
         for f, pj in zip(merged, p_junk):
             f.junk = float(pj)
             f.quality *= max(0.05, 1.0 - float(pj))
         merged = [f for f in merged if f.junk < 0.9]
     frames, warnings = filter_row(merged)
-    votes = sum(1 if f.light_ink else -1 for f in frames)
-    light_ink = votes > 0
-    same = [f for f in frames if f.light_ink == light_ink]
+    # the row's own channel, polarity and pass: the one most of its frames were found in
+    channel = "color" if sum(1 if f.channel == "color" else -1 for f in frames) > 0 else "luma"
+    same = [f for f in frames if f.channel == channel] or frames
+    light_ink = channel == "luma" and sum(1 if f.light_ink else -1 for f in same) > 0
+    same = [f for f in same if f.light_ink == light_ink] or same
     smooth = sum(1 if f.smooth else -1 for f in same) > 0
-    ink = inks[(light_ink, smooth)]
+    ink = inks.get((channel, light_ink, smooth), inks[("luma", False, False)])
+    gray = channels[channel]
 
     up = np.array([0.0, -1.0])
     d = np.array([1.0, 0.0])
@@ -744,7 +847,8 @@ def detect(image: np.ndarray, junk_fn=None) -> Detection:
             frames.sort(key=lambda f: float(f.center @ d))
     patches = [rectify_frame(gray, f, d, up, light_ink) for f in frames]
     return Detection(frames=frames, baseline=baseline, start_known=start_known, up=up, direction=d,
-                     light_ink=light_ink, scale=scale, gray=gray, ink=ink, warnings=warnings, patches=patches)
+                     light_ink=light_ink, scale=scale, gray=gray, ink=ink, warnings=warnings, patches=patches,
+                     channel=channel, channels=channels)
 
 
 def draw_debug(det: Detection) -> np.ndarray:

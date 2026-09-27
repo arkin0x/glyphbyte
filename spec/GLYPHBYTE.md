@@ -105,7 +105,10 @@ random one collides with a k-byte prefix is about N / 2^(8k): for N = 10^8, 4 by
 A reader takes a photo and returns byte sequences. The reference readers in this repository
 work like this, and a compatible reader MUST produce the same bytes for the same drawing:
 
-1. Find the frames: closed squares of ink that contain ink, taken in any perspective.
+1. Find the frames: closed squares of ink that contain ink, taken in any perspective. Look
+   for them in the gray image and, in a colour photo, in the ink's colour difference from the
+   surface around it: coloured chalk on concrete can be as bright as the concrete and differ
+   only in hue.
 2. Find the row: the frames that share a line and a smooth size trend.
 3. Find the underline: a long stroke parallel to the row just outside it, and its fat end.
    "Up" is the side of the underline the frames are on. A photo is never mirrored, so reading
@@ -159,8 +162,8 @@ reader's user picks the event by kind and `d` tag among the author's addressable
 - `sequences`: hex strings with their glyph descriptions and a rendered reference row
   (`vectors/row-<hex>.png`), drawn cleanly by the reference renderer.
 - `photos`: real photographs of hand-drawn rows with their `format` and the bytes they carry.
-  The first two are format 1 rows drawn with a marker; v2 photographs are added as people draw
-  them.
+  Two are format 1 rows drawn with a marker; two are format 2 rows in light blue chalk on a
+  concrete sidewalk, which are read in the colour difference.
 
 A conforming encoder MUST reproduce `bytes` and the descriptions in `sequences`. A conforming
 reader SHOULD return the `expected` bytes of every entry in `photos` as its top reading, and
@@ -198,13 +201,16 @@ The first alphabet (v0.1, 2026-09-22) is still read and can still be drawn. Its 
 `glyphs-v1.json` (unit box, y down, rotation 0), drawn at 0.62 of a square frame or 0.56 of a
 circle's diameter; `glyphs-v1.svg` is the sheet. Rows use the same underline and start dot.
 
-Reading both formats. A reader finds the frames once, cuts each frame into a patch for each
-format (format 1 cuts a circle frame through its fitted ellipse), and scores each format by
-the summed log probability of every glyph's most likely byte, after format 2's orientation
-vote. Format 1 is chosen when its score per glyph beats format 2's by more than 0.5 nats;
-within 0.5 of that threshold, the other format's readings are also returned as candidates.
+Reading both formats. A reader finds the candidate frames once and reads format 2 first. A
+format 1 reading can only win by beating format 2 by 0.5 nats per glyph, so it is tried only
+when format 2's summed log probability of every glyph's most likely byte, after its
+orientation vote, is below -0.5 per glyph. Then the row is chosen again, format 1's model
+taking a second look at the candidates format 2 turned down, and read as format 1 (a circle
+frame cut through its fitted ellipse). Format 1 is chosen when its score per glyph beats
+format 2's by more than 0.5; within 0.5 of that threshold, the other format's readings are
+also returned as candidates, after the chosen format's best reading.
 On the reference readers' synthetic benchmark (2026-09-26) this picks the right format for
-92% of format 1 rows and 96-97% of format 2 rows, and the wrong picks fall on rows that do
+91% of format 1 rows and 96-97% of format 2 rows, and the wrong picks fall on rows that do
 not read correctly anyway. Format 1 glyphs are drawn in every rotation and cannot vote on
 "up": with no start dot, the row turned 180 degrees (reversed, each rotation plus two) is
 returned as a candidate.

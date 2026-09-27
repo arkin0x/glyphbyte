@@ -19,7 +19,7 @@ import numpy as np
 
 from . import v1
 from .classify import Classifier, PatchScores, load_classifiers
-from .detect import Detection, detect, rectify_frame
+from .detect import Detection, detect, find_candidates, rectify_frame
 from .symbols import DEFAULT_FORMAT, describe
 
 # how much more likely (nats, summed over the row) a turned reading must be before the
@@ -230,19 +230,25 @@ def _classifiers(classifier) -> dict[int, Classifier]:
     return _DEFAULT
 
 
-def _junk_fn(clfs: dict[int, Classifier]):
-    """Probability that a candidate frame holds no glyph of any format, in any rotation. Format 2
-    decides; format 1 gets a second look only at what format 2 rejects."""
+def _junk_fn(clfs: dict[int, Classifier], fmts: list[int], cache: dict):
+    """Probability that a candidate frame holds no glyph, in any rotation. The first format in
+    `fmts` decides; later ones get a second look only at what it rejects, and overrule it only
+    when sure. Each model judges each candidate once: `cache` keeps its answers across row choices."""
     up, d = np.array([0.0, -1.0]), np.array([1.0, 0.0])
 
-    def fn(gray, frames):
-        fmts = sorted(clfs, reverse=True)
-        pj = clfs[fmts[0]].junk_probabilities([rectify_frame(gray, f, d, up, f.light_ink, fmts[0]) for f in frames])
+    def judge(fmt, channels, frames):
+        todo = [f for f in frames if (fmt, f.cand_id) not in cache]
+        if todo:
+            ps = clfs[fmt].junk_probabilities([rectify_frame(channels[f.channel], f, d, up, f.light_ink, fmt) for f in todo])
+            cache.update({(fmt, f.cand_id): float(p) for f, p in zip(todo, ps)})
+        return np.array([cache[(fmt, f.cand_id)] for f in frames])
+
+    def fn(channels, frames):
+        pj = judge(fmts[0], channels, frames)
         for fmt in fmts[1:]:
             idx = [i for i, p in enumerate(pj) if p > 0.5]
             if idx:
-                p2 = clfs[fmt].junk_probabilities([rectify_frame(gray, frames[i], d, up, frames[i].light_ink, fmt) for i in idx])
-                for i, p in zip(idx, p2):
+                for i, p in zip(idx, judge(fmt, channels, [frames[i] for i in idx])):
                     if p < RESCUE:          # only a clear glyph of the other format overrules
                         pj[i] = min(pj[i], p)
         return pj
@@ -254,43 +260,58 @@ def read_image(image: np.ndarray, classifier: Classifier | dict[int, Classifier]
                fmt: int | str = "auto") -> Result:
     """Read a photo. `classifier` is one Classifier (its format only), a dict {format:
     Classifier}, or None for the bundled models. `fmt` is "auto" (both formats, the better
-    one wins), 1 or 2."""
+    one wins), 1 or 2.
+
+    Format 2 goes first: its model picks the row and reads it. Format 1 is tried only when
+    format 2 cannot explain the row; then the row is picked again with format 1's second look
+    at the candidates format 2 rejected, and read as format 1. A photo of format 2 glyphs
+    therefore reads exactly as in format 2 alone, and costs no format 1 work."""
     clfs = _classifiers(classifier)
     if fmt != "auto":
         if int(fmt) not in clfs:
             clfs = {**clfs, **load_classifiers(formats=(int(fmt),))}
         clfs = {int(fmt): clfs[int(fmt)]}
-    det = detect(image, junk_fn=_junk_fn(clfs))
-    warnings = list(det.warnings)
-    if not det.frames:
-        return Result(reads=[], sequences=[], warnings=warnings + ["no glyphs found"], detection=det,
-                      fmt=max(clfs))
     readers = {2: _read_v2, 1: _read_v1}
+    cands = find_candidates(image)
+    cache: dict = {}
+    first = max(clfs)
+    dets = {first: detect(cands, junk_fn=_junk_fn(clfs, [first], cache))}
     results = {}
-    for f in sorted(clfs, reverse=True):
-        # format 1 wins only by beating format 2 by FORMAT_BIAS per glyph, and a log-likelihood is at
-        # most 0: when format 2 is above -FORMAT_BIAS per glyph, format 1 cannot win and is not read
-        if f == 1 and 2 in results and results[2].ll / max(1, len(det.frames)) > -FORMAT_BIAS:
-            continue
-        results[f] = readers[f](det, clfs[f], fork_ratio, max_per_symbol, max_sequences)
+    if dets[first].frames:
+        results[first] = readers[first](dets[first], clfs[first], fork_ratio, max_per_symbol, max_sequences)
+    # format 1 is tried only when format 2 cannot explain its row: format 1 wins only by beating it
+    # by FORMAT_BIAS per glyph, and a log-likelihood is at most 0
+    r2 = results.get(2)
+    if first == 2 and 1 in clfs and (r2 is None or r2.ll / max(1, len(r2.frames)) <= -FORMAT_BIAS):
+        dets[1] = detect(cands, junk_fn=_junk_fn(clfs, [2, 1], cache))
+        if dets[1].frames:
+            results[1] = _read_v1(dets[1], clfs[1], fork_ratio, max_per_symbol, max_sequences)
+    if not results:
+        det = dets[first]
+        return Result(reads=[], sequences=[], warnings=list(det.warnings) + ["no glyphs found"], detection=det, fmt=first)
+    warnings: list[str] = []
     if len(results) == 1:
         (chosen,) = results.values()
         sequences = chosen.sequences
     else:
-        n = max(1, len(det.frames))
-        margin = (results[1].ll - results[2].ll) / n - FORMAT_BIAS  # per glyph; > 0 favours format 1
-        chosen = results[1] if margin > 0 else results[2]
-        other = results[2] if margin > 0 else results[1]
+        r1, r2 = results[1], results[2]
+        per_glyph = r1.ll / max(1, len(r1.frames)) - r2.ll / max(1, len(r2.frames))
+        margin = per_glyph - FORMAT_BIAS                              # > 0 favours format 1
+        chosen, other = (r1, r2) if margin > 0 else (r2, r1)
         sequences = chosen.sequences
         if abs(margin) < FORMAT_FORK:
-            w = 1.0 / (1.0 + np.exp(abs(margin) * n))                # the other format's share
-            sequences = sorted([Reading(s.bytes, s.p * (1 - w), s.fmt) for s in chosen.sequences] +
-                               [Reading(s.bytes, s.p * w, s.fmt) for s in other.sequences],
-                               key=lambda s: -s.p)[:max_sequences]
+            w = 1.0 / (1.0 + np.exp(abs(margin) * max(1, len(chosen.frames))))   # the other format's share
+            merged = sorted([Reading(s.bytes, s.p * (1 - w), s.fmt) for s in chosen.sequences[1:]] +
+                            [Reading(s.bytes, s.p * w, s.fmt) for s in other.sequences], key=lambda s: -s.p)
+            # the chosen format's best reading leads, so the result's format and its best reading agree;
+            # probabilities of different formats' readings are not comparable one by one
+            top = chosen.sequences[0]
+            sequences = [Reading(top.bytes, top.p * (1 - w), top.fmt)] + merged[:max_sequences - 1]
             warnings.append(f"the row could be format {other.fmt}: its readings are among the candidates")
         if chosen.fmt == 1:
             warnings.append("read as format 1, the first glyphbyte alphabet")
-    warnings += chosen.warnings
+    det = dets[chosen.fmt]
+    warnings = list(det.warnings) + warnings + chosen.warnings
     det.frames, det.patches, det.up, det.direction = chosen.frames, chosen.patches, chosen.up, chosen.d
     return Result(reads=chosen.reads, sequences=sequences, warnings=warnings, detection=det, fmt=chosen.fmt,
                   format_scores={f: r.ll for f, r in results.items()})
