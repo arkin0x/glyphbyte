@@ -11,7 +11,7 @@ import time
 import numpy as np
 
 from . import __version__
-from .symbols import SYMBOLS, unpack
+from .symbols import SYMBOLS, describe
 
 
 def _cv2():
@@ -22,15 +22,15 @@ def _cv2():
 def cmd_decode(a):
     cv2 = _cv2()
     from .pipeline import read_image
-    from .classify import Classifier
-    clf = Classifier(a.model)
+    from .classify import load_classifiers
+    clfs = load_classifiers(a.model, a.model_v1)
     for path in a.image:
         img = cv2.imread(path, cv2.IMREAD_COLOR)
         if img is None:
             print(f"{path}: cannot read image", file=sys.stderr)
             continue
         t = time.time()
-        res = read_image(img, clf, max_sequences=a.max_sequences, fork_ratio=a.fork_ratio)
+        res = read_image(img, clfs, max_sequences=a.max_sequences, fork_ratio=a.fork_ratio, fmt=a.format)
         dt = time.time() - t
         if a.debug:
             from .detect import draw_debug
@@ -44,13 +44,14 @@ def cmd_decode(a):
         if not res.sequences:
             print(f"{path}: {'; '.join(res.warnings)}")
             continue
-        print(res.best.hex())
+        print(res.best.hex(), flush=True)
         if a.verbose:
-            for b, p in res.sequences:
-                print(f"  {b.hex()}  p={p:.3f}", file=sys.stderr)
+            print(f"  format {res.fmt}", file=sys.stderr)
+            for s in res.sequences:
+                print(f"  {s.bytes.hex()}  p={s.p:.3f}" + (f"  (format {s.fmt})" if s.fmt != res.fmt else ""), file=sys.stderr)
             for r in res.reads:
-                alts = ", ".join(f"{unpack(b).describe()} ({p:.2f})" for b, p in r.candidates[1:])
-                print(f"  [{r.index}] {r.glyph.describe()} ({r.confidence:.2f})" + (f"  or {alts}" if alts else ""), file=sys.stderr)
+                alts = ", ".join(f"{r.describe(b)} ({p:.2f})" for b, p in r.candidates[1:])
+                print(f"  [{r.index}] {r.describe()} ({r.confidence:.2f})" + (f"  or {alts}" if alts else ""), file=sys.stderr)
             for w in res.warnings:
                 print(f"  ! {w}", file=sys.stderr)
 
@@ -60,18 +61,21 @@ def cmd_encode(a):
     from .render import render_row
     data = bytes.fromhex(a.hex)
     rng = np.random.default_rng(a.seed)
-    row = render_row(data, cell=a.cell, hand=a.hand, rng=rng, baseline=not a.no_baseline)
+    row = render_row(data, cell=a.cell, hand=a.hand, rng=rng, baseline=not a.no_baseline, fmt=a.format)
     cv2.imwrite(a.out, row.canvas)
     for i, b in enumerate(data):
-        print(f"[{i}] {b:02x}  {unpack(b).describe()}")
+        print(f"[{i}] {b:02x}  {describe(b, a.format)}")
     print(f"wrote {a.out}")
 
 
 def cmd_sheet(a):
     cv2 = _cv2()
     from .render import render_sheet
-    cv2.imwrite(a.out, render_sheet(cell=a.cell, hand=a.hand, seed=a.seed))
-    print(f"wrote {a.out}: rows are symbols 0..15 ({', '.join(SYMBOLS)}); columns are rotations 0,90,180,270 outline then filled")
+    cv2.imwrite(a.out, render_sheet(cell=a.cell, hand=a.hand, seed=a.seed, fmt=a.format))
+    if a.format == 1:
+        print(f"wrote {a.out} (format 1): row = pictogram; column = rotation, fill and frame (bits 3..0)")
+    else:
+        print(f"wrote {a.out}: row = icon, first hex digit ({', '.join(SYMBOLS)}); column = corner dots, second hex digit")
 
 
 def cmd_synth(a):
@@ -82,10 +86,11 @@ def cmd_synth(a):
     rng = np.random.default_rng(a.seed)
     with open(os.path.join(a.out, "truth.jsonl"), "w") as f:
         for i in range(a.n):
-            sc = make_scene(rng, bd, n_bytes=a.bytes, hand=a.hand, perspective=a.perspective, baseline=not a.no_baseline)
+            sc = make_scene(rng, bd, n_bytes=a.bytes, hand=a.hand, perspective=a.perspective, baseline=not a.no_baseline,
+                            medium=None if a.media == "all" else a.media, fmt=a.format)
             name = f"scene_{i:04d}.jpg"
             cv2.imwrite(os.path.join(a.out, name), sc.image, [cv2.IMWRITE_JPEG_QUALITY, 92])
-            f.write(json.dumps({"image": name, "hex": sc.data.hex(), "hand": round(sc.hand, 3),
+            f.write(json.dumps({"image": name, "hex": sc.data.hex(), "format": sc.fmt, "hand": round(sc.hand, 3),
                                 "perspective": round(sc.perspective, 3), "light_ink": sc.light_ink,
                                 "cells": [{"byte": c["byte"], "corners": np.round(c["corners"], 1).tolist()} for c in sc.cells]}) + "\n")
     print(f"wrote {a.n} scenes to {a.out} (backdrops: {len(bd)} photos + procedural)")
@@ -93,7 +98,8 @@ def cmd_synth(a):
 
 def cmd_bench(a):
     from .bench import run_bench
-    report = run_bench(a.dir, model=a.model, max_sequences=a.max_sequences, limit=a.limit, out=a.out)
+    report = run_bench(a.dir, model=a.model, max_sequences=a.max_sequences, limit=a.limit, out=a.out,
+                       model_v1=a.model_v1, fmt=a.format, truth_format=a.truth_format)
     print(report["markdown"])
 
 
@@ -123,11 +129,11 @@ def cmd_backdrops(a):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="glyphbyte", description="hand-drawn symbols to bytes")
+    p = argparse.ArgumentParser(prog="glyphbyte", description="hand-drawn glyphs to bytes (format v2)")
     p.add_argument("--version", action="version", version=f"glyphbyte {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    d = sub.add_parser("decode", help="read the symbols in a photo and print the bytes as hex")
+    d = sub.add_parser("decode", help="read the glyphs in a photo and print the bytes as hex")
     d.add_argument("image", nargs="+")
     d.add_argument("--json", action="store_true", help="full result with candidates and warnings")
     d.add_argument("-v", "--verbose", action="store_true", help="show alternatives and warnings on stderr")
@@ -135,22 +141,27 @@ def main(argv=None):
     d.add_argument("--fork-ratio", type=float, default=0.2, help="keep an alternative when it is at least this fraction as likely as the best")
     d.add_argument("--model", default=None, help="path to an ONNX model (default: bundled)")
     d.add_argument("--debug", default=None, help="write a detection overlay image here")
+    d.add_argument("--format", default="auto", type=lambda x: x if x == "auto" else int(x), choices=["auto", 1, 2],
+                   help="auto (default): read either format; 1 or 2: read only that one")
+    d.add_argument("--model-v1", default=None, help="path to a format 1 ONNX model (default: bundled)")
     d.set_defaults(fn=cmd_decode)
 
-    e = sub.add_parser("encode", help="render bytes as a row of symbols")
+    e = sub.add_parser("encode", help="render bytes as a row of glyphs")
     e.add_argument("hex")
     e.add_argument("--out", default="glyphbyte-row.png")
     e.add_argument("--cell", type=int, default=120)
     e.add_argument("--hand", type=float, default=0.0, help="0 clean, 1 fully hand-drawn style")
     e.add_argument("--seed", type=int, default=0)
     e.add_argument("--no-baseline", action="store_true")
+    e.add_argument("--format", type=int, default=2, choices=[1, 2], help="2 (default): icons and corner dots; 1: the first alphabet")
     e.set_defaults(fn=cmd_encode)
 
-    s = sub.add_parser("sheet", help="render the reference sheet of all symbols")
+    s = sub.add_parser("sheet", help="render the reference sheet of all 256 glyphs")
     s.add_argument("--out", default="glyphbyte-sheet.png")
     s.add_argument("--cell", type=int, default=90)
     s.add_argument("--hand", type=float, default=0.0)
     s.add_argument("--seed", type=int, default=0)
+    s.add_argument("--format", type=int, default=2, choices=[1, 2], help="2 (default): icons and corner dots; 1: the first alphabet")
     s.set_defaults(fn=cmd_sheet)
 
     y = sub.add_parser("synth", help="generate a test suite of photo-like scenes with ground truth")
@@ -161,7 +172,10 @@ def main(argv=None):
     y.add_argument("--hand", type=float, default=None)
     y.add_argument("--perspective", type=float, default=None)
     y.add_argument("--no-baseline", action="store_true")
+    y.add_argument("--media", default="all", choices=["all", "ink", "chalk", "crop"],
+                   help="all: pen or marker 70%%, chalk 15%%, crop field 15%%; or one medium only")
     y.add_argument("--seed", type=int, default=0)
+    y.add_argument("--format", type=int, default=2, choices=[1, 2], help="2 (default): icons and corner dots; 1: the first alphabet")
     y.set_defaults(fn=cmd_synth)
 
     b = sub.add_parser("bench", help="decode a synth directory and report accuracy")
@@ -170,6 +184,11 @@ def main(argv=None):
     b.add_argument("--max-sequences", type=int, default=8)
     b.add_argument("--limit", type=int, default=None)
     b.add_argument("--out", default=None, help="write the JSON report here")
+    b.add_argument("--format", default="auto", type=lambda x: x if x == "auto" else int(x), choices=["auto", 1, 2],
+                   help="auto (default): read either format; 1 or 2: read only that one")
+    b.add_argument("--model-v1", default=None, help="path to a format 1 ONNX model (default: bundled)")
+    b.add_argument("--truth-format", type=int, default=2, choices=[1, 2],
+                   help="format of scenes whose truth.jsonl has no format field (suites made before v2: 1)")
     b.set_defaults(fn=cmd_bench)
 
     t = sub.add_parser("train", help="train the classifier on synthetic patches (needs torch)")
@@ -182,7 +201,7 @@ def main(argv=None):
     t.add_argument("--seed", type=int, default=0)
     t.set_defaults(fn=cmd_train)
 
-    w = sub.add_parser("serve", help="run the web app: bytes to symbols, photo to bytes")
+    w = sub.add_parser("serve", help="run the web app: bytes to glyphs, photo to bytes")
     w.add_argument("--host", default="127.0.0.1")
     w.add_argument("--port", type=int, default=8765)
     w.add_argument("--model", default=None)

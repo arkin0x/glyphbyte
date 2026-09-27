@@ -1,6 +1,7 @@
 """Bundle the napplet into one self-contained index.html: no imports, no fetches, no external files.
 
-usage: python build.py <weights.bin> <weights.bin.json> [out=dist/index.html]
+usage: python build.py <weights.bin> <weights.bin.json> [out=dist/index.html] [weights-v1.bin weights-v1.bin.json]
+The format 1 model defaults to weights-v1.bin next to this file: the page reads both formats.
 """
 import base64, json, os, re, sys
 
@@ -14,30 +15,28 @@ def strip_module(src: str) -> str:
     return src
 
 
-def resample(points, n):
-    import numpy as np
-    pts = np.asarray(points, dtype=float)
-    pts = np.vstack([pts, pts[:1]])
-    seg = np.linalg.norm(np.diff(pts, axis=0), axis=1)
-    cum = np.concatenate([[0.0], np.cumsum(seg)])
-    out = []
-    for t in np.linspace(0, cum[-1], n, endpoint=False):
-        k = min(max(int(np.searchsorted(cum, t, side="right") - 1), 0), len(seg) - 1)
-        a = (t - cum[k]) / seg[k] if seg[k] > 0 else 0.0
-        out.append((pts[k] * (1 - a) + pts[k + 1] * a).round(4).tolist())
-    return out
-
-
-def build(weights_path, manifest_path, out_path):
+def build(weights_path, manifest_path, out_path, weights_v1=None, manifest_v1=None):
+    weights_v1 = weights_v1 or os.path.join(HERE, "weights-v1.bin")
+    manifest_v1 = manifest_v1 or os.path.join(HERE, "weights-v1.bin.json")
     core = "\n".join(strip_module(open(os.path.join(HERE, "src", f)).read()) for f in ORDER)
     app = open(os.path.join(HERE, "src", "app.js")).read()
-    shapes = json.load(open(os.path.join(HERE, "..", "glyphbyte", "data", "canonical.json")))
-    shapes = [{"name": s["name"], "outer": resample(s["outer"], 80), "features": [resample(f, 48) for f in s["features"]]} for s in shapes]
+    # the icons and frame geometry, generated from glyphbyte/icons.py by scripts/make_spec_assets.py
+    shapes = json.load(open(os.path.join(HERE, "..", "spec", "glyphs.json")))
+    with open(os.path.join(HERE, "shapes.json"), "w") as f:
+        json.dump(shapes, f)
+    # format 1's pictograms, so v1 rows can still be drawn
+    shapes_v1 = json.load(open(os.path.join(HERE, "..", "spec", "glyphs-v1.json")))
+    with open(os.path.join(HERE, "shapes-v1.json"), "w") as f:
+        json.dump(shapes_v1, f)
     weights_b64 = base64.b64encode(open(weights_path, "rb").read()).decode()
     manifest = json.load(open(manifest_path))
+    weights_v1_b64 = base64.b64encode(open(weights_v1, "rb").read()).decode()
+    man_v1 = json.load(open(manifest_v1))
     html = open(os.path.join(HERE, "index.template.html")).read()
-    html = html.replace("/*__CORE__*/", core).replace("/*__SHAPES__*/[]", json.dumps(shapes, separators=(",", ":")))
+    html = html.replace("/*__CORE__*/", core).replace("/*__SHAPES__*/{}", json.dumps(shapes, separators=(",", ":")))
     html = html.replace("/*__MANIFEST__*/{}", json.dumps(manifest, separators=(",", ":"))).replace("/*__WEIGHTS_B64__*/", weights_b64)
+    html = html.replace("/*__SHAPES_V1__*/[]", json.dumps(shapes_v1, separators=(",", ":")))
+    html = html.replace("/*__MANIFEST_V1__*/{}", json.dumps(man_v1, separators=(",", ":"))).replace("/*__WEIGHTS_V1_B64__*/", weights_v1_b64)
     import subprocess, datetime
     try:
         commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=HERE, text=True).strip()
@@ -49,9 +48,12 @@ def build(weights_path, manifest_path, out_path):
     open(out_path, "w").write(html)
     # a core-only script for headless tests (no DOM)
     with open(os.path.join(os.path.dirname(out_path), "glyphbyte-core.js"), "w") as f:
-        f.write(core + "\nconst SHAPES = " + json.dumps(shapes) + ";\nglobalThis.GlyphByte = { toGray, readImage, detect, describe, unpack, SYMBOLS, loadWeights, classify, SHAPES, lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay, npub, note, nevent, naddr, decodeEntity };\n")
+        f.write(core + "\nconst SHAPES = " + json.dumps(shapes) + ";\nconst SHAPES_V1 = " + json.dumps(shapes_v1) +
+                ";\nglobalThis.GlyphByte = { toGray, readImage, detect, describe, unpack, SYMBOLS, SYMBOLS_V1, turnedV1, loadWeights, classify, modelFormat, SHAPES, SHAPES_V1, lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay, npub, note, nevent, naddr, decodeEntity };\n")
     print(f"wrote {out_path} ({os.path.getsize(out_path) / 1e6:.2f} MB)")
 
 
 if __name__ == "__main__":
-    build(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else os.path.join(HERE, "dist", "index.html"))
+    a = sys.argv[1:]
+    build(a[0], a[1], a[2] if len(a) > 2 else os.path.join(HERE, "dist", "index.html"),
+          a[3] if len(a) > 3 else None, a[4] if len(a) > 4 else None)

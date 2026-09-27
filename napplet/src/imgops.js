@@ -34,7 +34,7 @@ export function resizeGray(g, W, H, nw, nh) {
   return out;
 }
 
-function boxMean(img, W, H, r) {
+export function boxMean(img, W, H, r) {
   const S = integral(img, W, H), out = new Float32Array(W * H);
   for (let y = 0; y < H; y++) {
     const y0 = Math.max(0, y - r), y1 = Math.min(H, y + r + 1);
@@ -185,5 +185,41 @@ export function normalizePatch(p, size, lightInk) {
     const n = Math.min(3, Math.max(-3, d[i] / (Math.sqrt(v[i]) + 4)));
     out[i] = Math.floor((n + 3) / 6 * 255) / 255;   // uint8 truncation, then /255 as the classifier expects
   }
+  return out;
+}
+
+// q-quantile of non-negative values from a histogram of 0.25-wide bins (same as detect.py)
+export function histPercentile(x, q) {
+  const hist = new Float64Array(1024);
+  for (let i = 0; i < x.length; i++) hist[Math.min(1023, Math.floor(x[i] * 4))]++;
+  let acc = 0; const target = q * x.length;
+  for (let b = 0; b < 1024; b++) { acc += hist[b]; if (acc >= target) return (b + 1) / 4; }
+  return 256;
+}
+
+// Ink seen by its colour, as a gray image with the ink dark (port of detect.py color_channel): each
+// pixel's chroma minus the surface's around it, projected on the ink's own colour direction (the mean
+// of the strongest 1% of differences), positive side only. rgba is the full image, (nw, nh) the working
+// size. Returns null when the photo has no colour to speak of.
+export const COLOR_MIN = 6;
+export function colorChannel(rgba, W, H, nw, nh) {
+  const plane = k => { const p = new Uint8Array(W * H); for (let i = 0, j = k; i < p.length; i++, j += 4) p[i] = rgba[j]; return (nw === W && nh === H) ? p : resizeGray(p, W, H, nw, nh); };
+  const R_ = plane(0), G = plane(1), B = plane(2), n = nw * nh;
+  const cb = new Float32Array(n), cr = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const y = B[i] * 0.114 + G[i] * 0.587 + R_[i] * 0.299; cb[i] = (B[i] - y) * 0.564; cr[i] = (R_[i] - y) * 0.713; }
+  const r = Math.max(2, Math.floor(Math.min(nw, nh) / 25));
+  const diff = c => { const c1 = boxMean(c, nw, nh, 1), bg = boxMean(boxMean(boxMean(c1, nw, nh, r), nw, nh, r), nw, nh, r); for (let i = 0; i < n; i++) c1[i] -= bg[i]; return c1; };
+  const dcb = diff(cb), dcr = diff(cr), mag = new Float32Array(n);
+  for (let i = 0; i < n; i++) mag[i] = Math.sqrt(dcb[i] * dcb[i] + dcr[i] * dcr[i]);
+  if (histPercentile(mag, 0.995) < COLOR_MIN) return null;
+  const t = histPercentile(mag, 0.99); let u0 = 0, u1 = 0, m = 0;
+  for (let i = 0; i < n; i++) if (mag[i] >= t) { u0 += dcb[i]; u1 += dcr[i]; m++; }
+  if (!m) return null;
+  u0 /= m; u1 /= m; const un = Math.hypot(u0, u1); if (un < 1e-6) return null;
+  const proj = new Float32Array(n);
+  for (let i = 0; i < n; i++) proj[i] = Math.max(0, (dcb[i] * u0 + dcr[i] * u1) / un);
+  const p = histPercentile(proj, 0.995); if (p < COLOR_MIN) return null;
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i++) out[i] = 255 - Math.min(255, Math.floor(proj[i] * 255 / p));
   return out;
 }

@@ -1,13 +1,11 @@
-"""glyphbyte: hand-drawn symbols to bytes.
+"""glyphbyte: hand-drawn glyphs to bytes (format v2).
 
-One symbol carries one byte:
-  high nibble  which of the 16 symbols (sheet order)
-  bits 3..2    rotation in quarter turns clockwise
-  bit 1        fill: 0 outline, 1 filled
-  bit 0        frame: 0 square, 1 circle
+One glyph carries one byte, drawn inside a square frame:
+  high nibble  which of 16 upright icons
+  low nibble   corner dots: top-left 8, top-right 4, bottom-right 2, bottom-left 1
 """
 
-from .symbols import SYMBOLS, Glyph, pack, unpack, crc8
+from .symbols import FORMAT_VERSION, SYMBOLS, Glyph, pack, unpack, crc8
 
-__all__ = ["SYMBOLS", "Glyph", "pack", "unpack", "crc8", "__version__"]
-__version__ = "0.1.0"
+__all__ = ["FORMAT_VERSION", "SYMBOLS", "Glyph", "pack", "unpack", "crc8", "__version__"]
+__version__ = "0.2.0"

@@ -13,7 +13,7 @@ for (const it of items) {
   for (const tr of it.truth) {
     const fj = det.frames.find(f => near(f.center, tr.center, 0.35 * tr.size) && f.size > 0.6 * tr.size && f.size < 1.5 * tr.size);
     const fp = it.py.frames.find(f => near(f.center, tr.center, 0.35 * tr.size) && f.size > 0.6 * tr.size && f.size < 1.5 * tr.size);
-    if (fj) { jsFound++; kindN++; if (fj.kind === (tr.byte & 1)) kindOk++; }
+    if (fj) { jsFound++; kindN++; if (fj.kind === 0) kindOk++; }   // v2 frames are all squares
     if (fp) pyFound++;
     if (!!fj === !!fp) agreeFrames++;
   }

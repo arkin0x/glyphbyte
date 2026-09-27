@@ -8,7 +8,7 @@ from glyphbyte import SYMBOLS, crc8, pack, unpack
 from glyphbyte.detect import detect
 from glyphbyte.pipeline import SymbolRead, _sequences
 from glyphbyte.render import render_row, render_sheet
-from glyphbyte.symbols import load_canonical
+from glyphbyte.icons import as_json
 
 MODEL = os.path.join(os.path.dirname(__file__), "..", "glyphbyte", "data", "model.onnx")
 
@@ -16,22 +16,37 @@ MODEL = os.path.join(os.path.dirname(__file__), "..", "glyphbyte", "data", "mode
 def test_pack_unpack_roundtrip():
     for b in range(256):
         g = unpack(b)
-        assert pack(g.symbol, g.rotation, g.fill, g.frame) == b
-        assert 0 <= g.symbol < 16 and 0 <= g.rotation < 4
-    assert unpack(0x8A).name == "arrow" and unpack(0x8A).rotation == 2 and unpack(0x8A).fill == 1 and unpack(0x8A).frame == 0
+        assert pack(g.icon, g.dots) == b
+        assert 0 <= g.icon < 16 and 0 <= g.dots < 16
+    g = unpack(0x8A)
+    assert g.name == "pie" and g.dot_corners() == ["top-left", "bottom-right"]
+    assert g.describe() == "pie, dots top-left, bottom-right"
+    assert unpack(0xE8).describe() == "star, dot top-left" and unpack(0x50).describe() == "arrow, no dots"
 
 
 def test_crc8_known_vector():
     assert crc8(b"123456789") == 0xF4   # CRC-8/ATM check value
 
 
-def test_canonical_matches_vocabulary():
-    shapes = load_canonical()
-    assert [s["name"] for s in shapes] == SYMBOLS
-    for s in shapes:
-        pts = np.array(s["outer"])
-        assert pts.shape[1] == 2 and len(pts) >= 32
-        assert np.abs(pts).max() <= 0.51   # unit box
+def test_icons_match_vocabulary():
+    icons = as_json()
+    assert [i["name"] for i in icons] == SYMBOLS and len(SYMBOLS) == 16
+    for i in icons:
+        assert 1 <= len(i["strokes"]) <= 2          # one or two pen strokes each
+        for st in i["strokes"]:
+            pts = np.array(st["points"])
+            assert pts.shape[1] == 2 and len(pts) >= 2
+            assert np.abs(pts).max() <= 0.5          # unit box
+
+
+def test_dots_clear_icon_and_frame():
+    from glyphbyte.icons import DOT_CORNERS, DOT_OFFSET, DOT_RADIUS, ICON_SCALE, strokes
+    assert 0.5 - DOT_OFFSET - DOT_RADIUS >= 0.099
+    for k in range(16):
+        pts = np.vstack([p for p, _ in strokes(k)]) * ICON_SCALE
+        for dx, dy in DOT_CORNERS:
+            d = np.hypot(pts[:, 0] - dx * DOT_OFFSET, pts[:, 1] - dy * DOT_OFFSET).min() - DOT_RADIUS
+            assert d >= 0.099, (SYMBOLS[k], dx, dy, d)
 
 
 def test_render_row_geometry():
@@ -44,7 +59,7 @@ def test_render_row_geometry():
 
 def test_render_sheet_shape():
     sheet = render_sheet(cell=40)
-    assert sheet.shape[0] > 16 * 40 and sheet.shape[1] > 8 * 40
+    assert sheet.shape[0] > 16 * 40 and sheet.shape[1] > 16 * 40
 
 
 @pytest.mark.parametrize("hand", [0.0, 0.5])
@@ -53,7 +68,7 @@ def test_detect_clean_row(hand):
     row = render_row(data, cell=110, hand=hand, rng=np.random.default_rng(3))
     det = detect(cv2.cvtColor(row.canvas, cv2.COLOR_GRAY2BGR))
     assert len(det.frames) == len(data)
-    assert [f.kind for f in det.frames] == [b & 1 for b in data]
+    assert all(f.corners is not None for f in det.frames)
     assert det.baseline is not None and det.start_known
     assert det.direction[0] > 0.99 and det.up[1] < -0.99
     assert all(p.shape == (64, 64) for p in det.patches)
@@ -86,13 +101,13 @@ def test_spec_vectors_match_implementation():
     from glyphbyte.symbols import unpack
     spec = os.path.join(os.path.dirname(__file__), "..", "spec", "test-vectors.json")
     v = json.load(open(spec))
-    assert v["symbols"] == SYMBOLS
+    assert v["format"] == 2 and v["symbols"] == SYMBOLS
     assert len(v["bytes"]) == 256
     for entry in v["bytes"]:
         g = unpack(entry["byte"])
         assert entry["text"] == g.describe()
-        assert entry["symbol"] == g.name and entry["rotation_deg"] == g.rotation * 90
-        assert entry["fill"] == ("filled" if g.fill else "outline") and entry["frame"] == ("circle" if g.frame else "square")
+        assert entry["icon"] == g.name and entry["icon_index"] == g.icon
+        assert entry["dots"] == g.dot_corners() and entry["dots_value"] == g.dots
     for seq in v["sequences"]:
         assert seq["glyphs"] == [unpack(b).describe() for b in bytes.fromhex(seq["hex"])]
 
@@ -106,4 +121,51 @@ def test_spec_photo_vectors():
     for ph in v["photos"]:
         img = cv2.imread(os.path.join(spec_dir, ph["image"]))
         res = read_image(img)
-        assert any(b.hex() == ph["expected"] for b, _ in res.sequences), res.to_dict()
+        assert res.fmt == ph["format"], res.to_dict()
+        assert any(r.bytes.hex() == ph["expected"] for r in res.sequences), res.to_dict()
+
+
+@pytest.mark.skipif(not os.path.exists(MODEL), reason="model not trained")
+@pytest.mark.parametrize("turns", [1, 2, 3])
+def test_glyphs_find_up_without_underline(turns):
+    """v2 icons have a top: a row photographed turned, with no underline, still reads in order."""
+    from glyphbyte.pipeline import read_image
+    data = bytes.fromhex("e8ed3798c6ff")
+    row = render_row(data, cell=110, hand=0.3, rng=np.random.default_rng(5), baseline=False)
+    img = np.ascontiguousarray(np.rot90(row.canvas, turns))
+    res = read_image(cv2.cvtColor(img, cv2.COLOR_GRAY2BGR))
+    assert res.best == data, res.to_dict()
+
+
+def test_handedness():
+    from glyphbyte.detect import handed
+    assert list(handed(np.array([0.0, -1.0]))) == [1.0, 0.0]      # upright: read to the right
+    assert list(handed(np.array([1.0, 0.0]))) == [-0.0, 1.0]      # up points right: read downward
+
+
+def test_v1_layout_still_defined():
+    from glyphbyte import v1
+    for b in range(256):
+        g = v1.unpack(b)
+        assert v1.pack(g.symbol, g.rotation, g.fill, g.frame) == b
+    assert v1.unpack(0x8A).describe() == "arrow rotated 180 deg, filled, square frame"
+    assert v1.turned(0x8A, 2) == 0x82 and v1.turned(0x82, 2) == 0x8A
+    from glyphbyte.symbols import describe
+    assert describe(0x8A, 1) == v1.unpack(0x8A).describe() and describe(0x8A) == unpack(0x8A).describe()
+
+
+def test_render_row_both_formats_differ():
+    a = render_row(bytes.fromhex("8a3a"), cell=80).canvas
+    b = render_row(bytes.fromhex("8a3a"), cell=80, fmt=1).canvas
+    assert a.shape == b.shape and (a != b).any()
+
+
+@pytest.mark.skipif(not os.path.exists(MODEL), reason="model not trained")
+@pytest.mark.parametrize("fmt", [1, 2])
+def test_auto_format(fmt):
+    """One reader, either format: the row says which it is."""
+    from glyphbyte.pipeline import read_image
+    data = bytes.fromhex("8a3a3a6609eb")
+    row = render_row(data, cell=110, hand=0.4, rng=np.random.default_rng(9), fmt=fmt)
+    res = read_image(cv2.cvtColor(row.canvas, cv2.COLOR_GRAY2BGR))
+    assert res.fmt == fmt and res.best == data, res.to_dict()

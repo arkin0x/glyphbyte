@@ -1,12 +1,41 @@
-// Image to candidate byte sequences: port of glyphbyte/pipeline.py.
-import { detect } from './detect.js';
-import { classify } from './nn.js';
+// Image to candidate byte sequences, in whichever format the row was drawn: port of glyphbyte/pipeline.py.
+// The row is found once, then read as format 2 (icons and corner dots, the default) and as format 1 (the
+// first alphabet of rotated, filled pictograms). The better-explained format wins; when the two are close,
+// the other format's readings stay among the candidates, each tagged with its format.
+import { detect, findCandidates, rectifyFrame } from './detect.js';
+import { classify, modelFormat } from './nn.js';
 
-export const SYMBOLS = ['house', 'chevron', 'bookmark', 'crown', 'drop', 'tee', 'u', 'mountain', 'arrow', 'heart', 'crescent', 'cloud', 'snowman', 'l', 'trapezoid', 'pacman'];
-export function unpack(b) { return { symbol: b >> 4, rotation: (b >> 2) & 3, fill: (b >> 1) & 1, frame: b & 1, name: SYMBOLS[b >> 4] }; }
-export function describe(b) { const g = unpack(b); return `${g.name} rotated ${g.rotation * 90} deg, ${g.fill ? 'filled' : 'outline'}, ${g.frame ? 'circle' : 'square'} frame`; }
+export const SYMBOLS = ['house', 'heart', 'drop', 'moon', 'crown', 'arrow', 'box', 'triangle', 'pie', 'tree', 'plus', 'flag', 'x', 'bolt', 'star', 'fish'];
+export const SYMBOLS_V1 = ['house', 'chevron', 'bookmark', 'crown', 'drop', 'tee', 'u', 'mountain', 'arrow', 'heart', 'crescent', 'cloud', 'snowman', 'l', 'trapezoid', 'pacman'];
+export const DOT_NAMES = ['top-left', 'top-right', 'bottom-right', 'bottom-left'];   // bit 3, 2, 1, 0
+export const DEFAULT_FORMAT = 2;
 
-function byteDistribution(sc, kind, conf) {
+export function unpack(b, fmt = DEFAULT_FORMAT) {
+  if (fmt === 1) return { fmt: 1, symbol: b >> 4, rotation: (b >> 2) & 3, fill: (b >> 1) & 1, frame: b & 1, name: SYMBOLS_V1[b >> 4] };
+  const dots = b & 15; return { fmt: 2, icon: b >> 4, dots, name: SYMBOLS[b >> 4], corners: DOT_NAMES.filter((_, i) => dots >> (3 - i) & 1) };
+}
+export function describe(b, fmt = DEFAULT_FORMAT) {
+  const g = unpack(b, fmt);
+  if (fmt === 1) return `${g.name} rotated ${g.rotation * 90} deg, ${g.fill ? 'filled' : 'outline'}, ${g.frame ? 'circle' : 'square'} frame`;
+  const c = g.corners; return `${g.name}, ` + (c.length ? (c.length > 1 ? 'dots ' : 'dot ') + c.join(', ') : 'no dots');
+}
+// the byte a format 1 glyph reads as when the whole row is turned clockwise by quarter turns
+export function turnedV1(b, q) { return (b & 0xf3) | ((((b >> 2) & 3) + q) % 4) << 2; }
+
+// how much more likely (nats, summed over the row) a turned reading must be before the glyphs overrule the
+// underline; below this both readings are kept. Format choice constants as in pipeline.py.
+const ORIENT_MARGIN = 2.0, FORMAT_BIAS = 0.5, FORMAT_FORK = 0.5, RESCUE = 0.3;   // the format ones are per glyph
+
+function distV2(sc) {
+  const dist = new Float64Array(256); let s = 0;
+  for (let n = 0; n < 16; n++) {
+    let pd = 1; for (let k = 0; k < 4; k++) pd *= (n >> (3 - k) & 1) ? sc.dots[k] : 1 - sc.dots[k];
+    for (let i = 0; i < 16; i++) { const v = sc.icon[i] * pd; dist[(i << 4) | n] = v; s += v; }
+  }
+  for (let i = 0; i < 256; i++) dist[i] /= s || 1;
+  return dist;
+}
+function distV1(sc, kind, conf) {
   const pf = [0.5, 0.5]; pf[kind] = 0.5 + 0.5 * conf; pf[1 - kind] = 0.5 - 0.5 * conf;
   const dist = new Float64Array(256); let s = 0;
   for (let sr = 0; sr < 64; sr++) for (let fill = 0; fill < 2; fill++) for (let fr = 0; fr < 2; fr++) { const v = sc.symRot[sr] * sc.fill[fill] * pf[fr]; dist[(sr << 2) | (fill << 1) | fr] = v; s += v; }
@@ -18,25 +47,124 @@ function candidates(dist, forkRatio, maxPer) {
   for (let i = 1; i < maxPer; i++) if (dist[order[i]] >= forkRatio * top) out.push([order[i], dist[order[i]]]);
   return out;
 }
-function sequences(reads, maxSeq) {
+const hexOf = seq => seq.map(b => b.toString(16).padStart(2, '0')).join('');
+function sequences(reads, maxSeq, fmt) {
   let beam = [[[], 1]];
   for (const r of reads) { const nxt = []; for (const [seq, p] of beam) for (const [b, pb] of r.candidates) nxt.push([seq.concat([b]), p * pb]); nxt.sort((a, b) => b[1] - a[1]); beam = nxt.slice(0, maxSeq); }
   const tot = beam.reduce((s, x) => s + x[1], 0) || 1;
-  return beam.map(([seq, p]) => ({ bytes: seq, hex: seq.map(b => b.toString(16).padStart(2, '0')).join(''), p: p / tot }));
+  return beam.map(([seq, p]) => ({ bytes: seq, hex: hexOf(seq), p: p / tot, format: fmt }));
+}
+const rowLL = dists => dists.reduce((s, d) => s + Math.log(Math.max(Math.max(...d), 1e-12)), 0);
+const merge = (a, wa, b, wb, maxSeq) => a.map(s => ({ ...s, p: s.p * wa })).concat(b.map(s => ({ ...s, p: s.p * wb }))).sort((x, y) => y.p - x.p).slice(0, maxSeq);
+
+// true [up, d] when glyphs cut with (up, d) look turned k quarter turns counter-clockwise
+function turn(up, d, k) { for (let i = 0; i < ((k % 4) + 4) % 4; i++) [up, d] = [[-d[0], -d[1]], up]; return [up, d]; }
+
+function cut(det, up, d, fmt) {
+  const frames = det.frames.slice().sort((a, b) => (a.center[0] * d[0] + a.center[1] * d[1]) - (b.center[0] * d[0] + b.center[1] * d[1]));
+  return { frames, patches: frames.map(f => rectifyFrame(det.gray, det.W, det.H, f, d, up, det.lightInk, fmt)) };
+}
+function readsOf(frames, dists, forkRatio, maxPer, fmt) {
+  return frames.map((f, i) => { const c = candidates(dists[i], forkRatio, maxPer); return { index: i, candidates: c, byte: c[0][0], p: c[0][1], frameConf: f.conf, format: fmt }; });
 }
 
-export function readImage(gray, W, H, model, opts = {}) {
-  const maxSeq = opts.maxSequences || 8, forkRatio = opts.forkRatio || 0.2, maxPer = opts.maxPerSymbol || 4;
-  const junkFn = patches => patches.map(p => classify(model, p, 64).junk);
-  const det = detect(gray, W, H, junkFn);
-  const warnings = det.warnings.slice();
-  if (!det.frames.length) return { reads: [], sequences: [], warnings: warnings.concat(['no symbols found']), detection: det };
-  const reads = det.frames.map((f, i) => { const sc = classify(model, det.patches[i], 64); const c = candidates(byteDistribution(sc, f.kind, f.conf), forkRatio, maxPer); return { index: i, candidates: c, byte: c[0][0], p: c[0][1], frameConf: f.conf }; });
-  let seqs = sequences(reads, maxSeq);
-  if (det.baseline && !det.startKnown) {
-    const rev = seqs.map(s => ({ bytes: s.bytes.slice().reverse(), hex: s.bytes.slice().reverse().map(b => b.toString(16).padStart(2, '0')).join(''), p: s.p * 0.5 }));
-    seqs = seqs.map(s => ({ ...s, p: s.p * 0.5 })).concat(rev).sort((a, b) => b.p - a.p).slice(0, maxSeq);
-    warnings.push('reading direction unknown: sequences include the reversed order');
+function readV2(det, model, o) {
+  const warnings = [];
+  let { frames, up, direction: d } = det, patches = det.patches.length === frames.length ? det.patches : cut(det, up, d, 2).patches;
+  let scores = patches.map(p => classify(model, p, 64));
+  // every icon but box, plus and x has a top: the glyphs vote on which way the row is turned
+  const turns = det.baseline ? [0, 2] : [0, 1, 2, 3];
+  const ll = {}; for (const k of turns) ll[k] = scores.reduce((s, sc) => s + Math.log(Math.max(sc.orient[k], 1e-6)), 0);
+  const ranked = turns.slice().sort((a, b) => ll[b] - ll[a]), kBest = ranked[0];
+  let turned = null;
+  if (kBest !== 0 && ll[kBest] - ll[0] > ORIENT_MARGIN) {
+    [up, d] = turn(det.up, det.direction, kBest); ({ frames, patches } = cut(det, up, d, 2)); scores = patches.map(p => classify(model, p, 64));
+    warnings.push(`the glyphs read turned ${90 * kBest} degrees from the underline's side; turned the row`);
+  } else if (kBest !== 0 || ll[ranked[0]] - ll[ranked[1]] < ORIENT_MARGIN) turned = kBest === 0 ? ranked[1] : kBest;
+  const dists = scores.map(distV2), reads = readsOf(frames, dists, o.forkRatio, o.maxPer, 2);
+  let seqs = sequences(reads, o.maxSeq, 2);
+  if (turned !== null && !det.startKnown) {
+    const [u2, d2] = turn(det.up, det.direction, turned), c2 = cut(det, u2, d2, 2);
+    const seq2 = sequences(readsOf(c2.frames, c2.patches.map(p => distV2(classify(model, p, 64))), o.forkRatio, o.maxPer, 2), o.maxSeq, 2);
+    const w = 1 / (1 + Math.exp(ll[0] - ll[turned]));
+    seqs = merge(seqs, 1 - w, seq2, w, o.maxSeq);
+    warnings.push(`not sure which way is up: candidates include the row turned ${90 * turned} degrees`);
   }
-  return { reads, sequences: seqs, best: seqs[0].hex, warnings, detection: det };
+  return { fmt: 2, reads, sequences: seqs, ll: rowLL(dists), warnings, frames, patches, up, d };
+}
+
+function readV1(det, model, o) {
+  const warnings = [], { frames, patches } = cut(det, det.up, det.direction, 1);
+  const dists = patches.map((p, i) => distV1(classify(model, p, 64), frames[i].kind, frames[i].conf));
+  const reads = readsOf(frames, dists, o.forkRatio, o.maxPer, 1);
+  let seqs = sequences(reads, o.maxSeq, 1);
+  if (!det.startKnown) {
+    // v1 pictograms are drawn in every rotation, so they cannot say which way is up: the row turned
+    // 180 degrees reads in reverse, every glyph's rotation two quarter turns on
+    const rev = seqs.map(s => { const b = s.bytes.slice().reverse().map(x => turnedV1(x, 2)); return { bytes: b, hex: hexOf(b), p: s.p, format: 1 }; });
+    seqs = merge(seqs, 0.5, rev, 0.5, o.maxSeq);
+    warnings.push('format 1 has no top to read: candidates include the row turned 180 degrees');
+  }
+  return { fmt: 1, reads, sequences: seqs, ll: rowLL(dists), warnings, frames, patches, up: det.up, d: det.direction };
+}
+
+// Probability that a candidate frame holds no glyph, in any rotation. The first format in fmts decides; later
+// ones get a second look only at what it rejects and overrule only when sure (RESCUE). cache keeps each
+// model's answer per candidate across row choices.
+function junkJudge(byFmt, fmts, cache) {
+  const judge = (fm, chans, w, h, f) => {
+    const k = `${fm}:${f.candId}`;
+    if (!cache.has(k)) cache.set(k, classify(byFmt[fm], rectifyFrame(chans[f.channel], w, h, f, [1, 0], [0, -1], f.lightInk, fm), 64).junk);
+    return cache.get(k);
+  };
+  return (chans, w, h, frames) => {
+    const pj = frames.map(f => judge(fmts[0], chans, w, h, f));
+    for (const fm of fmts.slice(1)) frames.forEach((f, i) => { if (pj[i] > 0.5) { const p = judge(fm, chans, w, h, f); if (p < RESCUE) pj[i] = Math.min(pj[i], p); } });
+    return pj;
+  };
+}
+
+// models: one loaded model (its format only) or {1: model, 2: model}. opts.format: 'auto' (default), 1 or 2.
+// opts.rgba: the photo's RGBA pixels (same W x H); coloured ink on a coloured surface needs them.
+// Format 2 goes first: its model picks the row and reads it. Format 1 is tried only when format 2 cannot
+// explain the row; then the row is picked again with format 1's second
+// look at the candidates format 2 rejected, and read as format 1. Same as pipeline.py.
+export function readImage(gray, W, H, models, opts = {}) {
+  const o = { maxSeq: opts.maxSequences || 8, forkRatio: opts.forkRatio || 0.2, maxPer: opts.maxPerSymbol || 4 };
+  let byFmt = models && models.w ? { [modelFormat(models)]: models } : { ...models };
+  if (opts.format && opts.format !== 'auto') byFmt = { [opts.format]: byFmt[opts.format] };
+  const fmts = Object.keys(byFmt).map(Number).filter(f => byFmt[f]).sort((a, b) => b - a), first = fmts[0];
+  const cands = findCandidates(gray, W, H, opts.rgba || null), cache = new Map();
+  const dets = { [first]: detect(cands, W, H, junkJudge(byFmt, [first], cache)) }, results = {};
+  if (dets[first].frames.length) results[first] = (first === 1 ? readV1 : readV2)(dets[first], byFmt[first], o);
+  // format 1 is tried only when format 2 cannot explain its row: format 1 wins only by beating it by
+  // FORMAT_BIAS per glyph, and a log-likelihood is at most 0
+  const r2 = results[2];
+  if (first === 2 && byFmt[1] && (!r2 || r2.ll / Math.max(1, r2.frames.length) <= -FORMAT_BIAS)) {
+    dets[1] = detect(cands, W, H, junkJudge(byFmt, [2, 1], cache));
+    if (dets[1].frames.length) results[1] = readV1(dets[1], byFmt[1], o);
+  }
+  if (!results[1] && !results[2]) { const det = dets[first]; return { reads: [], sequences: [], format: first, warnings: det.warnings.concat(['no glyphs found']), detection: det }; }
+  const warnings = [];
+  let chosen, seqs;
+  if (!(results[1] && results[2])) { chosen = results[2] || results[1]; seqs = chosen.sequences; }
+  else {
+    const r1 = results[1], margin = r1.ll / Math.max(1, r1.frames.length) - r2.ll / Math.max(1, r2.frames.length) - FORMAT_BIAS;   // per glyph; > 0 favours format 1
+    chosen = margin > 0 ? r1 : r2; const other = margin > 0 ? r2 : r1;
+    seqs = chosen.sequences;
+    if (Math.abs(margin) < FORMAT_FORK) {
+      const w = 1 / (1 + Math.exp(Math.abs(margin) * Math.max(1, chosen.frames.length)));
+      // the chosen format's best reading leads, so the result's format and its best reading agree;
+      // probabilities of different formats' readings are not comparable one by one
+      const top = chosen.sequences[0];
+      seqs = [{ ...top, p: top.p * (1 - w) }].concat(merge(chosen.sequences.slice(1), 1 - w, other.sequences, w, o.maxSeq - 1));
+      warnings.push(`the row could be format ${other.fmt}: its readings are among the candidates`);
+    }
+    if (chosen.fmt === 1) warnings.push('read as format 1, the first glyphbyte alphabet');
+  }
+  const det = dets[chosen.fmt];
+  Object.assign(det, { frames: chosen.frames, patches: chosen.patches, up: chosen.up, direction: chosen.d });
+  const formatScores = {}; for (const f in results) formatScores[f] = results[f].ll;
+  return { reads: chosen.reads, sequences: seqs, best: seqs[0].hex, format: chosen.fmt, formatScores,
+           warnings: det.warnings.concat(warnings, chosen.warnings), detection: det };
 }

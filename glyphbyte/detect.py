@@ -5,20 +5,20 @@ Pipeline
   1. gray, downscale to at most MAX_SIDE
   2. binarize twice (dark ink, light ink) with a local threshold; keep the polarity
      that yields more frames
-  3. frames = ink rings whose hole contains ink; square vs circle by the area of
+  3. frames = ink rings whose hole contains ink. v2 frames are squares; the area of
      the largest quadrilateral inscribed in the hole's hull (1.0 for a quad, 2/pi
-     for an ellipse, and perspective does not change either)
+     for an ellipse, in any perspective) marks confidently round rings as unlikely
   4. baseline = the long thin component next to the frames; start dot = a blob at
      one end, or the end that is thicker than the line
-  5. rectify: squares by homography from their four corners, circles by an affine
-     map of the fitted ellipse; "up" and reading order come from the baseline
+  5. rectify: by homography from the frame's four corners (an ellipse fit is the
+     fallback); "up" and reading order come from the baseline
 """
 
 from __future__ import annotations
 
 import itertools
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import cv2
 import numpy as np
@@ -28,6 +28,8 @@ from .synth import PATCH, normalize_patch, patch_target_quad, rectify
 
 MAX_SIDE = 1600
 JUNK_TOP_K = 24      # candidates offered to the classifier's junk check
+ROUND_PENALTY = 0.5    # a round copy of a frame yields to a square copy this much weaker
+COLOR_MIN = 6.0        # a photo whose colour differences stay below this gets no colour pass
 _DEBUG = bool(__import__("os").environ.get("GLYPHBYTE_DEBUG"))
 
 
@@ -38,14 +40,17 @@ class Frame:
     size: float
     outer: np.ndarray
     hole: np.ndarray
-    corners: np.ndarray | None = None        # 4x2 unordered, squares only
-    ellipse: tuple | None = None             # ((cx, cy), (MA, ma), angle), circles only
+    corners: np.ndarray | None = None        # 4x2 unordered, from the largest inscribed quadrilateral
+    ellipse: tuple | None = None             # ((cx, cy), (MA, ma), angle), the fallback for rectifying
     ink_fraction: float = 0.0
     quad_ratio: float = 0.0        # confidence of the square/circle decision, 0..1
     stroke: float = 0.0
     quality: float = 1.0           # how much this looks like a drawn frame with a glyph in it
     light_ink: bool = False        # polarity this frame was found in
-    junk: float = 0.0              # classifier's probability that this is not a symbol
+    smooth: bool = False           # found in the grain pass (blurred before binarizing)
+    channel: str = "luma"          # "luma" (gray) or "color" (colour difference from the surface)
+    cand_id: int = -1              # position among the candidates, stable across row choices
+    junk: float = 0.0              # classifier's probability that this is not a glyph
 
 
 @dataclass
@@ -57,31 +62,96 @@ class Detection:
     direction: np.ndarray
     light_ink: bool
     scale: float
-    gray: np.ndarray
+    gray: np.ndarray                  # the channel the row was found in: patches are cut from it
     ink: np.ndarray
     warnings: list[str] = field(default_factory=list)
     patches: list[np.ndarray] = field(default_factory=list)
+    channel: str = "luma"
+    channels: dict = field(default_factory=dict)   # every channel image by name
 
 
 # ----------------------------------------------------------------------------- basics
 
-def prepare(image: np.ndarray) -> tuple[np.ndarray, float]:
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image.copy()
+def prepare(image: np.ndarray) -> tuple[np.ndarray, float, np.ndarray | None]:
+    """(gray, scale, color channel or None), downscaled to at most MAX_SIDE."""
     s = 1.0
-    m = max(gray.shape)
+    m = max(image.shape[:2])
     if m > MAX_SIDE:
         s = MAX_SIDE / m
-        gray = cv2.resize(gray, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
-    return gray, s
+        image = cv2.resize(image, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
+    if image.ndim == 3:
+        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), s, color_channel(image)
+    return image.copy(), s, None
 
 
-def binarize(gray: np.ndarray, light_ink: bool) -> np.ndarray:
+def _box_mean(img: np.ndarray, r: int) -> np.ndarray:
+    """Mean over a (2r+1)^2 window clipped to the image, like imgops.js boxMean."""
+    H, W = img.shape
+    S = np.zeros((H + 1, W + 1), np.float64)
+    S[1:, 1:] = img.astype(np.float64).cumsum(0).cumsum(1)
+    y0 = np.clip(np.arange(H) - r, 0, H)
+    y1 = np.clip(np.arange(H) + r + 1, 0, H)
+    x0 = np.clip(np.arange(W) - r, 0, W)
+    x1 = np.clip(np.arange(W) + r + 1, 0, W)
+    tot = S[y1][:, x1] - S[y0][:, x1] - S[y1][:, x0] + S[y0][:, x0]
+    return (tot / ((y1 - y0)[:, None] * (x1 - x0)[None, :])).astype(np.float32)
+
+
+def _hist_percentile(x: np.ndarray, q: float) -> float:
+    """q-quantile of non-negative values from a histogram of 0.25-wide bins, as imgops.js does it."""
+    hist = np.bincount(np.minimum((x * 4).astype(np.int64), 1023).ravel(), minlength=1024)
+    return (int(np.searchsorted(np.cumsum(hist), q * x.size)) + 1) / 4.0
+
+
+def color_channel(bgr: np.ndarray) -> np.ndarray | None:
+    """Ink seen by its colour, as a gray image with the ink dark. Blue chalk on tan concrete is
+    nearly invisible in gray and stands out here; so does any coloured pen, paint or chalk.
+
+    Each pixel's chroma (Cb, Cr) minus the surface's around it is projected on the ink's own
+    colour direction (the mean of the strongest 1% of differences), and only the positive side
+    kept: an unsigned distance would also light a halo of plain surface beside every stroke,
+    where the local average is tinted by the ink. None when the photo has no colour to speak of
+    (pen on white paper), so that case costs nothing."""
+    b = bgr.astype(np.float32)
+    y = b[..., 0] * 0.114 + b[..., 1] * 0.587 + b[..., 2] * 0.299
+    diffs = []
+    R = max(2, min(bgr.shape[:2]) // 25)
+    for c in ((b[..., 0] - y) * 0.564, (b[..., 2] - y) * 0.713):   # Cb, Cr
+        c = _box_mean(c, 1)                      # phone JPEGs keep colour at half resolution
+        diffs.append(c - _box_mean(_box_mean(_box_mean(c, R), R), R))
+    dcb, dcr = diffs
+    mag = np.sqrt(dcb * dcb + dcr * dcr)
+    if _hist_percentile(mag, 0.995) < COLOR_MIN:
+        return None
+    strong = mag >= _hist_percentile(mag, 0.99)
+    u = np.array([float(dcb[strong].mean()), float(dcr[strong].mean())])
+    n = float(np.hypot(*u))
+    if n < 1e-6:
+        return None
+    proj = np.maximum(0.0, (dcb * u[0] + dcr * u[1]) / n)
+    p = _hist_percentile(proj, 0.995)
+    if p < COLOR_MIN:
+        return None
+    return (255 - np.minimum(255, np.floor(proj * 255.0 / p))).astype(np.uint8)
+
+
+def smooth_sigma(gray: np.ndarray) -> float:
+    """Blur for the grain pass: enough to join chalk grain and ragged field paths into strokes."""
+    return max(1.5, min(gray.shape) / 500.0)
+
+
+def binarize(gray: np.ndarray, light_ink: bool, smooth: bool = False) -> np.ndarray:
+    """Local threshold at one polarity. smooth=True is the grain pass: the picture is blurred
+    first and gaps are closed wider, so a stroke made of specks (chalk, a mown path) becomes
+    one closed line again."""
+    if smooth:
+        gray = cv2.GaussianBlur(gray, (0, 0), smooth_sigma(gray))
     src = 255 - gray if light_ink else gray
     side = min(gray.shape)
     block = max(31, (side // 14) | 1)
-    ink = cv2.adaptiveThreshold(src, 1, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block, 10)
-    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, k)
+    ink = cv2.adaptiveThreshold(src, 1, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block, 10 if not smooth else 6)
+    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))    # a plus; applied twice it closes a diamond of radius 2
+    ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, k, iterations=2 if smooth else 1)
     # drop specks
     n, lab, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
     min_area = max(6, (side / 250) ** 2)
@@ -230,7 +300,7 @@ def find_frames(ink: np.ndarray) -> list[Frame]:
             size = math.sqrt(px / math.pi) * 2
         fr = Frame(kind=kind, center=center, size=size, outer=ring_outer if ring_outer is not None else hull,
                    hole=region.reshape(-1, 2), ink_fraction=frac, quad_ratio=conf, stroke=stroke, quality=q)
-        if kind == FRAME_SQUARE and quad is not None:
+        if quad is not None:   # a v2 frame is a square even when wobbly enough to score round
             fr.corners = center + (quad - center) * (1 + 0.5 * stroke / max(size, 1))
         if len(region) >= 5:
             (cx, cy), (MA, ma), ang = cv2.fitEllipse(region)
@@ -238,10 +308,22 @@ def find_frames(ink: np.ndarray) -> list[Frame]:
         out.append(fr)
 
     # A) holes: a frame's interior survives even when the ring merged with other ink
+    by_parent: dict[int, list[np.ndarray]] = {}
     for i, c in enumerate(cnts):
         if hier[i][3] == -1:
             continue
         consider(c, 0.0, None)
+        by_parent.setdefault(int(hier[i][3]), []).append(c)
+    # A2) a split interior: when the glyph touches the frame on two sides (grainy chalk joins
+    # them through specks), the inside is cut into pieces. Their joint hull is the whole inside;
+    # the fragment candidates above compete with it on quality.
+    for holes in by_parent.values():
+        if len(holes) < 2:
+            continue
+        areas = [cv2.contourArea(h) for h in holes]
+        big = [h for h, a in zip(holes, areas) if a >= 0.05 * max(areas)]
+        if len(big) >= 2:
+            consider(cv2.convexHull(np.vstack(big)), 0.0, None)
     # B) rings with a pen gap: an external contour with low solidity whose hull encloses other ink
     for i, c in enumerate(cnts):
         if hier[i][3] != -1:
@@ -611,8 +693,11 @@ def circle_matrix(ellipse, d: np.ndarray, size: int = PATCH) -> np.ndarray:
     return P @ N
 
 
-def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, light_ink: bool) -> np.ndarray:
-    if f.kind == FRAME_SQUARE and f.corners is not None:
+def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, light_ink: bool, fmt: int = 2) -> np.ndarray:
+    """The frame as an upright classifier patch. Format 2 frames are squares and are cut by
+    their corners; format 1 cuts a round frame through its fitted ellipse, as its model was
+    trained."""
+    if f.corners is not None and (fmt == 2 or f.kind == FRAME_SQUARE):
         patch = rectify(gray, order_corners(f.corners, f.center, d, up))
     elif f.ellipse is not None:
         M = circle_matrix(f.ellipse, d)
@@ -631,46 +716,97 @@ def rectify_frame(gray: np.ndarray, f: Frame, d: np.ndarray, up: np.ndarray, lig
 
 # ----------------------------------------------------------------------------- entry
 
-def detect(image: np.ndarray, junk_fn=None) -> Detection:
-    """junk_fn(list of patches) -> array of probabilities that each patch is not a symbol.
-    When given, candidates are scored by it before the row is chosen, so texture that
-    looks like a frame geometrically does not get to outvote the real row."""
-    gray, scale = prepare(image)
+def handed(up: np.ndarray) -> np.ndarray:
+    """The reading direction for a given "up" in image coordinates (y down): a quarter turn
+    clockwise from up, so up (0, -1) reads along (1, 0)."""
+    return np.array([-up[1], up[0]], dtype=np.float64)
+
+
+@dataclass
+class Candidates:
+    """Everything found before the row is chosen; detect() can choose a row from it more than once."""
+    gray: np.ndarray
+    scale: float
+    channels: dict
+    inks: dict
+    frames: list[Frame]           # deduplicated, best first
+
+
+def find_candidates(image: np.ndarray) -> Candidates:
+    gray, scale, color = prepare(image)
     # frames from both polarities go into one pool; the row then decides which polarity
     # the drawing has. strokes are sparse, so a polarity that inks most of the picture
     # has binarized the paper and its frames are penalized.
+    # each polarity is binarized twice: as is, and after a blur that rejoins grainy strokes
+    # (chalk, a path mown through a field). a colour photo adds the colour channel, where ink
+    # of any colour is dark. all frames share one pool.
+    channels = {"luma": gray}
+    if color is not None:
+        channels["color"] = color
     inks = {}
     pool: list[Frame] = []
-    for light in (False, True):
-        ink = binarize(gray, light)
-        inks[light] = ink
-        coverage = float(ink.mean())
-        penalty = 1.0 - min(0.9, 3.0 * max(0.0, coverage - 0.2))
-        for f in find_frames(ink):
-            f.light_ink = light
-            f.quality *= penalty
-            pool.append(f)
-    pool.sort(key=lambda f: -f.quality)
+    for name, img in channels.items():
+        for smooth in (False, True):
+            for light in ((False, True) if name == "luma" else (False,)):
+                ink = binarize(img, light, smooth)
+                inks[(name, light, smooth)] = ink
+                coverage = float(ink.mean())
+                penalty = 1.0 - min(0.9, 3.0 * max(0.0, coverage - 0.2))
+                for f in find_frames(ink):
+                    f.light_ink = light
+                    f.smooth = smooth
+                    f.channel = name
+                    f.quality *= penalty
+                    pool.append(f)
+    # best first; between equals the bigger copy, which saw more of a frame's inside (a glyph
+    # touching the frame walls off a pocket, and the pocketless copy is the whole frame)
+    pool.sort(key=lambda f: (-round(f.quality, 2), -f.size))
     merged: list[Frame] = []
     for f in pool:
-        if any(np.linalg.norm(f.center - g.center) < 0.35 * g.size and 0.6 < f.size / g.size < 1.6 for g in merged):
-            continue
-        merged.append(f)
+        k = next((i for i, g in enumerate(merged)
+                  if np.linalg.norm(f.center - g.center) < 0.35 * g.size and 0.6 < f.size / g.size < 1.6), None)
+        if k is None:
+            merged.append(f)
+        elif (merged[k].kind == FRAME_CIRCLE and f.kind == FRAME_SQUARE
+              and f.quality >= (1.0 - ROUND_PENALTY * merged[k].quad_ratio) * merged[k].quality):
+            # the same frame seen square by another pass: its corners cut a better patch. A round
+            # copy only ever yields to a square one; round rows (format 1) are scored as they are
+            merged[k] = f
+    merged.sort(key=lambda f: -f.quality)
+    for i, f in enumerate(merged):
+        f.cand_id = i
+    return Candidates(gray=gray, scale=scale, channels=channels, inks=inks, frames=merged)
+
+
+def detect(image, junk_fn=None) -> Detection:
+    """Find the row in a photo (or in Candidates already found from it).
+
+    junk_fn(channels, frames) -> array of probabilities that each frame holds no glyph, in any
+    format and any rotation (the pipeline builds it from its classifiers); channels maps a
+    frame's .channel to the image it was found in. When given, candidates are scored by it
+    before the row is chosen, so texture that looks like a frame geometrically does not get to
+    outvote the real row."""
+    cands = image if isinstance(image, Candidates) else find_candidates(image)
+    scale, channels, inks = cands.scale, cands.channels, cands.inks
+    merged = [replace(f) for f in cands.frames]      # copies: choosing a row adjusts their quality
     if junk_fn is not None and merged:
-        # provisional rectification with the image axes: junk is junk in any rotation.
         # only the best-looking candidates are worth the network's time (the same cap
         # keeps the JavaScript port usable on a phone)
         merged = merged[:JUNK_TOP_K]
-        provisional = [rectify_frame(gray, f, np.array([1.0, 0.0]), np.array([0.0, -1.0]), f.light_ink) for f in merged]
-        p_junk = np.asarray(junk_fn(provisional), dtype=np.float64)
+        p_junk = np.asarray(junk_fn(channels, merged), dtype=np.float64)
         for f, pj in zip(merged, p_junk):
             f.junk = float(pj)
             f.quality *= max(0.05, 1.0 - float(pj))
         merged = [f for f in merged if f.junk < 0.9]
     frames, warnings = filter_row(merged)
-    votes = sum(1 if f.light_ink else -1 for f in frames)
-    light_ink = votes > 0
-    ink = inks[light_ink]
+    # the row's own channel, polarity and pass: the one most of its frames were found in
+    channel = "color" if sum(1 if f.channel == "color" else -1 for f in frames) > 0 else "luma"
+    same = [f for f in frames if f.channel == channel] or frames
+    light_ink = channel == "luma" and sum(1 if f.light_ink else -1 for f in same) > 0
+    same = [f for f in same if f.light_ink == light_ink] or same
+    smooth = sum(1 if f.smooth else -1 for f in same) > 0
+    ink = inks.get((channel, light_ink, smooth), inks[("luma", False, False)])
+    gray = channels[channel]
 
     up = np.array([0.0, -1.0])
     d = np.array([1.0, 0.0])
@@ -682,7 +818,14 @@ def detect(image: np.ndarray, junk_fn=None) -> Detection:
         d = (p_end - p_start) / max(1e-6, np.linalg.norm(p_end - p_start))
         baseline = np.stack([p_start, p_end])
         if not start_known:
-            warnings.append("baseline found but no start dot: reading left to right")
+            warnings.append("baseline found but no start dot: reading order follows from which side is up")
+        elif float(d[0] * up[1] - d[1] * up[0]) > 0:   # d must be a quarter turn clockwise from up
+            warnings.append("the start dot disagrees with which side of the underline the glyphs are on; trusting the side")
+            start_known = False
+        # a photo is never mirrored: once "up" is known, reading runs to its right
+        d = handed(up)
+        if float((p_end - p_start) @ d) < 0:
+            baseline = baseline[::-1].copy()
     else:
         warnings.append("no baseline: assuming the photo is upright and reads left to right")
 
@@ -704,7 +847,8 @@ def detect(image: np.ndarray, junk_fn=None) -> Detection:
             frames.sort(key=lambda f: float(f.center @ d))
     patches = [rectify_frame(gray, f, d, up, light_ink) for f in frames]
     return Detection(frames=frames, baseline=baseline, start_known=start_known, up=up, direction=d,
-                     light_ink=light_ink, scale=scale, gray=gray, ink=ink, warnings=warnings, patches=patches)
+                     light_ink=light_ink, scale=scale, gray=gray, ink=ink, warnings=warnings, patches=patches,
+                     channel=channel, channels=channels)
 
 
 def draw_debug(det: Detection) -> np.ndarray:
