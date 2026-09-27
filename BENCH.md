@@ -66,7 +66,7 @@ rows that do not read correctly in the right one either, and format 1 rows read 
 than with the v1 reader (the grain pass, the colour channel and the handedness rule help them
 too). The colour channel (2026-09-27) added no measurable cost on these suites and fixed real
 chalk photos that the synthetic chalk, white on dark pavement, never modelled: light blue chalk
-on tan concrete, `spec/vectors/v2-photo-0*.jpg`, read exactly now and not at all before.
+on tan concrete reads exactly now and did not read at all before.
 
 ### Compared with v1 (big model; v1 on its own pen-and-marker suite)
 

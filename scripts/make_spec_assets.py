@@ -26,11 +26,6 @@ PHOTOS: list[tuple[str, int, str, str]] = [
      "format 1, marker on a dot-grid notebook, 2026-09-22; the snowman's circles are nearly equal, so readers may rank c6 below ce"),
     ("v1-photo-02.jpg", 1, "0c9e5e17",
      "format 1, marker on a dot-grid card on a dark table, 2026-09-25; the underline's run passes its start dot"),
-    ("v2-photo-01.jpg", 2, "669ee8d6f157",
-     "format 2, light blue chalk on a concrete sidewalk, 2026-09-26, a pole's shadow across the first glyph; the first "
-     "six bytes of a nevent id. In gray the chalk barely differs from the concrete: it is read in the colour channel"),
-    ("v2-photo-02.jpg", 2, "669ee8d6",
-     "format 2, the same chalk and sidewalk, four bytes; the tree's stem and a dot touch its frame, splitting the inside"),
 ]
 
 
