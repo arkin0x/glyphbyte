@@ -1,5 +1,7 @@
 // Page logic. Expects the globals MODELS ({1, 2}: loaded weights), SHAPES and SHAPES_V1; everything else is in this file's scope.
 const $ = id => document.getElementById(id);
+// the wordmark links to glyphbyte.dev's homepage; inside a nostr shell (a frame) "/" would be the shell's own site
+if (window.top !== window) $('home').removeAttribute('href');
 const hexClean = s => s.trim().replace(/[^0-9a-fA-F]/g, '').toLowerCase();
 const toBytes = h => { const out = []; for (let i = 0; i + 1 < h.length; i += 2) out.push(parseInt(h.slice(i, i + 2), 16)); return out; };
 
