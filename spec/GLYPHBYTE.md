@@ -162,8 +162,8 @@ reader's user picks the event by kind and `d` tag among the author's addressable
 - `sequences`: hex strings with their glyph descriptions and a rendered reference row
   (`vectors/row-<hex>.png`), drawn cleanly by the reference renderer.
 - `photos`: real photographs of hand-drawn rows with their `format` and the bytes they carry.
-  The first two are format 1 rows drawn with a marker; format 2 photographs are added as people
-  draw and share them.
+  Both are format 1 rows drawn with a marker in a notebook; format 2 photographs are added as
+  people draw and share them.
 
 A conforming encoder MUST reproduce `bytes` and the descriptions in `sequences`. A conforming
 reader SHOULD return the `expected` bytes of every entry in `photos` as its top reading, and

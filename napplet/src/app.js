@@ -1,7 +1,7 @@
 // Page logic. Expects the globals MODELS ({1, 2}: loaded weights), SHAPES and SHAPES_V1; everything else is in this file's scope.
 const $ = id => document.getElementById(id);
-// the wordmark links to glyphbyte.dev's homepage; inside a nostr shell (a frame) "/" would be the shell's own site
-if (window.top !== window) $('home').removeAttribute('href');
+// site links (the wordmark, the footer's spec link) point into glyphbyte.dev; inside a nostr shell (a frame) "/" would be the shell's own site
+if (window.top !== window) for (const a of document.querySelectorAll('a[href^="/"]')) a.removeAttribute('href');   // wordmark, footer
 const hexClean = s => s.trim().replace(/[^0-9a-fA-F]/g, '').toLowerCase();
 const toBytes = h => { const out = []; for (let i = 0; i + 1 < h.length; i += 2) out.push(parseInt(h.slice(i, i + 2), 16)); return out; };
 
@@ -46,7 +46,17 @@ for (const r of document.querySelectorAll('input[name=fmt]')) r.addEventListener
   if (!$('sheet').hidden) drawSheet($('sheet'), shapesFor(drawFormat()), 56);
 });
 
-$('file').addEventListener('change', () => readFile($('file').files[0]));   // no capture attribute: the phone offers camera and library together
+// Photo: one button. On a touch device it opens a small menu, because some phone browsers (Brave on
+// Android) offer only files for a plain image picker; "take a photo" asks for the camera explicitly.
+// With a mouse there is no camera to offer, so the button opens the file dialog directly.
+const closePhotoMenu = () => { $('photoMenu').hidden = true; $('photoBtn').setAttribute('aria-expanded', 'false'); };
+$('photoBtn').addEventListener('click', () => {
+  if (!matchMedia('(pointer: coarse)').matches) { $('file').click(); return; }
+  const m = $('photoMenu'); m.hidden = !m.hidden; $('photoBtn').setAttribute('aria-expanded', String(!m.hidden));
+});
+document.addEventListener('click', e => { if (!e.target.closest('.picker')) closePhotoMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePhotoMenu(); });
+for (const id of ['file', 'fileCam']) $(id).addEventListener('change', () => { closePhotoMenu(); const f = $(id).files[0]; $(id).value = ''; readFile(f); });
 async function readFile(f) {
   if (!f) return;
   $('busy').hidden = false; $('result').innerHTML = '';
