@@ -149,8 +149,35 @@ def build():
     write(os.path.join(DIST, "favicon.svg"), favicon_svg())
     copy(os.path.join(SRC, "htaccess"), os.path.join(DIST, ".htaccess"))
 
+    fingerprint(DIST)
     total = sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(DIST) for f in fs)
     print(f"built {DIST}: {total / 1e6:.2f} MB")
+
+
+def fingerprint(dist=DIST):
+    """Cache busting: every link from a page to an image, SVG or JSON file gets ?v=<hash of its
+    content>. Those files are cached for a day, and some keep their name across versions (the
+    landing row, the sheet), so a changed file must come with a changed link. The pages themselves
+    are revalidated on every visit, so a new link reaches everyone at once."""
+    import hashlib
+    cache = {}
+
+    def stamp(m):
+        attr, url = m.group(1), m.group(2)
+        fs = os.path.join(dist, url.lstrip("/"))
+        if not os.path.isfile(fs):
+            return m.group(0)
+        if fs not in cache:
+            with open(fs, "rb") as f:
+                cache[fs] = hashlib.sha256(f.read()).hexdigest()[:10]
+        return f'{attr}="{url}?v={cache[fs]}"'
+
+    for dirpath, _, files in os.walk(dist):
+        for name in files:
+            if name.endswith(".html"):
+                path = os.path.join(dirpath, name)
+                text = re.sub(r'(src|href)="(/[^"?#]+\.(?:png|jpg|svg|json))"', stamp, read(path))
+                write(path, text)
 
 
 class Refs(HTMLParser):
