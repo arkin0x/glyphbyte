@@ -57,10 +57,12 @@ Free text for people, usually the URL followed by a short comment. The content M
 entirely, and MAY be empty.
 
 If the content contains URLs, at least one of them MUST equal the `r` URL exactly. For this rule
-a URL in the content is any whitespace-separated token that begins with `http://` or `https://`,
-or with the scheme of the `r` URL followed by `:`. Publishers SHOULD put whitespace after a URL in
-the content (a space or a line break), so that sentence punctuation is never mistaken for part of
-it; readers compare whole tokens and do not strip punctuation.
+the content is split into tokens at ASCII whitespace only (space, tab, line feed, form feed and
+carriage return; no other Unicode space separates tokens), and a URL in the content is any token
+that begins with `http://` or `https://`, or with the scheme of the `r` URL followed by `:`.
+Publishers SHOULD put a space or a line break on both sides of a URL in the content, so that
+sentence punctuation and brackets are never mistaken for part of it; readers compare whole tokens
+and do not strip punctuation.
 
 Putting the URL first in the content makes the cairn useful in clients that know nothing about
 this kind: many show the content of an unknown event, and the URL in it stays clickable.

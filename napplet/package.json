@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "build": "python build.py weights.bin weights.bin.json",
-    "test": "node test/nip19_check.mjs"
+    "test": "node test/nip19_check.mjs && node test/sign_check.mjs && node test/cairn_check.mjs"
   },
   "keywords": [
     "nostr",
@@ -29,7 +29,8 @@
     "ocr",
     "napplet",
     "nip-19",
-    "prefix"
+    "prefix",
+    "cairn"
   ],
   "homepage": "https://glyphbyte.dev",
   "repository": {

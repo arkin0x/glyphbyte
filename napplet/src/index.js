@@ -5,7 +5,9 @@ export { toGray } from './imgops.js';
 import { loadWeights } from './nn.js';
 export { loadWeights, classify, modelFormat } from './nn.js';
 export { drawRow, drawSheet, drawCell, drawDetection } from './render.js';
-export { lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay } from './lookup.js';
+export { lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay, publishEvent, DEFAULT_RELAY } from './lookup.js';
+export { generateSecretKey, schnorrPublicKey, schnorrSign, schnorrVerify, eventId, signEvent, verifyEvent } from './sign.js';
+export { CAIRN_KIND, CAIRN_MIN_BYTES, contentUrls, validateCairn, parseCairnText, cairnTemplate } from './cairn.js';
 export { npub, note, nevent, naddr, decodeEntity, bech32Encode, bech32Decode, isAddressable } from './nip19.js';
 
 export function pack(icon, dots) { return (icon << 4) | dots; }                       // format 2
