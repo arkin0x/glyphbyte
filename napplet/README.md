@@ -24,5 +24,25 @@ drawRow(canvas, await loadShapes(1), [0xe8, 0xed, 0x37, 0x98, 0xc6, 0xff]);     
 const hits = await lookup(result.sequences.map(s => s.hex), { relay: 'wss://wheat.oslim.dev' });
 ```
 
+### Cairns
+
+A cairn (kind 1738, `spec/CAIRN.md` in the repository) is a nostr event that carries one link,
+so the first glyphs of its id lead anyone to the link. The package turns typed text into a cairn,
+signs it with a key made for it alone, and publishes it to a relay that answers id prefixes:
+
+```js
+import { parseCairnText, cairnTemplate, validateCairn, generateSecretKey, signEvent, publishEvent, lookup } from 'glyphbyte';
+
+const { urls, content } = parseCairnText('https://example.com/menu lunch menu for table 4');
+const cairn = await signEvent(cairnTemplate(urls[0], content), generateSecretKey());
+const sent = await publishEvent(cairn);                  // { ok, message }; default relay wss://wheat.oslim.dev
+const back = await lookup([cairn.id.slice(0, 12)]);     // found again by its first 6 bytes
+validateCairn(cairn);                                    // { ok, url, errors }: the spec's rules
+```
+
+`signEvent`, `verifyEvent`, `schnorrSign` and `schnorrVerify` implement BIP-340 without
+dependencies and pass every official BIP-340 test vector. The arithmetic is not constant time, so
+use them for keys that sign once and are thrown away, as cairns do, not for a long-lived key.
+
 The same code, bundled into one HTML file, is the GlyphByte napplet (NIP-5D).
 License: CC BY-SA 4.0 (code, alphabet, icons and specification).

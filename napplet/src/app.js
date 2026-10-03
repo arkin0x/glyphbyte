@@ -105,8 +105,8 @@ $('lookupHexBtn').addEventListener('click', () => { const h = currentPrefix(); i
 for (const r of document.querySelectorAll('input[name=nbytes]')) r.addEventListener('change', renderEncode);
 
 function placeRelaySection(hasResult) {
-  const sec = $('relaySection'), first = document.querySelector('main section');
-  if (hasResult) { if (first.nextElementSibling !== sec) first.after(sec); }
+  const sec = $('relaySection'), bytes = $('bytesSection');
+  if (hasResult) { if (bytes.nextElementSibling !== sec) bytes.after(sec); }
   else document.querySelector('main').insertBefore(sec, document.querySelector('main > p.muted'));
 }
 
@@ -145,7 +145,7 @@ function eventCard(ev, i, candidates) {
   return `<div class="ev" data-i="${i}">
     <div class="head">${pic}<div><div class="name">${esc(name)}</div><div class="sub">${pr.nip05 ? esc(pr.nip05) + ' · ' : ''}${when}</div></div></div>
     <button class="dots" data-menu="${i}" aria-label="more">⋯</button>
-    <div class="body"><span class="kind">kind ${ev.kind}${ev.kind === 0 ? ' profile' : ''}</span>${body}</div>
+    <div class="body"><span class="kind">kind ${esc(String(ev.kind))}${ev.kind === 0 ? ' profile' : ''}</span>${body}</div>
     ${m ? `<div class="ok" style="font-size:13px">matches <code>${m.prefix}</code> by ${m.how}</div>` : ''}
   </div>`;
 }
@@ -177,6 +177,93 @@ function toast(msg) { const t = document.createElement('div'); t.textContent = m
 function showModal(title, body) { $('modalTitle').textContent = title; $('modalBody').textContent = body; $('modal').hidden = false; }
 $('modalClose').addEventListener('click', () => { $('modal').hidden = true; });
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').hidden = true; });
+
+// ---------------------------------------------------------------- publish a link or a note
+// Text with a link becomes a kind 1738 cairn (spec/CAIRN.md); text without one becomes an ordinary
+// kind 1 note. Either way it is signed with a key made for it and forgotten right after, published
+// to DEFAULT_RELAY, looked up again by its first 6 bytes, and drawn in "Bytes to glyphs".
+// The signer is a separate script (BigInt): a browser that cannot run it still gets the reader.
+$('cairnRelay').textContent = DEFAULT_RELAY;
+const hostOf = u => { try { return new URL(u).host; } catch (e) { return u; } };
+const cannotPublish = nappletRelay() ? 'Publishing works on glyphbyte.dev/app, not inside a nostr shell.'
+  : (typeof signEvent !== 'function' || typeof BigInt !== 'function' || !(window.crypto && crypto.subtle))
+    ? 'This browser cannot sign nostr events (it needs BigInt and Web Crypto on https), so publishing is off here.' : '';
+let cairnPick = '', cairnBusy = false;
+function cairnUrl(urls) { return urls.includes(cairnPick) ? cairnPick : urls[0] || ''; }
+function renderCairnInfo() {
+  const text = $('cairnText').value, { urls, content, blank } = parseCairnText(text), url = cairnUrl(urls), info = $('cairnInfo');
+  if (cannotPublish) info.innerHTML = `<p class="warn">${esc(cannotPublish)}</p>`;
+  else if (blank) info.innerHTML = '';
+  else if (!urls.length) info.innerHTML = `<p class="muted">No link, so this goes out as an ordinary nostr note (kind 1), which nostr apps show in feeds. Add a link that starts with https:// to make a cairn instead.</p>`;
+  else if (urls.length === 1) info.innerHTML = `<p class="dest">Opens <b>${esc(hostOf(url))}</b> <code>${esc(url)}</code></p>`;
+  else info.innerHTML = `<p class="muted" style="margin-bottom:2px">Which link does the cairn open?</p>` + urls.map(u =>
+    `<label class="pick"><input type="radio" name="cairnUrl" value="${esc(u)}"${u === url ? ' checked' : ''}><span><b>${esc(hostOf(u))}</b> <code>${esc(u)}</code></span></label>`).join('');
+  if (!cannotPublish && !blank && content !== text.trim()) info.innerHTML += `<p class="muted dest">Published as <code>${esc(content)}</code>, cleaned so that every link stands on its own and every nostr app reads the same text.</p>`;
+  for (const r of info.querySelectorAll('input[name=cairnUrl]')) r.addEventListener('change', () => { cairnPick = r.value; });
+  $('cairnBtn').textContent = urls.length ? 'publish cairn' : 'publish note';
+  $('cairnBtn').disabled = !!cannotPublish || cairnBusy || blank;
+  $('cairnText').readOnly = !!cannotPublish || cairnBusy;   // what is being published cannot change under it
+}
+$('cairnText').addEventListener('input', renderCairnInfo);
+$('cairnBtn').addEventListener('click', publishText);
+renderCairnInfo();
+
+async function publishText() {
+  const { urls, content, blank } = parseCairnText($('cairnText').value), url = cairnUrl(urls);
+  if (cannotPublish || blank || cairnBusy) return;
+  const st = $('cairnStatus'), relay = DEFAULT_RELAY, say = (cls, msg) => { st.className = cls; st.textContent = msg; };
+  const opts = { relay, nappletRelay: nappletRelay() };
+  cairnBusy = true; renderCairnInfo(); $('cairnResult').innerHTML = '';
+  let sk = null, published = null;
+  try {
+    const tpl = url ? cairnTemplate(url, content) : { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [], content };
+    const check = url ? validateCairn(tpl) : { ok: true };
+    if (!check.ok) throw new Error(check.errors.join('; '));
+    say('muted', 'signing…');
+    sk = generateSecretKey();
+    const ev = await signEvent(tpl, sk);
+    sk.fill(0);   // the key's only job is done; nothing keeps it
+    say('muted', `publishing to ${relay}…`);
+    const sent = await publishEvent(ev, opts);
+    if (!sent.ok && sent.answered) throw new Error(`the relay refused it${sent.message ? ': ' + sent.message : ''}`);
+    say('muted', `asking ${relay} for it by its first ${CAIRN_MIN_BYTES} bytes…`);
+    const back = await lookup([ev.id.slice(0, 2 * CAIRN_MIN_BYTES)], opts), found = back.events.some(e => e.id === ev.id);
+    // no OK (timeout, dropped connection): the relay may still have stored it, and only finding it tells
+    if (!sent.ok && !found) throw new Error(`${sent.message}, and the relay does not have it, so nothing was published`);
+    published = ev;
+    say('muted', '');
+    $('cairnText').value = ''; cairnPick = '';
+    cairnBusy = false; renderCairnInfo();   // before showPublished scrolls, so nothing above the card moves
+    showPublished(ev, url, found, relay);
+  } catch (e) {
+    say('warn', published ? `published (event id ${published.id.slice(0, 12)}…), but the page failed to show it: ${e.message || e}`
+      : `not published: ${e.message || e}`);
+  } finally {
+    if (sk) sk.fill(0);
+    cairnBusy = false; renderCairnInfo();
+  }
+}
+
+// the card for what was just published, and its glyphs in "Bytes to glyphs" (at least 6 bytes: the
+// minimum for a cairn, and the recommended prefix length for any event id)
+function showPublished(ev, url, found, relay) {
+  const prefix = ev.id.slice(0, 2 * CAIRN_MIN_BYTES), what = url ? 'cairn' : 'note', chars = Array.from(ev.content), n = 280;
+  $('cairnResult').innerHTML = `<div class="ev">
+    <div class="${found ? 'ok' : 'warn'}" style="font-size:14px">${found
+      ? `${what} published to ${esc(relay)}, and found again by its first ${CAIRN_MIN_BYTES} bytes`
+      : `${what} published to ${esc(relay)}, but it did not come back for its first ${CAIRN_MIN_BYTES} bytes yet; look it up again in a minute`}</div>
+    <div class="body dest">${url ? `Opens <b>${esc(hostOf(url))}</b> <code>${esc(url)}</code>`
+      : `<span class="kind">kind 1 note</span>${esc(chars.slice(0, n).join(''))}${chars.length > n ? '…' : ''}`}</div>
+    <div class="sub">event id <code>${esc(prefix)}</code>${esc(ev.id.slice(2 * CAIRN_MIN_BYTES, 24))}… · the glyphs to draw are below</div>
+    <div class="row" style="margin-bottom:0"><button id="cairnCopyId">copy event id</button><button id="cairnCopyNevent">copy nevent</button></div>
+  </div>`;
+  $('cairnCopyId').addEventListener('click', () => copyText(ev.id));
+  $('cairnCopyNevent').addEventListener('click', () => copyText(nevent(ev.id, { relays: [relay], author: ev.pubkey, kind: ev.kind })));
+  $('hex').value = ev.id;
+  if (nBytes() && nBytes() < CAIRN_MIN_BYTES) { const r = document.querySelector(`input[name=nbytes][value="${CAIRN_MIN_BYTES}"]`); if (r) r.checked = true; }
+  renderEncode();
+  $('cairnResult').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 // ---------------------------------------------------------------- relay capability probe
 let probeTimer, probeSeq = 0;
