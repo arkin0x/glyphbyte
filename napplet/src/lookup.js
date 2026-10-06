@@ -1,5 +1,8 @@
-// Turn candidate prefixes into relay queries. Inside a NIP-5D shell the page has no network
-// and must use window.napplet.relay; as a standalone file it opens a WebSocket itself.
+// Turn candidate prefixes into relay queries, and publish events. Inside a NIP-5D shell the page
+// has no network and must use window.napplet.relay; as a standalone file it opens a WebSocket itself.
+
+// a grain relay: it answers id and pubkey prefixes, and the reader publishes cairns to it
+export const DEFAULT_RELAY = 'wss://wheat.oslim.dev';
 
 export function buildFilters(prefixes, kinds0Only = true) {
   const ps = Array.from(new Set(prefixes.map(p => p.toLowerCase()).filter(p => /^[0-9a-f]{2,64}$/.test(p))));
@@ -52,12 +55,35 @@ async function viaNapplet(relayApi, url, filters, timeoutMs) {
   } catch (e) { return { events: [], notices: [], error: String(e), via: 'napplet' }; }
 }
 
-export async function lookup(prefixes, { relay = 'wss://wheat.oslim.dev', timeoutMs = 8000, nappletRelay = null } = {}) {
+export async function lookup(prefixes, { relay = DEFAULT_RELAY, timeoutMs = 8000, nappletRelay = null } = {}) {
   const filters = buildFilters(prefixes);
   if (!filters.length) return { events: [], notices: [], error: 'no prefixes', via: 'none' };
   if (nappletRelay) return viaNapplet(nappletRelay, relay, filters, timeoutMs);
   if (typeof WebSocket === 'undefined') return { events: [], notices: [], error: 'no WebSocket here', via: 'none' };
   return viaWebSocket(relay, filters, timeoutMs);
+}
+
+// Send one signed event and wait for the relay's answer (NIP-01 "OK"). Resolves {ok, answered,
+// message, via}; never rejects. answered is false when no OK came back (timeout, dropped connection):
+// the relay may or may not have stored the event, so look it up before publishing anything again.
+// Inside a nostr shell (NIP-5D) the page has no network of its own, and no shell API to publish a
+// pre-signed event is settled yet, so this refuses rather than guess.
+export async function publishEvent(ev, { relay = DEFAULT_RELAY, timeoutMs = 8000, nappletRelay = null } = {}) {
+  if (nappletRelay) return { ok: false, answered: false, message: 'publishing from inside a nostr shell is not supported', via: 'napplet' };
+  if (typeof WebSocket === 'undefined') return { ok: false, answered: false, message: 'no WebSocket here', via: 'none' };
+  return new Promise(resolve => {
+    let ws, done = false;
+    const finish = (ok, answered, message) => { if (done) return; done = true; clearTimeout(timer); try { ws && ws.close(); } catch (e) { /* ignore */ } resolve({ ok, answered, message, via: 'websocket' }); };
+    const timer = setTimeout(() => finish(false, false, 'the relay did not answer in time'), timeoutMs);
+    try { ws = new WebSocket(relay); } catch (e) { return finish(false, false, String(e)); }
+    ws.onopen = () => ws.send(JSON.stringify(['EVENT', ev]));
+    ws.onmessage = m => {
+      let msg; try { msg = JSON.parse(m.data); } catch (e) { return; }
+      if (msg[0] === 'OK' && msg[1] === ev.id) finish(msg[2] === true, true, String(msg[3] || ''));
+    };
+    ws.onerror = () => finish(false, false, 'connection failed');
+    ws.onclose = () => finish(false, false, 'the relay closed the connection without answering');
+  });
 }
 
 // which candidate prefix an event answers to, and how
@@ -68,7 +94,7 @@ export function matchPrefix(ev, prefixes) {
 
 
 // fetch kind 0 for full pubkeys (the authors of id-matched events)
-export async function fetchProfiles(pubkeys, { relay = 'wss://wheat.oslim.dev', timeoutMs = 6000, nappletRelay = null } = {}) {
+export async function fetchProfiles(pubkeys, { relay = DEFAULT_RELAY, timeoutMs = 6000, nappletRelay = null } = {}) {
   const pks = Array.from(new Set(pubkeys)).filter(p => /^[0-9a-f]{64}$/.test(p));
   if (!pks.length) return {};
   const filters = [{ authors: pks, kinds: [0] }];

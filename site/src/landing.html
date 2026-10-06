@@ -80,8 +80,8 @@
   <ul>
     <li><a href="/spec/">The specification</a>, with the 256 test vectors, the icon strokes and the printable sheet.</li>
     <li><a href="https://github.com/arkin0x/glyphbyte">github.com/arkin0x/glyphbyte</a>: the Python reference implementation, the JavaScript reader and this site.</li>
-    <li>JavaScript: <a href="https://www.npmjs.com/package/glyphbyte"><code>glyphbyte</code> on npm</a>, dependency-free. <code>npm install glyphbyte</code> gives you the reader, the row renderer and the relay lookup.</li>
+    <li>JavaScript: <a href="https://www.npmjs.com/package/glyphbyte"><code>glyphbyte</code> on npm</a>, dependency-free. <code>npm install glyphbyte</code> gives you the reader, the row renderer, the relay lookup, and cairn publishing.</li>
     <li>Python: <code>pip install git+https://github.com/arkin0x/glyphbyte</code> for now (numpy, OpenCV, onnxruntime). <code>glyphbyte decode photo.jpg</code> prints the bytes; <code>glyphbyte encode HEX --out row.png</code> renders a row to copy from.</li>
   </ul>
-  <p>The whole reader runs in the browser: the detector, the network weights and the icon shapes are inline in one page, and nothing leaves the device except the relay queries you can see on the page. The same file is also a napplet (NIP-5D) that a nostr shell can load in a sandboxed iframe.</p>
+  <p>The whole reader runs in the browser: the detector, the network weights and the icon shapes are inline in one page, and nothing leaves the device except the relay queries you can see on the page, and what you publish. The same file is also a napplet (NIP-5D) that a nostr shell can load in a sandboxed iframe.</p>
 </section>
