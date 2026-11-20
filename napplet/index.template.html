@@ -128,6 +128,7 @@
   .ev.link .k { font:500 11.5px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted) }
   .ev.link .host { font:400 28px/1.15 var(--display); letter-spacing:-.04em; margin:10px 0 4px; word-break:break-word; padding-right:40px }
   .ev.link .url { font:500 13.5px/1.5 var(--mono); color:var(--ink-2); word-break:break-all }
+  .ev.link .said { font:400 21px/1.4 var(--display); letter-spacing:-.02em; margin:10px 0 8px; white-space:pre-wrap; word-break:break-word; padding-right:40px }
   a.open { display:inline-flex; align-items:center; gap:8px; font:600 15px/1 var(--sans); padding:13px 18px; border-radius:999px; background:var(--ink); color:var(--bg); text-decoration:none; box-shadow:0 10px 26px -12px rgba(90,72,245,.75) }
   a.open:hover { color:var(--bg) }
   details.server { margin-top:16px } details.server summary { display:inline-flex; gap:8px; align-items:center; cursor:pointer; color:var(--muted); font-size:14px; list-style:none }
@@ -206,12 +207,12 @@
 
   <section id="cairnSection" class="edge" role="tabpanel" aria-labelledby="tab-make" hidden>
     <h1>Turn a link into glyphs</h1>
-    <p class="lede">Paste a link, add a few words if you like, and get six glyphs to draw. Whoever reads them sees the link and the website it goes to before anything opens.</p>
+    <p class="lede">Paste a link, or write a short note, and get six glyphs to draw. Whoever reads them sees the link and the website it goes to before anything opens, or simply reads your note.</p>
     <textarea id="cairnText" rows="3" maxlength="2000" placeholder="https://example.com/menu  lunch menu for table 4" spellcheck="true" autocapitalize="off" aria-label="link"></textarea>
     <div id="cairnInfo"></div>
     <div class="row"><button id="cairnBtn" class="primary" disabled>Make glyphs</button><span id="cairnStatus" class="muted"></span></div>
     <div id="cairnResult"></div>
-    <p class="note">{{icon:circle-alert}}<span>The link is saved as a small public record that nobody can edit or delete afterwards, not even you. Check it before you make glyphs. <span id="cairnRelay" hidden></span></span></p>
+    <p class="note">{{icon:circle-alert}}<span>What you write is saved as a small public record that nobody can edit or delete afterwards, not even you. Check it before you make glyphs. <span id="cairnRelay" hidden></span></span></p>
   </section>
 
   <section id="relaySection">
@@ -223,7 +224,7 @@
     </details>
   </section>
 </main>
-<footer class="foot"><span>Photos never leave this phone. Only the lookup, and links you make, do.</span><a href="/">glyphbyte.dev</a><a href="/spec/">Specification</a><span>Build /*__BUILD__*/</span></footer>
+<footer class="foot"><span>Photos never leave this phone. Lookups ask the relay for your search. New content you publish via glyphbyte is public and stored permanently on the relay.</span><a href="/">glyphbyte.dev</a><a href="/spec/">Specification</a><span>Build /*__BUILD__*/</span></footer>
 <div id="modal" hidden><div class="box"><div class="row" style="justify-content:space-between;margin:0"><b id="modalTitle"></b><button id="modalClose">close</button></div><pre id="modalBody"></pre></div></div>
 <script>
 /*__SIGNER__*/

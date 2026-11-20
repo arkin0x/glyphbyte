@@ -178,8 +178,19 @@ function linkCard(ev, i, candidates, url) {
     <div class="row" style="margin-bottom:0"><a class="open" href="${esc(url)}" target="_blank" rel="noopener noreferrer nofollow">Open ${esc(hostOf(url))}</a>${m ? `<span class="muted">matches <code>${m.prefix}</code></span>` : ''}</div>
   </div>`;
 }
+// a text cairn shows its text, as plain text: it has no destination
+function textCard(ev, i, candidates, text) {
+  const m = matchPrefix(ev, candidates);
+  return `<div class="ev link" data-i="${i}">
+    <button class="dots" data-menu="${i}" aria-label="more"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+    <div class="k">This row says</div>
+    <div class="said">${esc(text.slice(0, 2000))}</div>
+    <div class="row" style="margin-bottom:0"><button data-copytext="${i}">Copy the text</button>${m ? `<span class="muted">matches <code>${m.prefix}</code></span>` : ''}</div>
+  </div>`;
+}
+document.addEventListener('click', e => { const b = e.target.closest('button[data-copytext]'); if (b) copyText(window.__events[+b.dataset.copytext].content || ''); });
 function eventCard(ev, i, candidates) {
-  if (ev.kind === CAIRN_KIND) { const v = validateCairn(ev); if (v.ok) return linkCard(ev, i, candidates, v.url); }
+  if (ev.kind === CAIRN_KIND) { const v = validateCairn(ev); if (v.ok) return v.url ? linkCard(ev, i, candidates, v.url) : textCard(ev, i, candidates, v.text); }
   const pr = profileOf(ev.pubkey), m = matchPrefix(ev, candidates), when = new Date(ev.created_at * 1000).toLocaleString();
   const name = pr.display_name || pr.name || ev.pubkey.slice(0, 12) + '…';
   const pic = pr.picture ? `<img src="${esc(String(pr.picture))}" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : `<div style="width:44px;height:44px;border-radius:50%;background:var(--card);flex:none"></div>`;
@@ -220,9 +231,9 @@ function showModal(title, body) { $('modalTitle').textContent = title; $('modalB
 $('modalClose').addEventListener('click', () => { $('modal').hidden = true; });
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').hidden = true; });
 
-// ---------------------------------------------------------------- publish a link or a note
-// Text with a link becomes a kind 1738 cairn (spec/CAIRN.md); text without one becomes an ordinary
-// kind 1 note. Either way it is signed with a key made for it and forgotten right after, published
+// ---------------------------------------------------------------- make glyphs: publish a cairn
+// What a person types becomes a kind 1738 cairn (spec/CAIRN.md): with a link, a link cairn that opens
+// it; without one, a text cairn that carries the text itself. Either way it is signed with a key made for it and forgotten right after, published
 // to DEFAULT_RELAY, looked up again by its first 6 bytes, and drawn in "Bytes to glyphs".
 // The signer is a separate script (BigInt): a browser that cannot run it still gets the reader.
 $('cairnRelay').textContent = DEFAULT_RELAY;
@@ -236,13 +247,13 @@ function renderCairnInfo() {
   const text = $('cairnText').value, { urls, content, blank } = parseCairnText(text), url = cairnUrl(urls), info = $('cairnInfo');
   if (cannotPublish) info.innerHTML = `<p class="warn">${esc(cannotPublish)}</p>`;
   else if (blank) info.innerHTML = '';
-  else if (!urls.length) info.innerHTML = `<p class="muted">There is no link here yet. Add one that starts with https:// to make glyphs for it. Without a link this is saved as a short public note instead.</p>`;
+  else if (!urls.length) info.innerHTML = `<p class="muted">No link, so the glyphs will lead to this text itself. Add a link that starts with https:// to make glyphs that open it.</p>`;
   else if (urls.length === 1) info.innerHTML = `<p class="dest">Opens <b>${esc(hostOf(url))}</b> <code>${esc(url)}</code></p>`;
   else info.innerHTML = `<p class="muted" style="margin-bottom:2px">Which link should the glyphs open?</p>` + urls.map(u =>
     `<label class="pick"><input type="radio" name="cairnUrl" value="${esc(u)}"${u === url ? ' checked' : ''}><span><b>${esc(hostOf(u))}</b> <code>${esc(u)}</code></span></label>`).join('');
   if (!cannotPublish && !blank && content !== text.trim()) info.innerHTML += `<p class="muted dest">Saved as <code>${esc(content)}</code>, tidied so that every link stands on its own.</p>`;
   for (const r of info.querySelectorAll('input[name=cairnUrl]')) r.addEventListener('change', () => { cairnPick = r.value; });
-  $('cairnBtn').textContent = urls.length ? 'Make glyphs' : 'Save note';
+  $('cairnBtn').textContent = 'Make glyphs';
   $('cairnBtn').disabled = !!cannotPublish || cairnBusy || blank;
   $('cairnText').readOnly = !!cannotPublish || cairnBusy;   // what is being published cannot change under it
 }
@@ -253,14 +264,13 @@ renderCairnInfo();
 async function publishText() {
   const { urls, content, blank } = parseCairnText($('cairnText').value), url = cairnUrl(urls);
   if (cannotPublish || blank || cairnBusy) return;
-  const st = $('cairnStatus'), relay = url ? DEFAULT_RELAY : NOTE_RELAY, say = (cls, msg) => { st.className = cls; st.textContent = msg; };
+  const st = $('cairnStatus'), relay = DEFAULT_RELAY, say = (cls, msg) => { st.className = cls; st.textContent = msg; };
   const opts = { relay, nappletRelay: nappletRelay() };
   cairnBusy = true; renderCairnInfo(); $('cairnResult').innerHTML = '';
   let sk = null, published = null;
   try {
-    const tpl = url ? cairnTemplate(url, content) : { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [], content };
-    const check = url ? validateCairn(tpl) : { ok: true };
-    if (!check.ok) throw new Error(check.errors.join('; '));
+    const tpl = cairnTemplate(url, content), check = validateCairn(tpl);
+    if (!check.ok) throw new Error(url || !contentUrls(content).length ? check.errors.join('; ') : 'the text has something that looks like an unfinished link; finish it or remove it');
     say('muted', 'Making…');
     sk = generateSecretKey();
     const ev = await signEvent(tpl, sk);
@@ -289,13 +299,13 @@ async function publishText() {
 // the card for what was just published, and its glyphs in "Bytes to glyphs" (at least 6 bytes: the
 // minimum for a cairn, and the recommended prefix length for any event id)
 function showPublished(ev, url, found, relay) {
-  const prefix = ev.id.slice(0, 2 * CAIRN_MIN_BYTES), what = url ? 'cairn' : 'note', chars = Array.from(ev.content), n = 280;
+  const prefix = ev.id.slice(0, 2 * CAIRN_MIN_BYTES), chars = Array.from(ev.content), n = 280;
   $('cairnResult').innerHTML = `<div class="ev">
     <div class="${found ? 'ok' : 'warn'}" style="font-size:14px">${found
-      ? `Done. Draw these ${CAIRN_MIN_BYTES} glyphs and anyone can read them${url ? ' to open the link' : ''}.`
+      ? `Done. Draw these ${CAIRN_MIN_BYTES} glyphs and anyone can read them${url ? ' to open the link' : ' to see the text'}.`
       : `Saved, but the lookup cannot find it yet. Try reading the glyphs again in a minute.`}</div>
     <div class="body dest">${url ? `Opens <b>${esc(hostOf(url))}</b> <code>${esc(url)}</code>`
-      : `<span class="kind">note</span>${esc(chars.slice(0, n).join(''))}${chars.length > n ? '…' : ''}`}</div>
+      : `Leads to the text <b>${esc(chars.slice(0, n).join(''))}${chars.length > n ? '…' : ''}</b>`}</div>
     <canvas id="cairnRow" class="render glyphs"></canvas>
     <div class="sub">id <code>${esc(prefix)}</code>${esc(ev.id.slice(2 * CAIRN_MIN_BYTES, 24))}…</div>
     <div class="row" style="margin-bottom:0"><button id="cairnDraw">Bigger, with a description</button><button id="cairnCopyId">Copy id</button><button id="cairnCopyNevent">Copy nevent</button></div>

@@ -57,7 +57,7 @@ def build(weights_path, manifest_path, out_path, weights_v1=None, manifest_v1=No
     # a core-only script for headless tests (no DOM)
     with open(os.path.join(os.path.dirname(out_path), "glyphbyte-core.js"), "w") as f:
         f.write(signer + "\n" + core + "\nconst SHAPES = " + json.dumps(shapes) + ";\nconst SHAPES_V1 = " + json.dumps(shapes_v1) +
-                ";\nglobalThis.GlyphByte = { toGray, readImage, detect, describe, unpack, SYMBOLS, SYMBOLS_V1, turnedV1, loadWeights, classify, modelFormat, SHAPES, SHAPES_V1, lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay, publishEvent, DEFAULT_RELAY, NOTE_RELAY, LOOKUP_RELAYS, npub, note, nevent, naddr, decodeEntity, generateSecretKey, schnorrPublicKey, schnorrSign, schnorrVerify, eventId, signEvent, verifyEvent, CAIRN_KIND, CAIRN_MIN_BYTES, contentUrls, validateCairn, parseCairnText, cairnTemplate };\n")
+                ";\nglobalThis.GlyphByte = { toGray, readImage, detect, describe, unpack, SYMBOLS, SYMBOLS_V1, turnedV1, loadWeights, classify, modelFormat, SHAPES, SHAPES_V1, lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay, publishEvent, DEFAULT_RELAY, LOOKUP_RELAYS, npub, note, nevent, naddr, decodeEntity, generateSecretKey, schnorrPublicKey, schnorrSign, schnorrVerify, eventId, signEvent, verifyEvent, CAIRN_KIND, CAIRN_MIN_BYTES, contentUrls, validateCairn, parseCairnText, cairnTemplate };\n")
     print(f"wrote {out_path} ({os.path.getsize(out_path) / 1e6:.2f} MB)")
 
 

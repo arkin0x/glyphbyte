@@ -2,11 +2,10 @@
 // has no network and must use window.napplet.relay; as a standalone file it opens a WebSocket itself.
 
 // grain relays: they answer id and pubkey prefixes. DEFAULT_RELAY takes the cairns the reader publishes;
-// LOOKUP_RELAYS are all asked when a row is read, so rows drawn while wheat.oslim.dev was the default keep
-// resolving. relay.onosendai.tech never stores kind 1, so link-less notes go to NOTE_RELAY.
+// LOOKUP_RELAYS are all asked when a row is read, so rows drawn while wss://wheat.oslim.dev was the
+// default keep resolving.
 export const DEFAULT_RELAY = 'wss://relay.onosendai.tech';
-export const NOTE_RELAY = 'wss://wheat.oslim.dev';
-export const LOOKUP_RELAYS = [DEFAULT_RELAY, NOTE_RELAY];
+export const LOOKUP_RELAYS = [DEFAULT_RELAY, 'wss://wheat.oslim.dev'];
 
 export function buildFilters(prefixes, kinds0Only = true) {
   const ps = Array.from(new Set(prefixes.map(p => p.toLowerCase()).filter(p => /^[0-9a-f]{2,64}$/.test(p))));
