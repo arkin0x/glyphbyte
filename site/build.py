@@ -36,7 +36,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SRC, DIST = os.path.join(HERE, "src"), os.path.join(HERE, "dist")
 NAPPLET, SPEC = os.path.join(ROOT, "napplet"), os.path.join(ROOT, "spec")
-SITE_ORIGIN = "https://glyphbyte.dev"
+SITE_ORIGIN = "https://www.glyphbyte.dev"   # the served origin: Vercel redirects the bare domain here
 SITE_DESCRIPTION = ("Like QR codes you can memorize and draw: any page, file or link on the internet can be found with "
                     "about six hand-drawn glyphs, and any phone camera brings it back.")
 
