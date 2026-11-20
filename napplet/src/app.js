@@ -85,7 +85,7 @@ document.addEventListener('paste', e => {
 });
 async function readFile(f) {
   if (!f) return;
-  $('busy').hidden = false; $('result').innerHTML = '';
+  $('busy').hidden = false; $('result').innerHTML = ''; $('readFound').hidden = true;
   try {
     let bmp;
     try { bmp = await createImageBitmap(f, { imageOrientation: 'from-image' }); } catch (e) { bmp = await createImageBitmap(f); }
@@ -133,9 +133,16 @@ $('lookupHexBtn').addEventListener('click', () => { const h = currentPrefix(); i
 for (const r of document.querySelectorAll('input[name=nbytes]')) r.addEventListener('change', renderEncode);
 
 
+// the answer shows inside the tool that asked: under the photo box (Read) or under Look it up (Draw)
+function foundSlot() {
+  const here = !$('bytesSection').hidden ? 'drawFound' : 'readFound', other = here === 'drawFound' ? 'readFound' : 'drawFound';
+  $(here).querySelector('.slot').appendChild($('lookup'));
+  $(here).hidden = false; $(other).hidden = true;
+  return $(here);
+}
 async function runLookup(candidates) {
   lastCandidates = candidates;
-  const box = $('lookup'); box.innerHTML = `<p class="muted"><span class="spin" style="display:inline-block;vertical-align:-3px;margin-right:8px"></span>Looking it up…</p>`;
+  const found = foundSlot(), box = $('lookup'); box.innerHTML = `<p class="muted"><span class="spin" style="display:inline-block;vertical-align:-3px;margin-right:8px"></span>Looking it up…</p>`;
   const opts = { relay: relayUrl(), nappletRelay: nappletRelay() };
   // the relay in the box, plus the others glyphbyte has published to, all at once; results merged by id
   const relays = Array.from(new Set([relayUrl(), ...LOOKUP_RELAYS]));
@@ -162,7 +169,7 @@ async function runLookup(candidates) {
   if (r.events.length) h += `<p class="muted">${r.events.length} match${r.events.length === 1 ? '' : 'es'} from ${relays.length} server${relays.length === 1 ? '' : 's'}</p>`;
   box.innerHTML = h;
   window.__events = items;
-  if (items.length) $('relaySection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (items.length) found.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function profileOf(pk) { const ev = profiles[pk]; if (!ev) return {}; try { return JSON.parse(ev.content || '{}'); } catch (e) { return {}; } }
@@ -171,7 +178,7 @@ function linkCard(ev, i, candidates, url) {
   const m = matchPrefix(ev, candidates), note = String(ev.content || '').split(/\s+/).filter(t => t !== url).join(' ').trim();
   return `<div class="ev link" data-i="${i}">
     <button class="dots" data-menu="${i}" aria-label="more"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
-    <div class="k">This row opens</div>
+    <div class="k">These glyphs reveal…</div>
     <div class="host">${esc(hostOf(url))}</div>
     <div class="url">${esc(url)}</div>
     ${note ? `<div class="body">${esc(note.slice(0, 280))}</div>` : ''}
@@ -183,7 +190,7 @@ function textCard(ev, i, candidates, text) {
   const m = matchPrefix(ev, candidates);
   return `<div class="ev link" data-i="${i}">
     <button class="dots" data-menu="${i}" aria-label="more"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
-    <div class="k">This row says</div>
+    <div class="k">These glyphs reveal…</div>
     <div class="said">${esc(text.slice(0, 2000))}</div>
     <div class="row" style="margin-bottom:0"><button data-copytext="${i}">Copy the text</button>${m ? `<span class="muted">matches <code>${m.prefix}</code></span>` : ''}</div>
   </div>`;
