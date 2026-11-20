@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GlyphByte reader</title>
-<meta name="description" content="Read a row of glyphs with your phone camera, or turn a link into glyphs to draw. Like QR codes you can memorize and draw.">
+<meta name="description" content="Read glyphs with your phone camera, or turn a link into glyphs to draw. Like QR codes you can memorize and draw.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GlyphByte">
 <meta property="og:url" content="https://www.glyphbyte.dev/app/">
 <meta property="og:title" content="GlyphByte reader">
-<meta property="og:description" content="Read a row of glyphs with your phone camera, or turn a link into glyphs to draw.">
+<meta property="og:description" content="Read glyphs with your phone camera, or turn a link into glyphs to draw.">
 <meta property="og:image" content="https://www.glyphbyte.dev/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -146,7 +146,11 @@
   .ev.link .said { font:400 21px/1.4 var(--display); letter-spacing:-.02em; margin:10px 0 8px; white-space:pre-wrap; word-break:break-word; padding-right:40px }
   a.open { display:inline-flex; align-items:center; gap:8px; font:600 15px/1 var(--sans); padding:13px 18px; border-radius:999px; background:var(--ink); color:var(--bg); text-decoration:none; box-shadow:0 10px 26px -12px rgba(90,72,245,.75) }
   a.open:hover { color:var(--bg) }
-  details.server { margin-top:16px } details.server summary { display:inline-flex; gap:8px; align-items:center; cursor:pointer; color:var(--muted); font-size:14px; list-style:none }
+  .found { margin:20px 0 4px; scroll-margin-top:80px }
+  .found h2 { margin-bottom:6px }
+  #result:not(:empty) { margin-top:22px; padding-top:18px; border-top:1px solid var(--line) }
+  section.quiet { background:transparent; border:0; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; padding:4px 22px 0 }
+  details.server { margin-top:0 } details.server summary { display:inline-flex; gap:8px; align-items:center; cursor:pointer; color:var(--muted); font-size:14px; list-style:none }
   details.server summary::-webkit-details-marker { display:none } details.server[open] summary { margin-bottom:12px }
   /* matches */
   .relay { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:12px 14px; border-radius:16px; background:var(--solid); border:1px solid var(--line); margin-bottom:12px }
@@ -181,7 +185,7 @@
 </header>
 <main>
   <section id="readSection" class="edge" role="tabpanel" aria-labelledby="tab-read">
-    <h1>Read a row</h1>
+    <h1>Read glyphs</h1>
     <p class="lede">Photograph a row of glyphs. The reader works them out right on this phone and finds the link they point to.</p>
     <div class="picker">
       <button id="photoBtn" class="drop" aria-haspopup="menu" aria-expanded="false">
@@ -195,12 +199,13 @@
       </div>
     </div>
     <div id="busy" class="muted" hidden><span class="spin"></span>Reading the glyphs…</div>
+    <div class="found" id="readFound" hidden><h2>{{icon:link}}What it points to</h2><div class="slot"><div id="lookup"></div></div></div>
     <div id="result"></div>
     <canvas id="photo" class="render" hidden></canvas>
   </section>
 
   <section id="bytesSection" class="edge" role="tabpanel" aria-labelledby="tab-draw" hidden>
-    <h1>Draw a code</h1>
+    <h1>Bytes to glyphs</h1>
     <p class="lede">Turn a code into glyphs to copy, with a description of each one. Draw them left to right, underline the row and start the line with a fat dot.</p>
     <input id="hex" type="text" placeholder="a hex code, like 5e357efdbca5" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="code to draw">
     <div class="ctl">
@@ -216,6 +221,7 @@
     <canvas id="row" class="render glyphs" hidden></canvas>
     <ol id="describe" class="symbols"></ol>
     <div class="row"><button id="lookupHexBtn" class="primary">{{icon:search}}Look it up</button><button id="sheetBtn">{{icon:printer}}All 256 glyphs</button></div>
+    <div class="found" id="drawFound" hidden><h2>{{icon:link}}What it points to</h2><div class="slot"></div></div>
     <canvas id="sheet" class="render glyphs" hidden></canvas>
     <p class="note">{{icon:pen-line}}<span id="drawHint">Draw a square frame, the icon upright and small in the middle, and the corner dots so they touch nothing. Underline the row and put a fat dot at the start of the underline, about a quarter of a frame across.</span></p>
   </section>
@@ -230,9 +236,7 @@
     <p class="note">{{icon:circle-alert}}<span>What you write is saved as a small public record that nobody can edit or delete afterwards, not even you. Check it before you make glyphs. <span id="cairnRelay" hidden></span></span></p>
   </section>
 
-  <section id="relaySection">
-    <h2>{{icon:link}}What it points to</h2>
-    <div id="lookup"><p class="muted">Read a row and the link it points to shows up here.</p></div>
+  <section id="relaySection" class="quiet">
     <details class="server"><summary>{{icon:settings-2}}Lookup server</summary>
       <div class="relay"><input id="relay" type="text" value="wss://relay.onosendai.tech" spellcheck="false" autocapitalize="off" aria-label="lookup server"><span id="relayStatus" class="muted"></span></div>
       <p class="muted">GlyphByte keeps links on nostr relays. Every likely reading of a row is asked for at once, from this server and from wss://wheat.oslim.dev, as an event id prefix and as a pubkey prefix. The server must answer prefix queries (grain does).</p>

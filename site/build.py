@@ -81,7 +81,7 @@ def glyphs():
     return {k: g[k] for k in ("icon_scale", "dot_offset", "dot_radius", "icons")}
 
 
-def mark_svg(size=None, page=False, square=False, favicon=False):
+def mark_svg(size=None, page=False, square=False, favicon=False, dark=False):
     """The glyphbyte mark: byte 0x0f, the house with all four corner dots, in a frame of split light.
     favicon: the logo as it is in the top bar (no tile, cropped close), with strokes a little heavier for
     16 px, and a house that turns light on a dark tab bar."""
@@ -89,12 +89,13 @@ def mark_svg(size=None, page=False, square=False, favicon=False):
     house = next(i for i in g["icons"] if i["name"] == "house")
     k = 40 * g["icon_scale"]
     pts = lambda st: " ".join(f"{32 + x * k:.1f},{32 + y * k:.1f}" for x, y in st["points"] + (st["points"][:1] if st["closed"] else []))
-    ink = "#0d0f1c" if (page or favicon) else "currentColor"
+    ink = "#eef0ff" if dark else "#0d0f1c" if (page or favicon) else "currentColor"
     sw = 4.6 if favicon else 3.6
     roof = "".join(f'<polyline class="ink" points="{pts(st)}" fill="none" stroke="{ink}" stroke-width="{sw}" stroke-linejoin="round" stroke-linecap="round"/>' for st in house["strokes"])
     dots = "".join(f'<circle cx="{32 + dx * g["dot_offset"] * 40:.1f}" cy="{32 + dy * g["dot_offset"] * 40:.1f}" r="{g["dot_radius"] * 40 * (1.25 if favicon else 1.1):.1f}" fill="url(#gbp)"/>'
                    for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1)))
-    bg = ('<rect width="64" height="64" fill="#f5f6fb"/>' if square else '<rect width="64" height="64" rx="16" fill="#f5f6fb"/>') if page and not favicon else ""
+    tile = "#06070d" if dark else "#f5f6fb"
+    bg = (f'<rect width="64" height="64" fill="{tile}"/>' if square else '<rect width="64" height="64" rx="16" fill="#f5f6fb"/>') if page and not favicon else ""
     dark = '<style>@media (prefers-color-scheme: dark) { .ink { stroke:#eef0ff } }</style>' if favicon else ""
     dim = f' width="{size}" height="{size}"' if size else ""
     # on the page the mark is cropped close, so it reads big; an app icon (square) keeps a margin for the OS mask
@@ -189,7 +190,7 @@ def build():
         copy(os.path.join(og_dir, name), os.path.join(DIST, name))
     write(os.path.join(DIST, "site.webmanifest"), json.dumps({
         "name": "GlyphByte", "short_name": "GlyphByte", "description": SITE_DESCRIPTION, "start_url": "/app/", "scope": "/",
-        "display": "standalone", "background_color": "#f5f6fb", "theme_color": "#f5f6fb",
+        "display": "standalone", "background_color": "#06070d", "theme_color": "#06070d",
         "icons": [{"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
                   {"src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml"}]}, indent=1) + "\n")
     # the page the banner is rendered from, and the square icon the app icons are rendered from
@@ -198,7 +199,7 @@ def build():
                        "GLYPHS": json.dumps(glyphs(), separators=(",", ":"))}.items():
         card = card.replace("{{" + key + "}}", value)
     write(os.path.join(DIST, "og-card", "index.html"), card)
-    write(os.path.join(DIST, "og-card", "icon.svg"), mark_svg(page=True, square=True) + "\n")
+    write(os.path.join(DIST, "og-card", "icon.svg"), mark_svg(page=True, square=True, dark=True) + "\n")   # social and app icons are dark
     copy(os.path.join(SRC, "htaccess"), os.path.join(DIST, ".htaccess"))
 
     fingerprint(DIST)

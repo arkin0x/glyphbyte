@@ -119,11 +119,14 @@
       window.__gbBytes = bytes;
       document.dispatchEvent(new CustomEvent('gb:bytes', { detail: { bytes } }));
     };
-    // the link waits in the reader's Make tab; nothing is saved until the person presses Make glyphs there
+    // "Make my glyphs" makes them: the text goes to the reader through this tab's sessionStorage, and the
+    // reader publishes it on arrival. Only this form can do that; a shared ?link= address only fills the box.
     $('#heroForm').addEventListener('submit', e => {
       e.preventDefault();
       const v = $('#heroLink').value.trim();
-      location.href = '/app/' + (v ? '?link=' + encodeURIComponent(v) : '') + '#make';
+      let handed = false;
+      if (v) try { sessionStorage.setItem('gb-make', JSON.stringify({ text: v.slice(0, 2000), at: Date.now() })); handed = true; } catch (err) { /* storage off */ }
+      location.href = '/app/' + (v && !handed ? '?link=' + encodeURIComponent(v) : '') + '#make';
     });
     render(false);
     if (!reduced && 'IntersectionObserver' in window) {
