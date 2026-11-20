@@ -110,16 +110,60 @@ export async function fetchProfiles(pubkeys, { relay = DEFAULT_RELAY, timeoutMs 
 
 // does this relay honor partial ids and partial authors? Fetch one real event, then ask for it
 // by an 8-character prefix of its id and of its pubkey.
+// One WebSocket for several REQs in a row: each resolves on its EOSE (or CLOSED) with the events and
+// notices that arrived for it. The probe uses it so that testing a relay costs one connection, not
+// three: relays limit new connections per IP (relay.onosendai.tech: 30 a minute), and a refused
+// connection must never read as "this relay ignores prefixes".
+function wsSession(url, timeoutMs) {
+  let ws, opened, failed = null, n = 0, cur = null;
+  const ready = new Promise(res => {
+    try { ws = new WebSocket(url); } catch (e) { failed = String(e); return res(); }
+    const t = setTimeout(() => { failed = failed || 'timeout'; res(); }, timeoutMs);
+    ws.onopen = () => { clearTimeout(t); opened = true; res(); };
+    ws.onerror = () => { clearTimeout(t); failed = failed || 'could not connect; try again in a minute'; res(); if (cur) cur.finish(failed); };
+    ws.onclose = () => { if (cur) cur.finish(failed || 'connection closed'); };
+    ws.onmessage = m => {
+      let msg; try { msg = JSON.parse(m.data); } catch (e) { return; }
+      if (!cur) return;
+      if (msg[0] === 'EVENT' && msg[1] === cur.id && msg[2]) cur.events.push(msg[2]);
+      else if (msg[0] === 'NOTICE') cur.notices.push(String(msg[1]));
+      else if (msg[0] === 'EOSE' && msg[1] === cur.id) { try { ws.send(JSON.stringify(['CLOSE', cur.id])); } catch (e) { /* closing anyway */ } cur.finish(); }
+      else if (msg[0] === 'CLOSED' && msg[1] === cur.id) { cur.notices.push('CLOSED: ' + msg[2]); cur.finish(); }
+    };
+  });
+  return {
+    async req(filters) {
+      await ready;
+      if (!opened || failed) return { events: [], notices: [], error: failed || 'connection failed' };
+      return new Promise(resolve => {
+        const id = 'gbprobe' + (++n), t = setTimeout(() => c.finish('timeout'), timeoutMs);
+        const c = cur = { id, events: [], notices: [], finish(error) { if (cur !== c) return; cur = null; clearTimeout(t); resolve({ events: c.events, notices: c.notices, error }); } };
+        try { ws.send(JSON.stringify(['REQ', id, ...filters])); } catch (e) { c.finish(String(e)); }
+      });
+    },
+    close() { try { ws && ws.close(); } catch (e) { /* gone */ } },
+  };
+}
+
+// Does the relay answer id and pubkey prefixes? Fetch one event, then ask for it again by an 8-character id
+// prefix and by an 8-character author prefix. A query that fails (no connection, timeout) means "could not
+// test", never "ignored": only an answered query that leaves the event out says the relay ignores prefixes.
 export async function probeRelay(url, { timeoutMs = 6000, nappletRelay = null } = {}) {
-  const q = f => nappletRelay ? viaNapplet(nappletRelay, url, f, timeoutMs) : viaWebSocket(url, f, timeoutMs);
-  const a = await q([{ kinds: [0, 1], limit: 1 }]);
-  if (a.error && !a.events.length) return { ok: false, ids: 'unknown', authors: 'unknown', detail: a.error };
-  if (!a.events.length) return { ok: false, ids: 'unknown', authors: 'unknown', detail: 'relay returned no events to test with' };
-  const ev = a.events[0];
-  const verdict = r => (r.notices.some(n => /CLOSED|error|invalid|too small|bad req/i.test(n)) ? 'rejected' : r.events.some(e => e.id === ev.id) ? 'yes' : 'ignored');
-  const byId = await q([{ ids: [ev.id.slice(0, 8)] }]);
-  const byAuthor = await q([{ authors: [ev.pubkey.slice(0, 8)], kinds: [ev.kind], limit: 5 }]);
-  const ids = verdict(byId), authors = byAuthor.notices.some(n => /CLOSED|error|invalid|too small|bad req/i.test(n)) ? 'rejected' : byAuthor.events.some(e => e.pubkey === ev.pubkey) ? 'yes' : 'ignored';
-  const detail = [...byId.notices, ...byAuthor.notices].filter(Boolean)[0] || '';
-  return { ok: ids === 'yes' && authors === 'yes', ids, authors, detail };
+  const session = nappletRelay ? null : wsSession(url, timeoutMs);
+  const q = f => nappletRelay ? viaNapplet(nappletRelay, url, f, timeoutMs) : session.req(f);
+  try {
+    const a = await q([{ kinds: [0, 1], limit: 1 }]);
+    if (a.error && !a.events.length) return { ok: false, ids: 'unknown', authors: 'unknown', detail: a.error };
+    if (!a.events.length) return { ok: false, ids: 'unknown', authors: 'unknown', detail: 'relay returned no events to test with' };
+    const ev = a.events[0];
+    const refused = r => r.notices.some(n => /CLOSED|error|invalid|too small|bad req/i.test(n));
+    const byId = await q([{ ids: [ev.id.slice(0, 8)] }]);
+    const byAuthor = await q([{ authors: [ev.pubkey.slice(0, 8)], kinds: [ev.kind], limit: 5 }]);
+    const failed = [byId, byAuthor].find(r => r.error && !r.events.length);
+    if (failed) return { ok: false, ids: 'unknown', authors: 'unknown', detail: failed.error };
+    const ids = refused(byId) ? 'rejected' : byId.events.some(e => e.id === ev.id) ? 'yes' : 'ignored';
+    const authors = refused(byAuthor) ? 'rejected' : byAuthor.events.some(e => e.pubkey === ev.pubkey) ? 'yes' : 'ignored';
+    const detail = [...byId.notices, ...byAuthor.notices].filter(n => !/matched as prefixes/.test(n))[0] || '';
+    return { ok: ids === 'yes' && authors === 'yes', ids, authors, detail };
+  } finally { if (session) session.close(); }
 }

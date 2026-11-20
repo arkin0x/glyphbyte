@@ -320,8 +320,8 @@ async function probe() {
   if (seq !== probeSeq) return;
   if (r.ok) { st.className = 'ok'; st.textContent = 'ready'; }
   else if (r.ids === 'rejected' || r.authors === 'rejected') { st.className = 'bad'; st.textContent = `this relay rejects partial queries${r.detail ? ': ' + r.detail.replace(/^CLOSED: /, '') : ''}`; }
-  else if (r.ids === 'ignored' || r.authors === 'ignored') { st.className = 'bad'; st.textContent = 'this relay ignores partial queries (exact matches only); try wss://wheat.oslim.dev'; }
-  else { st.className = 'warn'; st.textContent = `could not test: ${r.detail}`; }
+  else if (r.ids === 'ignored' || r.authors === 'ignored') { st.className = 'bad'; st.textContent = 'this server answered, but not to short ids (exact matches only), so rows cannot be looked up on it'; }
+  else { st.className = 'warn'; st.textContent = `could not check this server: ${r.detail}`; }
 }
 $('relay').addEventListener('input', () => { clearTimeout(probeTimer); probeTimer = setTimeout(probe, 700); });
 probe();
