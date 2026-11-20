@@ -58,6 +58,8 @@
   main { max-width:780px; margin:0 auto; padding:22px 16px 10px }
   section { background:var(--surface); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); border:1px solid var(--line); border-radius:22px; box-shadow:inset 0 1px 0 var(--rim), var(--shadow); padding:22px; margin:0 0 18px; position:relative }
   section[hidden] { display:none }
+  /* each frosted panel is its own layer (backdrop-filter); the tools sit above the matches so the photo menu and the result menus are never covered */
+  #readSection, #bytesSection, #cairnSection { z-index:2 } #relaySection { z-index:1 }
   h1 { font:300 clamp(30px, 6vw, 40px)/1.05 var(--display); letter-spacing:-.045em; margin:0 0 8px }
   h2 { font:400 21px/1.2 var(--display); letter-spacing:-.03em; margin:0 0 12px; display:flex; align-items:center; gap:10px }
   .lede { color:var(--ink-2); margin:0 0 18px; max-width:56ch }
