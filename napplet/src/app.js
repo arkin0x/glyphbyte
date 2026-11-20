@@ -18,8 +18,16 @@ function showTab(name, scroll = true) {
 for (const k of Object.keys(TABS)) $('tab-' + k).addEventListener('click', () => showTab(k));
 addEventListener('hashchange', () => showTab(location.hash.slice(1), false));
 showTab(location.hash.slice(1), false);
-// glyphbyte.dev links here with ?link=...: the link waits in Make, never published until the person says so
-try { const l = new URLSearchParams(location.search).get('link'); if (l) { $('cairnText').value = l.slice(0, 2000); showTab('make', false); } } catch (e) { /* no query in a shell */ }
+// Two ways in from glyphbyte.dev. The homepage's "Make my glyphs" puts the text in this tab's sessionStorage
+// (gb-make) and the reader publishes it as soon as it loads: the person asked for it on the page before. A
+// ?link=... address only fills the box and waits for a press, so a shared link can never publish for anyone.
+let autoMake = false;
+try {
+  const h = JSON.parse(sessionStorage.getItem('gb-make') || 'null');
+  sessionStorage.removeItem('gb-make');
+  if (h && h.text && Date.now() - h.at < 60000) { $('cairnText').value = String(h.text).slice(0, 2000); autoMake = true; showTab('make', false); }
+} catch (e) { /* no storage in a nostr shell */ }
+try { const l = new URLSearchParams(location.search).get('link'); if (l && !autoMake) { $('cairnText').value = l.slice(0, 2000); showTab('make', false); } } catch (e) { /* no query in a shell */ }
 
 // what the box holds: raw hex, or a NIP-19 entity (npub, note, nevent, nprofile, naddr), optionally nostr:-prefixed
 function parseEntry(raw) {
@@ -267,6 +275,7 @@ function renderCairnInfo() {
 $('cairnText').addEventListener('input', renderCairnInfo);
 $('cairnBtn').addEventListener('click', publishText);
 renderCairnInfo();
+if (autoMake && !$('cairnBtn').disabled) setTimeout(publishText, 0);   // after the rest of the page has wired up
 
 async function publishText() {
   const { urls, content, blank } = parseCairnText($('cairnText').value), url = cairnUrl(urls);
