@@ -126,8 +126,8 @@ code, kbd, pre, .mono { font-family:var(--mono); font-size:.88em }
 .crystal-host { position:relative; height:clamp(320px, 84vw, 600px); margin:0 -24px;
   -webkit-mask:radial-gradient(closest-side, #000 72%, transparent); mask:radial-gradient(closest-side, #000 72%, transparent) }
 @media (max-width:520px) { .crystal-host { margin:0 -16px } }
-/* tablet: the text and one big spinning glyph side by side (crystals.js, data-tablet="cycle") */
-@media (min-width:720px) and (max-width:999px) { .hero-grid { grid-template-columns:minmax(0, 7fr) minmax(0, 5fr) } .crystal-host { height:auto; min-height:420px; align-self:stretch; margin:0 -24px 0 -12px } }
+/* tablet and large phones: the text and one big spinning glyph side by side (crystals.js, data-tablet="cycle") */
+@media (min-width:660px) and (max-width:999px) { .hero-grid { grid-template-columns:minmax(0, 7fr) minmax(0, 5fr) } .crystal-host { height:auto; min-height:420px; align-self:stretch; margin:0 -24px 0 -12px } }
 @media (min-width:1000px) { .crystal-host { margin:0 -60px 0 -20px; height:620px } }
 .crystal-host canvas { position:absolute; inset:0; width:100%; height:100%; display:block; opacity:0; transition:opacity 1.2s }
 .crystal-host.has-3d canvas { opacity:1 }

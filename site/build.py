@@ -81,23 +81,27 @@ def glyphs():
     return {k: g[k] for k in ("icon_scale", "dot_offset", "dot_radius", "icons")}
 
 
-def mark_svg(size=None, page=False, square=False):
-    """The glyphbyte mark: byte 0x0f, the house with all four corner dots, in a frame of split light."""
+def mark_svg(size=None, page=False, square=False, favicon=False):
+    """The glyphbyte mark: byte 0x0f, the house with all four corner dots, in a frame of split light.
+    favicon: the logo as it is in the top bar (no tile, cropped close), with strokes a little heavier for
+    16 px, and a house that turns light on a dark tab bar."""
     g = glyphs()
     house = next(i for i in g["icons"] if i["name"] == "house")
     k = 40 * g["icon_scale"]
     pts = lambda st: " ".join(f"{32 + x * k:.1f},{32 + y * k:.1f}" for x, y in st["points"] + (st["points"][:1] if st["closed"] else []))
-    ink = "#0d0f1c" if page else "currentColor"
-    roof = "".join(f'<polyline points="{pts(st)}" fill="none" stroke="{ink}" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"/>' for st in house["strokes"])
-    dots = "".join(f'<circle cx="{32 + dx * g["dot_offset"] * 40:.1f}" cy="{32 + dy * g["dot_offset"] * 40:.1f}" r="{g["dot_radius"] * 40 * 1.1:.1f}" fill="url(#gbp)"/>'
+    ink = "#0d0f1c" if (page or favicon) else "currentColor"
+    sw = 4.6 if favicon else 3.6
+    roof = "".join(f'<polyline class="ink" points="{pts(st)}" fill="none" stroke="{ink}" stroke-width="{sw}" stroke-linejoin="round" stroke-linecap="round"/>' for st in house["strokes"])
+    dots = "".join(f'<circle cx="{32 + dx * g["dot_offset"] * 40:.1f}" cy="{32 + dy * g["dot_offset"] * 40:.1f}" r="{g["dot_radius"] * 40 * (1.25 if favicon else 1.1):.1f}" fill="url(#gbp)"/>'
                    for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1)))
-    bg = ('<rect width="64" height="64" fill="#f5f6fb"/>' if square else '<rect width="64" height="64" rx="16" fill="#f5f6fb"/>') if page else ""
+    bg = ('<rect width="64" height="64" fill="#f5f6fb"/>' if square else '<rect width="64" height="64" rx="16" fill="#f5f6fb"/>') if page and not favicon else ""
+    dark = '<style>@media (prefers-color-scheme: dark) { .ink { stroke:#eef0ff } }</style>' if favicon else ""
     dim = f' width="{size}" height="{size}"' if size else ""
     # on the page the mark is cropped close, so it reads big; an app icon (square) keeps a margin for the OS mask
-    box = "6 6 52 52" if square else "0 0 64 64" if page else "9 9 46 46"
+    box = "6 6 52 52" if square else "8.5 8.5 47 47" if favicon else "0 0 64 64" if page else "9 9 46 46"
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{box}"{dim} aria-hidden="true"><defs><linearGradient id="gbp" x1="0" y1="0" x2="1" y2="1">'
             '<stop offset="0" stop-color="#3fc6ff"/><stop offset=".35" stop-color="#6d7bff"/><stop offset=".65" stop-color="#b76bff"/><stop offset="1" stop-color="#ff6fae"/></linearGradient></defs>'
-            f'{bg}<rect x="12" y="12" width="40" height="40" rx="3" fill="none" stroke="url(#gbp)" stroke-width="3.6"/>{roof}{dots}</svg>')
+            f'{dark}{bg}<rect x="12" y="12" width="40" height="40" rx="3" fill="none" stroke="url(#gbp)" stroke-width="{sw}"/>{roof}{dots}</svg>')
 
 
 def inline_module(path):
@@ -178,7 +182,7 @@ def build():
         "spec.html", "GlyphByte specification", "The GlyphByte specification: the byte layout, the alphabet, "
         "how to draw a glyph and a row, how readers work, and how a row is looked up.", "spec", nav_spec=True, path="/spec/",
         SPEC_HTML=spec_html, SPEC_TOC=spec_toc, VECTOR_LINKS=vector_links))
-    write(os.path.join(DIST, "favicon.svg"), mark_svg(page=True) + "\n")
+    write(os.path.join(DIST, "favicon.svg"), mark_svg(favicon=True) + "\n")
     # social images and app icons: rendered by site/og/render.mjs into site/src/og/ (committed)
     og_dir = os.path.join(SRC, "og")
     for name in sorted(os.listdir(og_dir)) if os.path.isdir(og_dir) else []:

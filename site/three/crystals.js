@@ -1,7 +1,7 @@
 // Crystal glyphs for glyphbyte.dev: each byte as a floating piece of dispersive glass that splits the light
 // behind it into a rainbow, catches a moving sun and flares where the light hits an edge.
 //
-// On a tablet (720 to 999 px wide) a hero canvas with data-tablet="cycle" shows one big glyph instead of the
+// On a tablet or a large phone (660 to 999 px wide) a hero canvas with data-tablet="cycle" shows one big glyph instead of the
 // row: every 3 seconds it spins hard and lands as the next byte of the row, over and over.
 //
 // Mounts on every <canvas data-crystals>. The glyph geometry comes from the global GLYPHS (spec/glyphs.json,
@@ -205,7 +205,7 @@ function mount(canvas) {
   const material = glassMaterial();
   // single: one glyph laid exactly over an SVG whose viewBox is 1.8 units square (the byte builder)
   const single = canvas.dataset.crystals === 'single';
-  const tabletQuery = matchMedia('(min-width: 720px) and (max-width: 999px)');
+  const tabletQuery = matchMedia('(min-width: 660px) and (max-width: 999px)');
   let cycle = canvas.dataset.tablet === 'cycle' && tabletQuery.matches;   // one glyph that spins into the next
   let cycleIdx = 0, cycleK = -1, swapped = false;
   const baseFor = d => canvas.dataset.bg === 'solid' ? (d ? '#10121d' : '#ffffff') : null;   // --solid in style.css
@@ -329,7 +329,7 @@ function mount(canvas) {
         if (!swapped && e >= 0.625) { swapped = true; cycleIdx = (cycleIdx + 1) % row.length; swapTo(row[cycleIdx]); }
       }
     }
-    if (cycle) bloom.strength = (dark ? 0.6 : 0.38) + spinPulse * 0.9;
+    if (cycle) bloom.strength = (dark ? 0.6 : 0.38) + spinPulse * 0.4;
     live.forEach((g, i) => {
       const u = g.userData, age = now / 1000 - u.born;
       u.s = still ? 1 : single ? 0.82 + 0.18 * ease(age / 0.35) : ease(age / 0.9);
