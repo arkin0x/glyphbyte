@@ -4,7 +4,9 @@
 // On a tablet or a large phone (660 to 999 px wide) a hero canvas with data-tablet="cycle" shows one big glyph instead of the
 // row: every 3 seconds it spins hard and lands as the next byte of the row, over and over.
 //
-// Mounts on every <canvas data-crystals>. The glyph geometry comes from the global GLYPHS (spec/glyphs.json,
+// Mounts on every <canvas data-crystals>. Other pages (the reader) load this module on demand and call
+// window.GBCrystals.mount(canvas, {bytes, bg: 'solid', fit, host}); it returns {setBytes, dispose}.
+// The glyph geometry comes from the global GLYPHS (spec/glyphs.json,
 // inlined by site/build.py). The bytes come from the page: window.__gbBytes at start, then every
 // `gb:bytes` event on document ({detail: {bytes: [..]}}), which site.js sends when the hero row changes.
 // Built by `npm run build` in site/three into site/src/vendor/crystals.js.
@@ -189,26 +191,26 @@ function sparkles(count, dark) {
 }
 
 // ------------------------------------------------------------------ one canvas
-function mount(canvas) {
-  if (!G) return;
+function mount(canvas, opts = {}) {
+  if (!G) return null;   // GLYPHS must be set before this module loads
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
-  } catch (e) { canvas.closest('[data-crystal-host]')?.classList.add('no-3d'); return; }
+  } catch (e) { canvas.closest('[data-crystal-host]')?.classList.add('no-3d'); return null; }
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;   // the backdrop must come out exactly the page colour; glints clip to white and bloom
-  const host = canvas.closest('[data-crystal-host]') || canvas.parentElement;
+  const host = opts.host || canvas.closest('[data-crystal-host]') || canvas.parentElement;
   host.classList.add('has-3d');
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
   const material = glassMaterial();
   // single: one glyph laid exactly over an SVG whose viewBox is 1.8 units square (the byte builder)
-  const single = canvas.dataset.crystals === 'single';
+  const single = (opts.mode || canvas.dataset.crystals) === 'single';
   const tabletQuery = matchMedia('(min-width: 660px) and (max-width: 999px)');
   let cycle = canvas.dataset.tablet === 'cycle' && tabletQuery.matches;   // one glyph that spins into the next
   let cycleIdx = 0, cycleK = -1, swapped = false;
-  const baseFor = d => canvas.dataset.bg === 'solid' ? (d ? '#10121d' : '#ffffff') : null;   // --solid in style.css
+  const baseFor = d => (opts.bg || canvas.dataset.bg) === 'solid' ? (d ? '#10121d' : '#ffffff') : null;   // --solid in style.css
   let dark = isDark();
   scene.background = backdrop(dark, baseFor(dark));
   scene.environment = environment(renderer);
@@ -221,7 +223,8 @@ function mount(canvas) {
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), dark ? 0.6 : 0.38, 0.28, dark ? 0.9 : 1.0);
+  const bloomBase = d => opts.bloom != null ? opts.bloom * (d ? 1.6 : 1) : d ? 0.6 : 0.38;
+  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), bloomBase(dark), 0.28, dark ? 0.9 : 1.0);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
@@ -230,7 +233,8 @@ function mount(canvas) {
   function makeGlyph(byte, i) {
     // each crystal a slightly different pale colour, so a row reads as a spectrum
     const mat = material.clone(), hue = single ? (byte >> 4) / 16 : (i / Math.max(1, bytes.length)) * 0.85 + 0.52;
-    mat.attenuationColor = new THREE.Color().setHSL(hue % 1, 0.75, 0.82); mat.attenuationDistance = 0.9;
+    // vivid: deeper colour, for a plain white box where pale glass would wash out
+    mat.attenuationColor = new THREE.Color().setHSL(hue % 1, opts.vivid ? 0.9 : 0.75, opts.vivid ? 0.68 : 0.82); mat.attenuationDistance = opts.vivid ? 0.45 : 0.9;
     const g = new THREE.Group();
     g.add(new THREE.Mesh(frameGeometry(), mat));
     g.add(new THREE.Mesh(iconGeometry(byte >> 4), mat));
@@ -257,8 +261,11 @@ function mount(canvas) {
     // fit the camera to the arrangement, with room to float
     const bw = cols * pitch + 0.6, bh = rows * pitch + 0.6, vfov = THREE.MathUtils.degToRad(camera.fov);
     const distH = (bh / 2) / Math.tan(vfov / 2), distW = (bw / 2) / (Math.tan(vfov / 2) * aspect);
-    camera.position.set(0, 0, single ? 0.9 / Math.tan(vfov / 2) : Math.max(distH, distW) * (cycle ? 0.95 : 1.32));
-    camera.lookAt(0, 0, 0);
+    const dist = single ? 0.9 / Math.tan(vfov / 2) : Math.max(distH, distW) * (cycle ? 0.95 : (opts.fit || 1.32));
+    // shiftX: move the row left by this share of the view, to clear something covering the right edge
+    const sx = (opts.shiftX || 0) * 2 * dist * Math.tan(vfov / 2) * aspect;
+    camera.position.set(sx, 0, dist);
+    camera.lookAt(sx, 0, 0);
     sparks.material.uniforms.uSize.value.set(bw * 0.6, bh * 0.6);
   }
   function setBytes(next, force = false) {
@@ -295,20 +302,22 @@ function mount(canvas) {
     sparks.material.uniforms.uScale.value = dpr * Math.min(1.2, h / 600);
     place(); kick();
   }
-  new ResizeObserver(resize).observe(host);
-  tabletQuery.addEventListener('change', () => {
+  const ro = new ResizeObserver(resize); ro.observe(host);
+  const onTablet = () => {
     const c = canvas.dataset.tablet === 'cycle' && tabletQuery.matches;
-    if (c !== cycle) { cycle = c; if (!c) bloom.strength = dark ? 0.6 : 0.38; setBytes(row, true); }
-  });
-  new IntersectionObserver(es => { visible = es[0].isIntersecting; kick(); }, { threshold: 0 }).observe(host);
+    if (c !== cycle) { cycle = c; if (!c) bloom.strength = bloomBase(dark); setBytes(row, true); }
+  };
+  tabletQuery.addEventListener('change', onTablet);
+  const io = new IntersectionObserver(es => { visible = es[0].isIntersecting; kick(); }, { threshold: 0 }); io.observe(host);
   document.addEventListener('visibilitychange', kick);
-  addEventListener('pointermove', e => {
+  const onPointer = e => {
     const r = host.getBoundingClientRect();
     pointerTarget.set(((e.clientX - r.left) / r.width - 0.5) * 2, ((e.clientY - r.top) / r.height - 0.5) * 2).clampScalar(-1.5, 1.5);
-  }, { passive: true });
-  const onTheme = () => { const d = isDark(); if (d === dark) return; dark = d; scene.background.dispose(); scene.background = backdrop(dark, baseFor(dark)); bloom.strength = dark ? 0.6 : 0.38; bloom.threshold = dark ? 0.9 : 1.0; sparks.material.blending = dark ? THREE.AdditiveBlending : THREE.NormalBlending; kick(); };
+  };
+  addEventListener('pointermove', onPointer, { passive: true });
+  const onTheme = () => { const d = isDark(); if (d === dark) return; dark = d; scene.background.dispose(); scene.background = backdrop(dark, baseFor(dark)); bloom.strength = bloomBase(dark); bloom.threshold = dark ? 0.9 : 1.0; sparks.material.blending = dark ? THREE.AdditiveBlending : THREE.NormalBlending; kick(); };
   darkQuery.addEventListener('change', onTheme);
-  new MutationObserver(onTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  const mo = new MutationObserver(onTheme); mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
   // ---- animation
   const ease = t => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
@@ -329,7 +338,7 @@ function mount(canvas) {
         if (!swapped && e >= 0.625) { swapped = true; cycleIdx = (cycleIdx + 1) % row.length; swapTo(row[cycleIdx]); }
       }
     }
-    if (cycle) bloom.strength = (dark ? 0.6 : 0.38) + spinPulse * 0.4;
+    if (cycle) bloom.strength = bloomBase(dark) + spinPulse * 0.4;
     live.forEach((g, i) => {
       const u = g.userData, age = now / 1000 - u.born;
       u.s = still ? 1 : single ? 0.82 + 0.18 * ease(age / 0.35) : ease(age / 0.9);
@@ -357,14 +366,35 @@ function mount(canvas) {
     if (dt > 0.034 && frames > 30) { slow++; frames = 0; if (slow === 3) resize(); if (slow > 6) bloom.enabled = false; }
     if (moving && visible && document.visibilityState === 'visible') raf = requestAnimationFrame(frame);
   }
-  function kick() { if (!raf && visible && document.visibilityState === 'visible') { last = performance.now(); raf = requestAnimationFrame(frame); } }
+  let disposed = false;
+  function kick() { if (!disposed && !raf && visible && document.visibilityState === 'visible') { last = performance.now(); raf = requestAnimationFrame(frame); } }
 
   resize();
-  if (single) { setBytes(window.__gbBuilder || [0xe8]); document.addEventListener('gb:builder', e => setBytes(e.detail.bytes)); }
-  else { setBytes(window.__gbBytes || [0xe8, 0xed, 0x37, 0x98, 0xc6, 0xff]); document.addEventListener('gb:bytes', e => setBytes(e.detail.bytes)); }
+  const onPageBytes = e => setBytes(e.detail.bytes);
+  const pageEvent = opts.bytes ? null : single ? 'gb:builder' : 'gb:bytes';
+  if (opts.bytes) setBytes(opts.bytes);
+  else { setBytes((single ? window.__gbBuilder : window.__gbBytes) || (single ? [0xe8] : [0xe8, 0xed, 0x37, 0x98, 0xc6, 0xff])); document.addEventListener(pageEvent, onPageBytes); }
+
+  // stop, and hand the WebGL context back (browsers allow only a few at a time)
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    if (raf) cancelAnimationFrame(raf);
+    ro.disconnect(); io.disconnect(); mo.disconnect();
+    tabletQuery.removeEventListener('change', onTablet); darkQuery.removeEventListener('change', onTheme);
+    document.removeEventListener('visibilitychange', kick); removeEventListener('pointermove', onPointer);
+    if (pageEvent) document.removeEventListener(pageEvent, onPageBytes);
+    for (const g of [...live, ...leaving]) g.userData.mat.dispose();
+    material.dispose(); sparks.geometry.dispose(); sparks.material.dispose();
+    scene.background && scene.background.dispose(); scene.environment && scene.environment.dispose();
+    bloom.dispose && bloom.dispose(); composer.dispose && composer.dispose();
+    renderer.dispose(); renderer.forceContextLoss();
+  }
+  return { setBytes: b => setBytes(b), dispose };
 }
 
 // start after the page has painted and gone idle: compiling the glass shaders can hold the main thread for a
 // moment, and the drawn rows and text should never wait for the 3D
-const start = () => document.querySelectorAll('canvas[data-crystals]').forEach(mount);
+globalThis.GBCrystals = { mount };
+const start = () => document.querySelectorAll('canvas[data-crystals]').forEach(c => mount(c));
 if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout: 1200 }); else setTimeout(start, 200);
