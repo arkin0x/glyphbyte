@@ -3,25 +3,30 @@
 The static site for GlyphByte, assembled from the repository's own files so that one command
 regenerates everything. Nothing on the site is hand-copied from elsewhere in the repo.
 
+The look: airy and prismatic. Pale sky and soft light leaks by day, the same glass at night (it
+follows the system dark mode). The hero and the byte builder show the glyphs as floating
+dispersive glass rendered live with three.js; every other glyph on the site is SVG drawn from
+`spec/glyphs.json` in the page's ink colour.
+
 | URL | file in `site/dist/` | comes from |
 |---|---|---|
-| `/` | `index.html` | `site/src/landing.html` in `site/src/shell.html`, CSS from `site/src/style.css` inlined |
-| `/app/` | `app/index.html` | `napplet/dist/index.html`, byte for byte: the reader and encoder, camera via file input, relay over WebSocket |
-| `/spec/` | `spec/index.html` | `spec/GLYPHBYTE.md` rendered to HTML inside the same shell |
+| `/` | `index.html` | `site/src/landing.html` in `site/src/shell.html`; `style.css`, `site.js`, `spec/glyphs.json` and `napplet/src/nip19.js` inlined |
+| `/app/` | `app/index.html` | `napplet/dist/index.html`, byte for byte: the reader (Read, Draw and Publish tabs; `#read`, `#draw`, `#publish` open a tab) |
+| `/spec/` | `spec/index.html` | `spec/GLYPHBYTE.md` rendered to HTML inside the same shell, with a contents column |
 | `/spec/test-vectors.json`, `/spec/glyphs.json`, `/spec/glyphs.svg`, `/spec/vectors/*` | `spec/...` | copied from `spec/` |
 | `/sheet.svg` | `sheet.svg` | `spec/glyphs.svg`, the printable sheet |
-| `/img/row-e8ed3798c6ff.png`, `/img/photo-01.jpg` | `img/` | the reference row as is; the photo resized with OpenCV to 1200 px on the long side, JPEG quality 85 |
-| `/favicon.svg` | `favicon.svg` | the house polygon from `spec/glyphs.json` |
-| `/404.html` | `404.html` | `site/src/404.html`; Apache serves it through `ErrorDocument` |
-| (server config) | `.htaccess` | `site/src/htaccess`: `DirectoryIndex`, `ErrorDocument 404`, `AddType` for svg, json and wasm |
+| `/vendor/crystals.js` | `vendor/crystals.js` | `site/src/vendor/crystals.js`: the 3D crystals bundled with three.js (see below) |
+| `/fonts/*` | `fonts/` | `site/src/fonts/`: Sora and JetBrains Mono, OFL (licences beside them) |
+| `/favicon.svg` | `favicon.svg` | the mark (byte `0f`) built from `spec/glyphs.json` |
+| `/404.html` | `404.html` | `site/src/404.html` |
+| (server config) | `.htaccess` | `site/src/htaccess`, for Apache hosting |
 
-The pages use no external scripts, fonts or stylesheets. The landing and spec pages follow the
-system dark mode and keep a 16 px gutter on phones; tables scroll inside their container.
+Icons are Lucide (ISC, `site/src/icons-LICENSE.txt`), kept in `site/src/icons.json` and written
+into templates as `{{icon:name}}`. The reader uses the same set. Nothing loads from another origin.
 
 ## Build
 
-From the repository root, with the project's Python (numpy, opencv and the `markdown` package;
-install the last one with `uv pip install --python .venv/bin/python markdown` if it is missing):
+From the repository root, with any Python that has the `markdown` package (the only dependency):
 
 ```
 python site/build.py
@@ -32,6 +37,21 @@ script builds the napplet first (`cd napplet && python build.py weights.bin weig
 The build ends with a link check: every `href` and `src` in every generated page must resolve to
 a file in `site/dist/`, and the script exits non-zero if one does not. `python site/build.py
 --check` runs only that check.
+
+## The 3D crystals
+
+`site/three/crystals.js` is the source. Its bundle with three.js, `site/src/vendor/crystals.js`,
+is committed, so neither the site build nor Vercel needs Node. After changing the source:
+
+```
+cd site/three && npm install && npm run build
+```
+
+It mounts on every `<canvas data-crystals>`: `data-crystals` alone follows the hero input
+(`gb:bytes` events from `site.js`), `data-crystals="single"` follows the byte builder
+(`gb:builder`). It renders a still frame when the visitor asks for reduced motion, stops when
+off screen, drops pixels and then bloom on a slow device, and leaves an SVG fallback in place
+where WebGL is missing. `--bg` in `style.css` must equal `PAGE` in `crystals.js`.
 
 ## Preview
 

@@ -9,15 +9,21 @@ usage, from the repository root with the project venv:
 What goes where:
 
     napplet/dist/index.html      -> dist/app/index.html          the reader, byte for byte (built first if missing)
-    spec/GLYPHBYTE.md            -> dist/spec/index.html         rendered with the `markdown` package
+    spec/GLYPHBYTE.md            -> dist/spec/index.html         rendered with the `markdown` package, with contents
     spec/{test-vectors,glyphs,glyphs-v1}.json, spec/glyphs{,-v1}.svg, spec/vectors/*  -> dist/spec/...
     spec/glyphs.svg              -> dist/sheet.svg
-    spec/vectors/row-<hex>.png   -> dist/img/                    the reference row on the landing page
-    spec/glyphs.json (house)     -> dist/favicon.svg
-    site/src/*                   -> dist/index.html, dist/404.html, dist/.htaccess
+    spec/glyphs.json             -> inlined into the pages (window.GLYPHS) for the drawn and 3D glyphs; the favicon
+    napplet/src/nip19.js         -> inlined into the landing page, so it can draw an npub or a note
+    site/src/site.js             -> inlined: the glyph renderer and the landing page's interactive parts
+    site/src/vendor/crystals.js  -> dist/vendor/crystals.js      the 3D crystals with three.js, prebuilt by
+                                                                 `npm run build` in site/three (committed)
+    site/src/fonts/*             -> dist/fonts/
+    site/src/*.html, style.css   -> dist/index.html, dist/404.html, dist/.htaccess
 
-dist/ is deleted and rebuilt on every run so nothing stale is ever uploaded.
+Templates take {{NAME}} placeholders and {{icon:name}} for an inline icon from site/src/icons.json (Lucide, ISC).
+dist/ is deleted and rebuilt on every run so nothing stale is ever uploaded. Needs only the `markdown` package.
 """
+import hashlib
 import html
 import json
 import os
@@ -31,7 +37,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SRC, DIST = os.path.join(HERE, "src"), os.path.join(HERE, "dist")
 NAPPLET, SPEC = os.path.join(ROOT, "napplet"), os.path.join(ROOT, "spec")
-ROW_HEX = "e8ed3798c6ff"   # the reference row shown on the landing page
 SITE_DESCRIPTION = ("GlyphByte: a hand-drawable alphabet where one glyph is one byte. Draw a nostr event id or "
                     "pubkey prefix with any pen; a phone reads it back on the device and a relay resolves it.")
 
@@ -55,16 +60,73 @@ def copy(src, dst):
     os.chmod(dst, 0o644)
 
 
-def page(fragment, title, description, main_class, **fields):
-    """Fill site/src/<fragment> into site/src/shell.html with the shared CSS inlined."""
+ICONS = None
+
+
+def icons(text):
+    """{{icon:name}} -> an inline Lucide SVG that takes the text colour."""
+    global ICONS
+    if ICONS is None:
+        ICONS = json.load(open(os.path.join(SRC, "icons.json")))
+
+    def one(m):
+        if m.group(1) not in ICONS:
+            raise SystemExit(f"unknown icon {m.group(1)}: add it to site/src/icons.json")
+        return f'<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">{ICONS[m.group(1)]}</svg>'
+    return re.sub(r"{{icon:([a-z0-9-]+)}}", one, text)
+
+
+def glyphs():
+    g = json.load(open(os.path.join(SPEC, "glyphs.json")))
+    return {k: g[k] for k in ("icon_scale", "dot_offset", "dot_radius", "icons")}
+
+
+def mark_svg(size=None, page=False):
+    """The glyphbyte mark: byte 0x0f, the house with all four corner dots, in a frame of split light."""
+    g = glyphs()
+    house = next(i for i in g["icons"] if i["name"] == "house")
+    k = 40 * g["icon_scale"]
+    pts = lambda st: " ".join(f"{32 + x * k:.1f},{32 + y * k:.1f}" for x, y in st["points"] + (st["points"][:1] if st["closed"] else []))
+    ink = "#0d0f1c" if page else "currentColor"
+    roof = "".join(f'<polyline points="{pts(st)}" fill="none" stroke="{ink}" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"/>' for st in house["strokes"])
+    dots = "".join(f'<circle cx="{32 + dx * g["dot_offset"] * 40:.1f}" cy="{32 + dy * g["dot_offset"] * 40:.1f}" r="{g["dot_radius"] * 40 * 1.1:.1f}" fill="url(#gbp)"/>'
+                   for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1)))
+    bg = '<rect width="64" height="64" rx="16" fill="#f5f6fb"/>' if page else ""
+    dim = f' width="{size}" height="{size}"' if size else ""
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"{dim} aria-hidden="true"><defs><linearGradient id="gbp" x1="0" y1="0" x2="1" y2="1">'
+            '<stop offset="0" stop-color="#3fc6ff"/><stop offset=".35" stop-color="#6d7bff"/><stop offset=".65" stop-color="#b76bff"/><stop offset="1" stop-color="#ff6fae"/></linearGradient></defs>'
+            f'{bg}<rect x="12" y="12" width="40" height="40" rx="3" fill="none" stroke="url(#gbp)" stroke-width="3.6"/>{roof}{dots}</svg>')
+
+
+def inline_module(path):
+    """An ES module's text as a classic script: its exports become page globals."""
+    src = read(path)
+    src = re.sub(r"^export (async function|function|const|let|class) ", r"\1 ", src, flags=re.M)
+    if re.search(r"^\s*(import|export)\b", src, re.M):
+        raise SystemExit(f"{path}: has imports or exports this inliner does not handle")
+    return src
+
+
+def scripts(crystals=False):
+    out = [f"<script>window.GLYPHS = {json.dumps(glyphs(), separators=(',', ':'))};</script>",
+           f"<script>\n{inline_module(os.path.join(NAPPLET, 'src', 'nip19.js'))}\n</script>",
+           f"<script>\n{read(os.path.join(SRC, 'site.js'))}\n</script>"]
+    if crystals:
+        out.append('<script type="module" src="/vendor/crystals.js"></script>')
+    return "\n".join(out)
+
+
+def page(fragment, title, description, body_class, crystals=False, nav_spec=False, **fields):
+    """Fill site/src/<fragment> into site/src/shell.html with the shared CSS and scripts inlined."""
     main = read(os.path.join(SRC, fragment))
     for key, value in fields.items():
         main = main.replace("{{" + key + "}}", value)
     doc = read(os.path.join(SRC, "shell.html"))
-    for key, value in {"TITLE": title, "DESCRIPTION": description, "CLASS": main_class,
-                       "CSS": read(os.path.join(SRC, "style.css")).strip(), "MAIN": main.strip()}.items():
+    for key, value in {"TITLE": title, "DESCRIPTION": description, "CLASS": body_class, "CSS": read(os.path.join(SRC, "style.css")).strip(),
+                       "BRAND": mark_svg(), "NAV_SPEC": ' aria-current="page"' if nav_spec else "", "SCRIPTS": scripts(crystals), "MAIN": main.strip()}.items():
         doc = doc.replace("{{" + key + "}}", value)
-    left = re.findall(r"{{[A-Z_]+}}", doc)
+    doc = icons(doc)
+    left = re.findall(r"{{[A-Za-z_:-]+}}", doc)
     if left:
         raise SystemExit(f"{fragment}: unfilled placeholders {left}")
     return doc
@@ -75,41 +137,15 @@ def render_spec():
         import markdown
     except ImportError:
         raise SystemExit("the `markdown` package is missing: uv pip install --python <venv>/bin/python markdown")
-    body = markdown.markdown(read(os.path.join(SPEC, "GLYPHBYTE.md")), extensions=["tables", "fenced_code", "toc", "sane_lists"])
+    md = markdown.Markdown(extensions=["tables", "fenced_code", "toc", "sane_lists"])
+    body = md.convert(read(os.path.join(SPEC, "GLYPHBYTE.md")))
     # tables get a scrolling container so a wide table never scrolls the whole page on a phone
-    return body.replace("<table>", '<div class="table-wrap"><table>').replace("</table>", "</table></div>")
-
-
-def image_size(path):
-    import cv2
-    h, w = cv2.imread(path, cv2.IMREAD_UNCHANGED).shape[:2]
-    return w, h
-
-
-def resize_photo(src, dst, max_side=1200, quality=85):
-    import cv2
-    im = cv2.imread(src)   # applies the EXIF orientation, as browsers do, so the copy needs no EXIF
-    h, w = im.shape[:2]
-    s = min(1.0, max_side / max(h, w))
-    if s < 1.0:
-        im = cv2.resize(im, (round(w * s), round(h * s)), interpolation=cv2.INTER_AREA)
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    cv2.imwrite(dst, im, [cv2.IMWRITE_JPEG_QUALITY, quality])
-    os.chmod(dst, 0o644)
-    return im.shape[1], im.shape[0]
-
-
-def favicon_svg():
-    """Byte 0x0f, the house with all four corner dots, from the spec's own strokes."""
-    g = json.load(open(os.path.join(SPEC, "glyphs.json")))
-    house = next(i for i in g["icons"] if i["name"] == "house")
-    k = 52 * g["icon_scale"]
-    paths = "".join(f'<polyline points="{" ".join(f"{32 + x * k:.1f},{32 + y * k:.1f}" for x, y in st["points"] + (st["points"][:1] if st["closed"] else []))}" '
-                    'fill="none" stroke="#151515" stroke-width="4" stroke-linejoin="round"/>' for st in house["strokes"])
-    dots = "".join(f'<circle cx="{32 + dx * g["dot_offset"] * 52:.1f}" cy="{32 + dy * g["dot_offset"] * 52:.1f}" r="{g["dot_radius"] * 52 * 1.2:.1f}" fill="#151515"/>'
-                   for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1)))
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#f6f4ee"/>'
-            '<rect x="6" y="6" width="52" height="52" fill="none" stroke="#151515" stroke-width="4"/>' + paths + dots + '</svg>\n')
+    body = body.replace("<table>", '<div class="table-wrap"><table>').replace("</table>", "</table></div>")
+    # contents: the sections under the title
+    tokens = md.toc_tokens
+    sections = tokens[0]["children"] if len(tokens) == 1 and tokens[0]["level"] == 1 else tokens
+    toc = "<ul>" + "".join(f'<li><a href="#{t["id"]}">{t["name"]}</a></li>' for t in sections) + "</ul>"
+    return body, toc
 
 
 def build():
@@ -127,26 +163,21 @@ def build():
     for name in vectors:
         copy(os.path.join(SPEC, "vectors", name), os.path.join(DIST, "spec", "vectors", name))
     copy(os.path.join(SPEC, "glyphs.svg"), os.path.join(DIST, "sheet.svg"))
-
-    row_src = os.path.join(SPEC, "vectors", f"row-{ROW_HEX}.png")
-    copy(row_src, os.path.join(DIST, "img", f"row-{ROW_HEX}.png"))
-    row_w, row_h = image_size(row_src)
-
-    tv = json.load(open(os.path.join(SPEC, "test-vectors.json")))
-    seq = next(s for s in tv["sequences"] if s["hex"] == ROW_HEX)
-    row_glyphs = "".join(f"<li><code>{ROW_HEX[2 * i:2 * i + 2]}</code> {html.escape(g)}</li>" for i, g in enumerate(seq["glyphs"]))
+    for name in sorted(os.listdir(os.path.join(SRC, "fonts"))):
+        copy(os.path.join(SRC, "fonts", name), os.path.join(DIST, "fonts", name))
+    copy(os.path.join(SRC, "vendor", "crystals.js"), os.path.join(DIST, "vendor", "crystals.js"))
 
     write(os.path.join(DIST, "index.html"), page(
-        "landing.html", "glyphbyte", SITE_DESCRIPTION, "landing",
-        ROW_HEX=ROW_HEX, ROW_W=str(row_w), ROW_H=str(row_h), ROW_GLYPHS=row_glyphs))
+        "landing.html", "GlyphByte: one drawn glyph is one byte", SITE_DESCRIPTION, "landing", crystals=True))
     write(os.path.join(DIST, "404.html"), page(
-        "404.html", "not found · glyphbyte", "This page does not exist.", "notfound"))
+        "404.html", "Not found · GlyphByte", "This page does not exist.", "notfound"))
     vector_links = ", ".join(f'<a href="/spec/vectors/{html.escape(n)}">{html.escape(n)}</a>' for n in vectors)
+    spec_html, spec_toc = render_spec()
     write(os.path.join(DIST, "spec", "index.html"), page(
         "spec.html", "GlyphByte specification", "The GlyphByte specification: the byte layout, the alphabet, "
-        "how to draw a glyph and a row, how readers work, and how the bytes resolve on nostr.", "spec",
-        SPEC_HTML=render_spec(), VECTOR_LINKS=vector_links))
-    write(os.path.join(DIST, "favicon.svg"), favicon_svg())
+        "how to draw a glyph and a row, how readers work, and how the bytes resolve on nostr.", "spec", nav_spec=True,
+        SPEC_HTML=spec_html, SPEC_TOC=spec_toc, VECTOR_LINKS=vector_links))
+    write(os.path.join(DIST, "favicon.svg"), mark_svg(page=True) + "\n")
     copy(os.path.join(SRC, "htaccess"), os.path.join(DIST, ".htaccess"))
 
     fingerprint(DIST)
@@ -155,11 +186,10 @@ def build():
 
 
 def fingerprint(dist=DIST):
-    """Cache busting: every link from a page to an image, SVG or JSON file gets ?v=<hash of its
-    content>. Those files are cached for a day, and some keep their name across versions (the
-    landing row, the sheet), so a changed file must come with a changed link. The pages themselves
-    are revalidated on every visit, so a new link reaches everyone at once."""
-    import hashlib
+    """Cache busting: every link from a page to an image, SVG, JSON or script file gets ?v=<hash of its
+    content>. Those files can be cached, and some keep their name across versions (the sheet, the 3D
+    bundle), so a changed file must come with a changed link. The pages themselves are revalidated on
+    every visit, so a new link reaches everyone at once."""
     cache = {}
 
     def stamp(m):
@@ -174,10 +204,9 @@ def fingerprint(dist=DIST):
 
     for dirpath, _, files in os.walk(dist):
         for name in files:
-            if name.endswith(".html"):
+            if name.endswith(".html") and not dirpath.endswith(os.sep + "app"):
                 path = os.path.join(dirpath, name)
-                text = re.sub(r'(src|href)="(/[^"?#]+\.(?:png|jpg|svg|json))"', stamp, read(path))
-                write(path, text)
+                write(path, re.sub(r'(src|href)="(/[^"?#]+\.(?:png|jpg|svg|json|js))"', stamp, read(path)))
 
 
 class Refs(HTMLParser):

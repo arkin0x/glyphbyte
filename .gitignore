@@ -18,3 +18,4 @@ bench/js-v2/
 bench/auto/
 bench/auto2/
 bench/auto3/
+node_modules/

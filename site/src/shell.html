@@ -5,16 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{TITLE}}</title>
 <meta name="description" content="{{DESCRIPTION}}">
+<meta property="og:title" content="{{TITLE}}">
+<meta property="og:description" content="{{DESCRIPTION}}">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#f5f6fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#06070d" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/sora.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 {{CSS}}
 </style>
 </head>
-<body>
-<header><a class="brand" href="/">glyphbyte</a><nav><a href="/app/">reader</a><a href="/spec/">spec</a><a href="https://github.com/arkin0x/glyphbyte">github</a></nav></header>
-<main class="{{CLASS}}">
+<body class="{{CLASS}}">
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="glyphbyte home">{{BRAND}}<span>glyphbyte</span></a>
+    <nav class="nav" aria-label="site">
+      <a class="opt" href="/#alphabet">Alphabet</a>
+      <a class="opt" href="/#draw">Drawing</a>
+      <a href="/spec/"{{NAV_SPEC}}>Spec</a>
+      <a class="opt" href="https://github.com/arkin0x/glyphbyte">Source</a>
+      <a class="btn primary small" href="/app/">Open reader</a>
+    </nav>
+  </div>
+</header>
+<main>
 {{MAIN}}
 </main>
-<footer>CC BY-SA 4.0 · GlyphByte v2, 2026 · <a href="/spec/">specification</a> · <a href="https://github.com/arkin0x/glyphbyte">source</a></footer>
+<footer class="foot">
+  <div class="wrap">
+    <div>
+      <a class="brand" href="/">{{BRAND}}<span>glyphbyte</span></a>
+      <p>A hand-drawable alphabet where one glyph is one byte. Draw a nostr id anywhere and let any phone read it back.</p>
+    </div>
+    <div><b>Use it</b><a href="/app/">Reader</a><a href="/app/#publish">Publish a link</a><a href="/sheet.svg">Printable sheet</a></div>
+    <div><b>Build with it</b><a href="/spec/">Specification</a><a href="https://www.npmjs.com/package/glyphbyte">npm package</a><a href="https://github.com/arkin0x/glyphbyte">Source code</a></div>
+    <div><b>About</b><a href="https://github.com/arkin0x/glyphbyte/blob/main/BENCH.md">Benchmarks</a><a href="https://github.com/arkin0x/glyphbyte/blob/main/LICENSE">CC BY-SA 4.0</a><span>GlyphByte v2 · 2026</span></div>
+  </div>
+</footer>
+{{SCRIPTS}}
 </body>
 </html>

@@ -48,10 +48,10 @@ def build(weights_path, manifest_path, out_path, weights_v1=None, manifest_v1=No
         commit = "unknown"
     stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M") + " " + commit
     html = html.replace("/*__APP__*/", app).replace("/*__BUILD__*/", stamp)
-    # the site's own footer, so the reader and the pages under glyphbyte.dev can never disagree
-    shell = open(os.path.join(HERE, "..", "site", "src", "shell.html")).read()
-    footer = re.search(r"<footer>.*?</footer>", shell, re.S).group(0)
-    html = html.replace("/*__FOOTER__*/", footer)
+    # {{icon:name}} -> an inline Lucide icon from the site's set (site/src/icons.json)
+    icons_path = os.path.join(HERE, "..", "site", "src", "icons.json")
+    icons = json.load(open(icons_path)) if os.path.exists(icons_path) else {}
+    html = re.sub(r"{{icon:([a-z0-9-]+)}}", lambda m: f'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">{icons.get(m.group(1), "")}</svg>', html)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     open(out_path, "w").write(html)
     # a core-only script for headless tests (no DOM)

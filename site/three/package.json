@@ -1,0 +1,13 @@
+{
+  "name": "glyphbyte-site-3d",
+  "private": true,
+  "description": "The crystal glyphs on glyphbyte.dev. `npm run build` bundles crystals.js with three.js into site/src/vendor/crystals.js, which is committed, so the site build itself needs no Node.",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild crystals.js --bundle --minify --format=esm --target=es2020 --legal-comments=eof --outfile=../src/vendor/crystals.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10",
+    "three": "0.187.0"
+  }
+}

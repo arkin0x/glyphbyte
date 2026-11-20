@@ -5,6 +5,19 @@ if (window.top !== window) for (const a of document.querySelectorAll('a[href^="/
 const hexClean = s => s.trim().replace(/[^0-9a-fA-F]/g, '').toLowerCase();
 const toBytes = h => { const out = []; for (let i = 0; i + 1 < h.length; i += 2) out.push(parseInt(h.slice(i, i + 2), 16)); return out; };
 
+// three tools on tabs: read (default), draw, publish. The hash names the tool, so glyphbyte.dev/app/#publish
+// opens straight onto publishing. The matches below the tools are shared by all three.
+const TABS = { read: 'readSection', draw: 'bytesSection', publish: 'cairnSection' };
+function showTab(name, scroll = true) {
+  if (!TABS[name]) name = 'read';
+  for (const [k, id] of Object.entries(TABS)) { $(id).hidden = k !== name; $('tab-' + k).setAttribute('aria-selected', String(k === name)); }
+  try { if (location.hash.slice(1) !== name) history.replaceState(null, '', '#' + name); } catch (e) { /* a sandboxed frame may refuse; the tab still shows */ }
+  if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+for (const k of Object.keys(TABS)) $('tab-' + k).addEventListener('click', () => showTab(k));
+addEventListener('hashchange', () => showTab(location.hash.slice(1), false));
+showTab(location.hash.slice(1), false);
+
 // what the box holds: raw hex, or a NIP-19 entity (npub, note, nevent, nprofile, naddr), optionally nostr:-prefixed
 function parseEntry(raw) {
   const v = raw.trim().replace(/^nostr:/i, '');
@@ -57,6 +70,16 @@ $('photoBtn').addEventListener('click', () => {
 document.addEventListener('click', e => { if (!e.target.closest('.picker')) closePhotoMenu(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePhotoMenu(); });
 for (const id of ['file', 'fileCam']) $(id).addEventListener('change', () => { closePhotoMenu(); const f = $(id).files[0]; $(id).value = ''; readFile(f); });
+// on a computer: drop an image on the zone, or paste one from the clipboard anywhere on the page
+if (!matchMedia('(pointer: coarse)').matches) $('dropHint').textContent = 'Click to choose, or drop or paste an image here.';
+for (const t of ['dragenter', 'dragover']) $('photoBtn').addEventListener(t, e => { e.preventDefault(); $('photoBtn').classList.add('over'); });
+for (const t of ['dragleave', 'drop']) $('photoBtn').addEventListener(t, () => $('photoBtn').classList.remove('over'));
+$('photoBtn').addEventListener('drop', e => { e.preventDefault(); const f = Array.from(e.dataTransfer.files || []).find(x => /^image\//.test(x.type)); if (f) readFile(f); });
+document.addEventListener('paste', e => {
+  if (e.target.closest && e.target.closest('textarea, input')) return;
+  const f = Array.from((e.clipboardData && e.clipboardData.files) || []).find(x => /^image\//.test(x.type));
+  if (f) { e.preventDefault(); showTab('read'); readFile(f); }
+});
 async function readFile(f) {
   if (!f) return;
   $('busy').hidden = false; $('result').innerHTML = '';
@@ -80,19 +103,21 @@ function show(d, ms) {
   let h = '';
   if (!d.sequences.length) h += `<p class="warn">no glyphs found</p>`;
   else {
-    h += `<p>Most likely: <code class="big">${d.best}</code> <span class="muted">${d.format === 1 ? 'format v1 · ' : ''}${ms} ms</span></p>`;
+    h += `<div class="best"><div class="k">Most likely</div><div class="v"><code class="big">${d.best}</code><span class="muted">${d.format === 1 ? 'format v1 · ' : ''}read in ${ms} ms</span></div><canvas id="bestRow" class="render glyphs"></canvas></div>`;
     if (d.sequences.length > 1) h += `<p class="muted">Not sure about some glyphs. Pick the reading that matches what you see, or query all of them:</p>`;
-    h += `<div class="seq">` + d.sequences.map(s => `<button data-hex="${s.hex}" data-fmt="${s.format}">${s.hex} <span class="muted">${Math.round(s.p * 100)}%${s.format !== d.format ? ' v' + s.format : ''}</span></button>`).join('') + `</div>`;
+    h += `<div class="seq">` + d.sequences.map(s => `<button data-hex="${s.hex}" data-fmt="${s.format}" title="draw this reading">${s.hex} <span class="muted">${Math.round(s.p * 100)}%${s.format !== d.format ? ' v' + s.format : ''}</span></button>`).join('') + `</div>`;
     h += `<ol class="symbols">` + d.reads.map(r => { const alts = r.candidates.slice(1).map(([b, p]) => `${describe(b, d.format)} (${Math.round(p * 100)}%)`).join('; ');
       return `<li><code>${r.byte.toString(16).padStart(2, '0')}</code> ${describe(r.byte, d.format)} <span class="muted">${Math.round(r.p * 100)}%</span>${alts ? `<div class="alts">or ${alts}</div>` : ''}</li>`; }).join('') + `</ol>`;
   }
   h += d.warnings.map(w => `<p class="warn">${w}</p>`).join('');
   $('result').innerHTML = h;
-  if (d.sequences.length) runLookup(d.sequences.map(s => s.hex));
+  if (d.sequences.length) { drawRow($('bestRow'), shapesFor(d.format), toBytes(d.best), 110); runLookup(d.sequences.map(s => s.hex)); }
   // tapping a reading shows it drawn, in the format it was read in
   for (const b of $('result').querySelectorAll('button[data-hex]')) b.addEventListener('click', () => {
     $('hex').value = b.dataset.hex; const fr = document.querySelector(`input[name=fmt][value="${b.dataset.fmt}"]`); if (fr) fr.checked = true;
-    $('drawHint').textContent = HINTS[drawFormat()]; renderEncode(); b.textContent = b.dataset.hex + ' ✓'; window.scrollTo({ top: 0, behavior: 'smooth' });
+    $('drawHint').textContent = HINTS[drawFormat()]; renderEncode();
+    for (const o of $('result').querySelectorAll('button[data-hex]')) o.classList.toggle('picked', o === b);
+    showTab('draw');
   });
 }
 
@@ -104,11 +129,6 @@ const relayUrl = () => $('relay').value.trim();
 $('lookupHexBtn').addEventListener('click', () => { const h = currentPrefix(); if (h.length >= 2) runLookup([h]); });
 for (const r of document.querySelectorAll('input[name=nbytes]')) r.addEventListener('change', renderEncode);
 
-function placeRelaySection(hasResult) {
-  const sec = $('relaySection'), bytes = $('bytesSection');
-  if (hasResult) { if (bytes.nextElementSibling !== sec) bytes.after(sec); }
-  else document.querySelector('main').insertBefore(sec, document.querySelector('main > p.muted'));
-}
 
 async function runLookup(candidates) {
   lastCandidates = candidates;
@@ -132,7 +152,6 @@ async function runLookup(candidates) {
   h += `<p class="muted">via ${r.via}, ${r.events.length} event${r.events.length === 1 ? '' : 's'}</p>`;
   box.innerHTML = h;
   window.__events = items;
-  placeRelaySection(items.length > 0);
   if (items.length) $('relaySection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -144,7 +163,7 @@ function eventCard(ev, i, candidates) {
   const body = ev.kind === 0 ? `<span class="sub">${esc(pr.about || '')}</span>` : esc(String(ev.content || '').slice(0, 400));
   return `<div class="ev" data-i="${i}">
     <div class="head">${pic}<div><div class="name">${esc(name)}</div><div class="sub">${pr.nip05 ? esc(pr.nip05) + ' · ' : ''}${when}</div></div></div>
-    <button class="dots" data-menu="${i}" aria-label="more">⋯</button>
+    <button class="dots" data-menu="${i}" aria-label="more"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
     <div class="body"><span class="kind">kind ${esc(String(ev.kind))}${ev.kind === 0 ? ' profile' : ''}</span>${body}</div>
     ${m ? `<div class="ok" style="font-size:13px">matches <code>${m.prefix}</code> by ${m.how}</div>` : ''}
   </div>`;
@@ -254,11 +273,14 @@ function showPublished(ev, url, found, relay) {
       : `${what} published to ${esc(relay)}, but it did not come back for its first ${CAIRN_MIN_BYTES} bytes yet; look it up again in a minute`}</div>
     <div class="body dest">${url ? `Opens <b>${esc(hostOf(url))}</b> <code>${esc(url)}</code>`
       : `<span class="kind">kind 1 note</span>${esc(chars.slice(0, n).join(''))}${chars.length > n ? '…' : ''}`}</div>
-    <div class="sub">event id <code>${esc(prefix)}</code>${esc(ev.id.slice(2 * CAIRN_MIN_BYTES, 24))}… · the glyphs to draw are below</div>
-    <div class="row" style="margin-bottom:0"><button id="cairnCopyId">copy event id</button><button id="cairnCopyNevent">copy nevent</button></div>
+    <div class="sub">event id <code>${esc(prefix)}</code>${esc(ev.id.slice(2 * CAIRN_MIN_BYTES, 24))}… · draw these glyphs</div>
+    <canvas id="cairnRow" class="render glyphs"></canvas>
+    <div class="row" style="margin-bottom:0"><button id="cairnCopyId">copy event id</button><button id="cairnCopyNevent">copy nevent</button><button id="cairnDraw">open in Draw</button></div>
   </div>`;
   $('cairnCopyId').addEventListener('click', () => copyText(ev.id));
   $('cairnCopyNevent').addEventListener('click', () => copyText(nevent(ev.id, { relays: [relay], author: ev.pubkey, kind: ev.kind })));
+  $('cairnDraw').addEventListener('click', () => showTab('draw'));
+  drawRow($('cairnRow'), SHAPES, toBytes(prefix), 110);
   $('hex').value = ev.id;
   if (nBytes() && nBytes() < CAIRN_MIN_BYTES) { const r = document.querySelector(`input[name=nbytes][value="${CAIRN_MIN_BYTES}"]`); if (r) r.checked = true; }
   renderEncode();
