@@ -7,8 +7,9 @@ const toBytes = h => { const out = []; for (let i = 0; i + 1 < h.length; i += 2)
 
 // three tools on tabs: read (default), draw, publish. The hash names the tool, so glyphbyte.dev/app/#publish
 // opens straight onto publishing. The matches below the tools are shared by all three.
-const TABS = { read: 'readSection', draw: 'bytesSection', publish: 'cairnSection' };
+const TABS = { read: 'readSection', make: 'cairnSection', draw: 'bytesSection' };
 function showTab(name, scroll = true) {
+  if (name === 'publish') name = 'make';   // the tab's first name
   if (!TABS[name]) name = 'read';
   for (const [k, id] of Object.entries(TABS)) { $(id).hidden = k !== name; $('tab-' + k).setAttribute('aria-selected', String(k === name)); }
   try { if (location.hash.slice(1) !== name) history.replaceState(null, '', '#' + name); } catch (e) { /* a sandboxed frame may refuse; the tab still shows */ }
@@ -17,6 +18,8 @@ function showTab(name, scroll = true) {
 for (const k of Object.keys(TABS)) $('tab-' + k).addEventListener('click', () => showTab(k));
 addEventListener('hashchange', () => showTab(location.hash.slice(1), false));
 showTab(location.hash.slice(1), false);
+// glyphbyte.dev links here with ?link=...: the link waits in Make, never published until the person says so
+try { const l = new URLSearchParams(location.search).get('link'); if (l) { $('cairnText').value = l.slice(0, 2000); showTab('make', false); } } catch (e) { /* no query in a shell */ }
 
 // what the box holds: raw hex, or a NIP-19 entity (npub, note, nevent, nprofile, naddr), optionally nostr:-prefixed
 function parseEntry(raw) {
@@ -132,9 +135,15 @@ for (const r of document.querySelectorAll('input[name=nbytes]')) r.addEventListe
 
 async function runLookup(candidates) {
   lastCandidates = candidates;
-  const box = $('lookup'); box.innerHTML = `<p class="muted">asking ${esc(relayUrl())}…</p>`;
+  const box = $('lookup'); box.innerHTML = `<p class="muted"><span class="spin" style="display:inline-block;vertical-align:-3px;margin-right:8px"></span>Looking it up…</p>`;
   const opts = { relay: relayUrl(), nappletRelay: nappletRelay() };
-  const r = await lookup(candidates, opts);
+  // the relay in the box, plus the others glyphbyte has published to, all at once; results merged by id
+  const relays = Array.from(new Set([relayUrl(), ...LOOKUP_RELAYS]));
+  const all = await Promise.all(relays.map(u => lookup(candidates, { ...opts, relay: u })));
+  const seenId = new Set(), r = { events: [], notices: [], error: all.every(x => x.error) ? all[0].error : undefined, via: all[0].via };
+  for (const x of all) { for (const ev of x.events) if (!seenId.has(ev.id)) { seenId.add(ev.id); r.events.push(ev); } }
+  // grain answers every prefix query with the same notice; it says nothing a reader needs
+  r.notices = all[0].notices.filter(n => !/matched as prefixes/.test(n));
   if (lastCandidates !== candidates) return;
   const authors = Array.from(new Set(r.events.map(e => e.pubkey)));
   for (const ev of r.events) if (ev.kind === 0 && (!profiles[ev.pubkey] || profiles[ev.pubkey].created_at < ev.created_at)) profiles[ev.pubkey] = ev;
@@ -142,21 +151,35 @@ async function runLookup(candidates) {
   if (missing.length) Object.assign(profiles, await fetchProfiles(missing, opts));
   if (lastCandidates !== candidates) return;
   let h = '';
-  if (r.error) h += `<p class="warn">${esc(r.error)}${r.via === 'websocket' ? ' (inside a napplet shell the relay is reached through the shell)' : ''}</p>`;
-  for (const n of r.notices) h += `<p class="warn">relay: ${esc(n)}</p>`;
-  if (!r.events.length) h += `<p class="muted">nothing matched ${candidates.length} candidate${candidates.length > 1 ? 's' : ''}.</p>`;
+  if (r.error) h += `<p class="warn">Could not reach the lookup server: ${esc(r.error)}</p>`;
+  for (const n of r.notices) h += `<p class="warn">server: ${esc(n)}</p>`;
+  if (!r.events.length && !r.error) h += `<p class="muted">Nothing found for ${candidates.length > 1 ? `any of the ${candidates.length} readings` : 'that row'}. Check the glyphs, or try another photo.</p>`;
   const seenPk = new Set(), items = [];
+  for (const ev of r.events.filter(e => e.kind === CAIRN_KIND).sort((a, b) => b.created_at - a.created_at)) items.push(ev);
   for (const ev of r.events.filter(e => e.kind === 0).sort((a, b) => b.created_at - a.created_at)) { if (!seenPk.has(ev.pubkey)) { seenPk.add(ev.pubkey); items.push(ev); } }
-  for (const ev of r.events.filter(e => e.kind !== 0).sort((a, b) => b.created_at - a.created_at).slice(0, 30)) items.push(ev);
+  for (const ev of r.events.filter(e => e.kind !== 0 && e.kind !== CAIRN_KIND).sort((a, b) => b.created_at - a.created_at).slice(0, 30)) items.push(ev);
   h += items.map((ev, i) => eventCard(ev, i, candidates)).join('');
-  h += `<p class="muted">via ${r.via}, ${r.events.length} event${r.events.length === 1 ? '' : 's'}</p>`;
+  if (r.events.length) h += `<p class="muted">${r.events.length} match${r.events.length === 1 ? '' : 'es'} from ${relays.length} server${relays.length === 1 ? '' : 's'}</p>`;
   box.innerHTML = h;
   window.__events = items;
   if (items.length) $('relaySection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function profileOf(pk) { const ev = profiles[pk]; if (!ev) return {}; try { return JSON.parse(ev.content || '{}'); } catch (e) { return {}; } }
+// a cairn shows as the link it carries: the website first, the full link, and a button. Never opened by itself.
+function linkCard(ev, i, candidates, url) {
+  const m = matchPrefix(ev, candidates), note = String(ev.content || '').split(/\s+/).filter(t => t !== url).join(' ').trim();
+  return `<div class="ev link" data-i="${i}">
+    <button class="dots" data-menu="${i}" aria-label="more"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+    <div class="k">This row opens</div>
+    <div class="host">${esc(hostOf(url))}</div>
+    <div class="url">${esc(url)}</div>
+    ${note ? `<div class="body">${esc(note.slice(0, 280))}</div>` : ''}
+    <div class="row" style="margin-bottom:0"><a class="open" href="${esc(url)}" target="_blank" rel="noopener noreferrer nofollow">Open ${esc(hostOf(url))}</a>${m ? `<span class="muted">matches <code>${m.prefix}</code></span>` : ''}</div>
+  </div>`;
+}
 function eventCard(ev, i, candidates) {
+  if (ev.kind === CAIRN_KIND) { const v = validateCairn(ev); if (v.ok) return linkCard(ev, i, candidates, v.url); }
   const pr = profileOf(ev.pubkey), m = matchPrefix(ev, candidates), when = new Date(ev.created_at * 1000).toLocaleString();
   const name = pr.display_name || pr.name || ev.pubkey.slice(0, 12) + '…';
   const pic = pr.picture ? `<img src="${esc(String(pr.picture))}" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : `<div style="width:44px;height:44px;border-radius:50%;background:var(--card);flex:none"></div>`;
@@ -204,22 +227,22 @@ $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('moda
 // The signer is a separate script (BigInt): a browser that cannot run it still gets the reader.
 $('cairnRelay').textContent = DEFAULT_RELAY;
 const hostOf = u => { try { return new URL(u).host; } catch (e) { return u; } };
-const cannotPublish = nappletRelay() ? 'Publishing works on glyphbyte.dev/app, not inside a nostr shell.'
+const cannotPublish = nappletRelay() ? 'Making glyphs for a link works on glyphbyte.dev/app, not inside a nostr app.'
   : (typeof signEvent !== 'function' || typeof BigInt !== 'function' || !(window.crypto && crypto.subtle))
-    ? 'This browser cannot sign nostr events (it needs BigInt and Web Crypto on https), so publishing is off here.' : '';
+    ? 'This browser is too old to make glyphs for a link. Reading still works.' : '';
 let cairnPick = '', cairnBusy = false;
 function cairnUrl(urls) { return urls.includes(cairnPick) ? cairnPick : urls[0] || ''; }
 function renderCairnInfo() {
   const text = $('cairnText').value, { urls, content, blank } = parseCairnText(text), url = cairnUrl(urls), info = $('cairnInfo');
   if (cannotPublish) info.innerHTML = `<p class="warn">${esc(cannotPublish)}</p>`;
   else if (blank) info.innerHTML = '';
-  else if (!urls.length) info.innerHTML = `<p class="muted">No link, so this goes out as an ordinary nostr note (kind 1), which nostr apps show in feeds. Add a link that starts with https:// to make a cairn instead.</p>`;
+  else if (!urls.length) info.innerHTML = `<p class="muted">There is no link here yet. Add one that starts with https:// to make glyphs for it. Without a link this is saved as a short public note instead.</p>`;
   else if (urls.length === 1) info.innerHTML = `<p class="dest">Opens <b>${esc(hostOf(url))}</b> <code>${esc(url)}</code></p>`;
-  else info.innerHTML = `<p class="muted" style="margin-bottom:2px">Which link does the cairn open?</p>` + urls.map(u =>
+  else info.innerHTML = `<p class="muted" style="margin-bottom:2px">Which link should the glyphs open?</p>` + urls.map(u =>
     `<label class="pick"><input type="radio" name="cairnUrl" value="${esc(u)}"${u === url ? ' checked' : ''}><span><b>${esc(hostOf(u))}</b> <code>${esc(u)}</code></span></label>`).join('');
-  if (!cannotPublish && !blank && content !== text.trim()) info.innerHTML += `<p class="muted dest">Published as <code>${esc(content)}</code>, cleaned so that every link stands on its own and every nostr app reads the same text.</p>`;
+  if (!cannotPublish && !blank && content !== text.trim()) info.innerHTML += `<p class="muted dest">Saved as <code>${esc(content)}</code>, tidied so that every link stands on its own.</p>`;
   for (const r of info.querySelectorAll('input[name=cairnUrl]')) r.addEventListener('change', () => { cairnPick = r.value; });
-  $('cairnBtn').textContent = urls.length ? 'publish cairn' : 'publish note';
+  $('cairnBtn').textContent = urls.length ? 'Make glyphs' : 'Save note';
   $('cairnBtn').disabled = !!cannotPublish || cairnBusy || blank;
   $('cairnText').readOnly = !!cannotPublish || cairnBusy;   // what is being published cannot change under it
 }
@@ -230,7 +253,7 @@ renderCairnInfo();
 async function publishText() {
   const { urls, content, blank } = parseCairnText($('cairnText').value), url = cairnUrl(urls);
   if (cannotPublish || blank || cairnBusy) return;
-  const st = $('cairnStatus'), relay = DEFAULT_RELAY, say = (cls, msg) => { st.className = cls; st.textContent = msg; };
+  const st = $('cairnStatus'), relay = url ? DEFAULT_RELAY : NOTE_RELAY, say = (cls, msg) => { st.className = cls; st.textContent = msg; };
   const opts = { relay, nappletRelay: nappletRelay() };
   cairnBusy = true; renderCairnInfo(); $('cairnResult').innerHTML = '';
   let sk = null, published = null;
@@ -238,25 +261,25 @@ async function publishText() {
     const tpl = url ? cairnTemplate(url, content) : { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [], content };
     const check = url ? validateCairn(tpl) : { ok: true };
     if (!check.ok) throw new Error(check.errors.join('; '));
-    say('muted', 'signing…');
+    say('muted', 'Making…');
     sk = generateSecretKey();
     const ev = await signEvent(tpl, sk);
     sk.fill(0);   // the key's only job is done; nothing keeps it
-    say('muted', `publishing to ${relay}…`);
+    say('muted', 'Saving…');
     const sent = await publishEvent(ev, opts);
-    if (!sent.ok && sent.answered) throw new Error(`the relay refused it${sent.message ? ': ' + sent.message : ''}`);
-    say('muted', `asking ${relay} for it by its first ${CAIRN_MIN_BYTES} bytes…`);
+    if (!sent.ok && sent.answered) throw new Error(`the server refused it${sent.message ? ': ' + sent.message : ''}`);
+    say('muted', 'Checking it can be found…');
     const back = await lookup([ev.id.slice(0, 2 * CAIRN_MIN_BYTES)], opts), found = back.events.some(e => e.id === ev.id);
     // no OK (timeout, dropped connection): the relay may still have stored it, and only finding it tells
-    if (!sent.ok && !found) throw new Error(`${sent.message}, and the relay does not have it, so nothing was published`);
+    if (!sent.ok && !found) throw new Error(`${sent.message}, and the server does not have it, so nothing was saved`);
     published = ev;
     say('muted', '');
     $('cairnText').value = ''; cairnPick = '';
     cairnBusy = false; renderCairnInfo();   // before showPublished scrolls, so nothing above the card moves
     showPublished(ev, url, found, relay);
   } catch (e) {
-    say('warn', published ? `published (event id ${published.id.slice(0, 12)}…), but the page failed to show it: ${e.message || e}`
-      : `not published: ${e.message || e}`);
+    say('warn', published ? `Saved (id ${published.id.slice(0, 12)}…), but the page failed to show it: ${e.message || e}`
+      : `Not saved: ${e.message || e}`);
   } finally {
     if (sk) sk.fill(0);
     cairnBusy = false; renderCairnInfo();
@@ -269,13 +292,13 @@ function showPublished(ev, url, found, relay) {
   const prefix = ev.id.slice(0, 2 * CAIRN_MIN_BYTES), what = url ? 'cairn' : 'note', chars = Array.from(ev.content), n = 280;
   $('cairnResult').innerHTML = `<div class="ev">
     <div class="${found ? 'ok' : 'warn'}" style="font-size:14px">${found
-      ? `${what} published to ${esc(relay)}, and found again by its first ${CAIRN_MIN_BYTES} bytes`
-      : `${what} published to ${esc(relay)}, but it did not come back for its first ${CAIRN_MIN_BYTES} bytes yet; look it up again in a minute`}</div>
+      ? `Done. Draw these ${CAIRN_MIN_BYTES} glyphs and anyone can read them${url ? ' to open the link' : ''}.`
+      : `Saved, but the lookup cannot find it yet. Try reading the glyphs again in a minute.`}</div>
     <div class="body dest">${url ? `Opens <b>${esc(hostOf(url))}</b> <code>${esc(url)}</code>`
-      : `<span class="kind">kind 1 note</span>${esc(chars.slice(0, n).join(''))}${chars.length > n ? '…' : ''}`}</div>
-    <div class="sub">event id <code>${esc(prefix)}</code>${esc(ev.id.slice(2 * CAIRN_MIN_BYTES, 24))}… · draw these glyphs</div>
+      : `<span class="kind">note</span>${esc(chars.slice(0, n).join(''))}${chars.length > n ? '…' : ''}`}</div>
     <canvas id="cairnRow" class="render glyphs"></canvas>
-    <div class="row" style="margin-bottom:0"><button id="cairnCopyId">copy event id</button><button id="cairnCopyNevent">copy nevent</button><button id="cairnDraw">open in Draw</button></div>
+    <div class="sub">id <code>${esc(prefix)}</code>${esc(ev.id.slice(2 * CAIRN_MIN_BYTES, 24))}…</div>
+    <div class="row" style="margin-bottom:0"><button id="cairnDraw">Bigger, with a description</button><button id="cairnCopyId">Copy id</button><button id="cairnCopyNevent">Copy nevent</button></div>
   </div>`;
   $('cairnCopyId').addEventListener('click', () => copyText(ev.id));
   $('cairnCopyNevent').addEventListener('click', () => copyText(nevent(ev.id, { relays: [relay], author: ev.pubkey, kind: ev.kind })));
@@ -292,10 +315,10 @@ let probeTimer, probeSeq = 0;
 async function probe() {
   const url = relayUrl(), seq = ++probeSeq, st = $('relayStatus');
   if (!/^wss?:\/\//.test(url)) { st.textContent = ''; return; }
-  st.className = 'muted'; st.textContent = 'checking partial-id support…';
+  st.className = 'muted'; st.textContent = 'checking…';
   const r = await probeRelay(url, { nappletRelay: nappletRelay() });
   if (seq !== probeSeq) return;
-  if (r.ok) { st.className = 'ok'; st.textContent = 'partial ids and pubkeys: supported'; }
+  if (r.ok) { st.className = 'ok'; st.textContent = 'ready'; }
   else if (r.ids === 'rejected' || r.authors === 'rejected') { st.className = 'bad'; st.textContent = `this relay rejects partial queries${r.detail ? ': ' + r.detail.replace(/^CLOSED: /, '') : ''}`; }
   else if (r.ids === 'ignored' || r.authors === 'ignored') { st.className = 'bad'; st.textContent = 'this relay ignores partial queries (exact matches only); try wss://wheat.oslim.dev'; }
   else { st.className = 'warn'; st.textContent = `could not test: ${r.detail}`; }

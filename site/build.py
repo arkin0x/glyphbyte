@@ -13,7 +13,6 @@ What goes where:
     spec/{test-vectors,glyphs,glyphs-v1}.json, spec/glyphs{,-v1}.svg, spec/vectors/*  -> dist/spec/...
     spec/glyphs.svg              -> dist/sheet.svg
     spec/glyphs.json             -> inlined into the pages (window.GLYPHS) for the drawn and 3D glyphs; the favicon
-    napplet/src/nip19.js         -> inlined into the landing page, so it can draw an npub or a note
     site/src/site.js             -> inlined: the glyph renderer and the landing page's interactive parts
     site/src/vendor/crystals.js  -> dist/vendor/crystals.js      the 3D crystals with three.js, prebuilt by
                                                                  `npm run build` in site/three (committed)
@@ -37,8 +36,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SRC, DIST = os.path.join(HERE, "src"), os.path.join(HERE, "dist")
 NAPPLET, SPEC = os.path.join(ROOT, "napplet"), os.path.join(ROOT, "spec")
-SITE_DESCRIPTION = ("GlyphByte: a hand-drawable alphabet where one glyph is one byte. Draw a nostr event id or "
-                    "pubkey prefix with any pen; a phone reads it back on the device and a relay resolves it.")
+SITE_DESCRIPTION = ("Any page, file or link on the internet can be found with about six hand-drawn glyphs. Chalk them "
+                    "on a sidewalk or a sign, and any phone camera brings it back.")
 
 
 def read(path):
@@ -109,7 +108,6 @@ def inline_module(path):
 
 def scripts(crystals=False):
     out = [f"<script>window.GLYPHS = {json.dumps(glyphs(), separators=(',', ':'))};</script>",
-           f"<script>\n{inline_module(os.path.join(NAPPLET, 'src', 'nip19.js'))}\n</script>",
            f"<script>\n{read(os.path.join(SRC, 'site.js'))}\n</script>"]
     if crystals:
         out.append('<script type="module" src="/vendor/crystals.js"></script>')
@@ -168,14 +166,14 @@ def build():
     copy(os.path.join(SRC, "vendor", "crystals.js"), os.path.join(DIST, "vendor", "crystals.js"))
 
     write(os.path.join(DIST, "index.html"), page(
-        "landing.html", "GlyphByte: one drawn glyph is one byte", SITE_DESCRIPTION, "landing", crystals=True))
+        "landing.html", "GlyphByte: anything online in six glyphs", SITE_DESCRIPTION, "landing", crystals=True))
     write(os.path.join(DIST, "404.html"), page(
         "404.html", "Not found · GlyphByte", "This page does not exist.", "notfound"))
     vector_links = ", ".join(f'<a href="/spec/vectors/{html.escape(n)}">{html.escape(n)}</a>' for n in vectors)
     spec_html, spec_toc = render_spec()
     write(os.path.join(DIST, "spec", "index.html"), page(
         "spec.html", "GlyphByte specification", "The GlyphByte specification: the byte layout, the alphabet, "
-        "how to draw a glyph and a row, how readers work, and how the bytes resolve on nostr.", "spec", nav_spec=True,
+        "how to draw a glyph and a row, how readers work, and how a row is looked up.", "spec", nav_spec=True,
         SPEC_HTML=spec_html, SPEC_TOC=spec_toc, VECTOR_LINKS=vector_links))
     write(os.path.join(DIST, "favicon.svg"), mark_svg(page=True) + "\n")
     copy(os.path.join(SRC, "htaccess"), os.path.join(DIST, ".htaccess"))

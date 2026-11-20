@@ -123,6 +123,15 @@
   .note { display:flex; gap:10px; align-items:flex-start; color:var(--muted); font-size:13.5px; margin:14px 0 0 }
   .note .ico { width:16px; height:16px; margin-top:2px }
 
+  /* what it points to: a found link */
+  .ev.link { padding:18px 18px 16px; border-color:color-mix(in srgb, var(--accent) 35%, var(--line)) }
+  .ev.link .k { font:500 11.5px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted) }
+  .ev.link .host { font:400 28px/1.15 var(--display); letter-spacing:-.04em; margin:10px 0 4px; word-break:break-word; padding-right:40px }
+  .ev.link .url { font:500 13.5px/1.5 var(--mono); color:var(--ink-2); word-break:break-all }
+  a.open { display:inline-flex; align-items:center; gap:8px; font:600 15px/1 var(--sans); padding:13px 18px; border-radius:999px; background:var(--ink); color:var(--bg); text-decoration:none; box-shadow:0 10px 26px -12px rgba(90,72,245,.75) }
+  a.open:hover { color:var(--bg) }
+  details.server { margin-top:16px } details.server summary { display:inline-flex; gap:8px; align-items:center; cursor:pointer; color:var(--muted); font-size:14px; list-style:none }
+  details.server summary::-webkit-details-marker { display:none } details.server[open] summary { margin-bottom:12px }
   /* matches */
   .relay { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:12px 14px; border-radius:16px; background:var(--solid); border:1px solid var(--line); margin-bottom:12px }
   .relay .ico { color:var(--muted) }
@@ -149,15 +158,15 @@
     <a class="brand" id="home" href="/" aria-label="glyphbyte.dev"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="gbp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fc6ff"/><stop offset=".35" stop-color="#6d7bff"/><stop offset=".65" stop-color="#b76bff"/><stop offset="1" stop-color="#ff6fae"/></linearGradient></defs><rect x="12" y="12" width="40" height="40" rx="3" fill="none" stroke="url(#gbp)" stroke-width="3.6"/><polyline points="25.5,40.1 25.5,31.0 32.0,23.9 38.5,31.0 38.5,40.1 25.5,40.1" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="19.2" cy="19.2" r="3.5" fill="url(#gbp)"/><circle cx="44.8" cy="19.2" r="3.5" fill="url(#gbp)"/><circle cx="44.8" cy="44.8" r="3.5" fill="url(#gbp)"/><circle cx="19.2" cy="44.8" r="3.5" fill="url(#gbp)"/></svg><span>glyphbyte</span></a>
     <nav class="tabs" role="tablist" aria-label="tools">
       <button role="tab" id="tab-read" aria-controls="readSection" aria-selected="true">{{icon:scan}}Read</button>
+      <button role="tab" id="tab-make" aria-controls="cairnSection" aria-selected="false">{{icon:link}}Make</button>
       <button role="tab" id="tab-draw" aria-controls="bytesSection" aria-selected="false">{{icon:pen-line}}Draw</button>
-      <button role="tab" id="tab-publish" aria-controls="cairnSection" aria-selected="false">{{icon:send}}Publish</button>
     </nav>
   </div>
 </header>
 <main>
   <section id="readSection" class="edge" role="tabpanel" aria-labelledby="tab-read">
     <h1>Read a row</h1>
-    <p class="lede">Photograph a row of glyphs. The reader finds them, reads every icon and dot on this device, and asks the relay what they point to.</p>
+    <p class="lede">Photograph a row of glyphs. The reader works them out right on this phone and finds the link they point to.</p>
     <div class="picker">
       <button id="photoBtn" class="drop" aria-haspopup="menu" aria-expanded="false">
         <span class="orb">{{icon:camera}}</span>
@@ -175,9 +184,9 @@
   </section>
 
   <section id="bytesSection" class="edge" role="tabpanel" aria-labelledby="tab-draw" hidden>
-    <h1>Draw an id</h1>
-    <p class="lede">Paste an id and get the glyphs to copy. Draw them left to right, underline the row and start the line with a fat dot.</p>
-    <input id="hex" type="text" placeholder="hex, npub, note, nevent, nprofile or naddr" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="id to draw">
+    <h1>Draw a code</h1>
+    <p class="lede">Turn a code into glyphs to copy, with a description of each one. Draw them left to right, underline the row and start the line with a fat dot.</p>
+    <input id="hex" type="text" placeholder="a hex code, like 5a07c3e1b29d" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="code to draw">
     <div class="ctl">
       <div><span class="lab">Bytes</span><div class="seg mono" role="radiogroup" aria-label="bytes to draw">
         <label><input type="radio" name="nbytes" value="4"><span>4</span></label><label><input type="radio" name="nbytes" value="6" checked><span>6</span></label><label><input type="radio" name="nbytes" value="8"><span>8</span></label><label><input type="radio" name="nbytes" value="0"><span>all</span></label>
@@ -195,24 +204,26 @@
     <p class="note">{{icon:pen-line}}<span id="drawHint">Draw a square frame, the icon upright and small in the middle, and the corner dots so they touch nothing. Underline the row and put a fat dot at the start of the underline, about a quarter of a frame across.</span></p>
   </section>
 
-  <section id="cairnSection" class="edge" role="tabpanel" aria-labelledby="tab-publish" hidden>
-    <h1>Publish a link or a note</h1>
-    <p class="lede">Text with a link becomes a cairn: a public nostr event that carries the link, so the first glyphs of its id lead anyone to it. Text without a link becomes an ordinary nostr note. Either way you get glyphs to draw.</p>
-    <textarea id="cairnText" rows="3" maxlength="2000" placeholder="https://example.com/menu lunch menu for table 4" spellcheck="true" autocapitalize="off"></textarea>
+  <section id="cairnSection" class="edge" role="tabpanel" aria-labelledby="tab-make" hidden>
+    <h1>Turn a link into glyphs</h1>
+    <p class="lede">Paste a link, add a few words if you like, and get six glyphs to draw. Whoever reads them sees the link and the website it goes to before anything opens.</p>
+    <textarea id="cairnText" rows="3" maxlength="2000" placeholder="https://example.com/menu  lunch menu for table 4" spellcheck="true" autocapitalize="off" aria-label="link"></textarea>
     <div id="cairnInfo"></div>
-    <div class="row"><button id="cairnBtn" class="primary" disabled>publish</button><span id="cairnStatus" class="muted"></span></div>
+    <div class="row"><button id="cairnBtn" class="primary" disabled>Make glyphs</button><span id="cairnStatus" class="muted"></span></div>
     <div id="cairnResult"></div>
-    <p class="note">{{icon:radio-tower}}<span>Publishing signs it with a key made for it alone and sends it to <code id="cairnRelay">wss://wheat.oslim.dev</code>. The page then forgets the key, so nobody can edit or delete what you publish: check it first.</span></p>
+    <p class="note">{{icon:circle-alert}}<span>The link is saved as a small public record that nobody can edit or delete afterwards, not even you. Check it before you make glyphs. <span id="cairnRelay" hidden></span></span></p>
   </section>
 
   <section id="relaySection">
-    <h2>{{icon:radio-tower}}On the relay</h2>
-    <div class="relay"><input id="relay" type="text" value="wss://wheat.oslim.dev" spellcheck="false" autocapitalize="off" aria-label="relay"><span id="relayStatus" class="muted"></span></div>
-    <div id="lookup"><p class="muted">Readings and look-ups show their matches here.</p></div>
-    <p class="muted">Every candidate reading is asked for at once, as an event id prefix and as a pubkey prefix for profiles. Prefix matching needs a relay that supports it.</p>
+    <h2>{{icon:link}}What it points to</h2>
+    <div id="lookup"><p class="muted">Read a row and the link it points to shows up here.</p></div>
+    <details class="server"><summary>{{icon:settings-2}}Lookup server</summary>
+      <div class="relay"><input id="relay" type="text" value="wss://relay.onosendai.tech" spellcheck="false" autocapitalize="off" aria-label="lookup server"><span id="relayStatus" class="muted"></span></div>
+      <p class="muted">GlyphByte keeps links on nostr relays. Every likely reading of a row is asked for at once, from this server and from wss://wheat.oslim.dev, as an event id prefix and as a pubkey prefix. The server must answer prefix queries (grain does).</p>
+    </details>
   </section>
 </main>
-<footer class="foot"><span>Runs on this device. Only the relay queries above and what you publish leave the page.</span><a href="/">glyphbyte.dev</a><a href="/spec/">Specification</a><span>Build /*__BUILD__*/</span></footer>
+<footer class="foot"><span>Photos never leave this phone. Only the lookup, and links you make, do.</span><a href="/">glyphbyte.dev</a><a href="/spec/">Specification</a><span>Build /*__BUILD__*/</span></footer>
 <div id="modal" hidden><div class="box"><div class="row" style="justify-content:space-between;margin:0"><b id="modalTitle"></b><button id="modalClose">close</button></div><pre id="modalBody"></pre></div></div>
 <script>
 /*__SIGNER__*/

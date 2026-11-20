@@ -114,11 +114,14 @@ code, kbd, pre, .mono { font-family:var(--mono); font-size:.88em }
 /* ------------------------------------------------------------------ hero */
 .hero { position:relative; padding:clamp(24px, 5vw, 64px) 0 0 }
 .hero-grid { display:grid; grid-template-columns:minmax(0, 1fr); gap:8px; align-items:center }
-.hero h1 { margin:22px 0 24px }
+.hero h1 { margin:22px 0 24px; font-size:clamp(44px, 6.2vw, 74px) }
 .hero .lead { max-width:38ch; margin-bottom:32px }
 .hero-meta { display:flex; gap:22px; flex-wrap:wrap; margin-top:30px; color:var(--muted); font-size:14px }
 .hero-meta span { display:inline-flex; gap:8px; align-items:center }
-@media (min-width:1000px) { .hero-grid { grid-template-columns:minmax(0, 5fr) minmax(0, 6fr) } }
+.lead .fn { text-decoration:none; font-weight:600; margin-left:1px }
+.footnote { margin:18px 0 0; color:var(--muted); font-size:13.5px; max-width:46ch }
+.footnote a { color:var(--ink-2) }
+@media (min-width:1000px) { .hero-grid { grid-template-columns:minmax(0, 6fr) minmax(0, 5fr) } }
 .crystal-host { position:relative; height:clamp(320px, 84vw, 600px); margin:0 -24px;
   -webkit-mask:radial-gradient(closest-side, #000 72%, transparent); mask:radial-gradient(closest-side, #000 72%, transparent) }
 @media (max-width:520px) { .crystal-host { margin:0 -16px } }
@@ -129,7 +132,7 @@ code, kbd, pre, .mono { font-family:var(--mono); font-size:.88em }
 .crystal-host .fallback svg { width:100%; height:auto; overflow:visible; filter:drop-shadow(0 10px 30px rgba(120,100,255,.35)) }
 .crystal-host.has-3d .fallback { display:none }
 
-.stage { position:relative; z-index:2; margin-top:clamp(-40px, -3vw, -20px); padding:22px 22px 18px }
+.stage { position:relative; z-index:2; margin-top:clamp(8px, 2vw, 24px); padding:22px 22px 18px }
 .stage-top { display:flex; gap:12px; align-items:center; flex-wrap:wrap }
 .stage-title { font:500 13px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); width:100%; margin:0 0 4px 2px }
 .field { flex:1 1 240px; min-width:0; display:flex; align-items:center; gap:10px; background:var(--solid); border:1px solid var(--line); border-radius:14px; padding:0 14px; transition:border-color .2s, box-shadow .2s }
@@ -157,6 +160,20 @@ code, kbd, pre, .mono { font-family:var(--mono); font-size:.88em }
 @keyframes ink { to { stroke-dashoffset:0 } }
 @keyframes pop { to { transform:scale(1) } }
 @media (prefers-reduced-motion: reduce) { .drawn .ink, .drawn .dot { animation:none; stroke-dasharray:none; transform:none } }
+
+
+/* hero form and example */
+.stage-top .btn.primary { padding:14px 20px }
+.stage-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:6px }
+.stage-foot .stage-note { margin:0 }
+/* step art: a link pill, and the phone's answer */
+.match .icon { width:16px; height:16px; color:var(--accent) }
+.hits svg { overflow:visible; height:auto }
+.phone-card { display:flex; flex-direction:column; gap:4px; padding:14px 16px; border-radius:16px; background:var(--solid); border:1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); box-shadow:var(--shadow); font-family:var(--sans) }
+.phone-card .k { font:500 10px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted) }
+.phone-card b { font:400 22px/1.1 var(--display); letter-spacing:-.04em; color:var(--ink) }
+.phone-card .u { font:500 11.5px/1.3 var(--mono); color:var(--ink-2) }
+.phone-card i { font-style:normal; align-self:flex-start; margin-top:6px; padding:7px 13px; border-radius:999px; background:var(--ink); color:var(--bg); font:600 12.5px/1 var(--sans) }
 
 /* ------------------------------------------------------------------ steps */
 .steps { display:grid; gap:20px; grid-template-columns:repeat(auto-fit, minmax(270px, 1fr)) }

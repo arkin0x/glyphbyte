@@ -1,5 +1,4 @@
-// glyphbyte.dev page script. Expects GLYPHS (spec/glyphs.json) and decodeEntity (napplet/src/nip19.js),
-// both inlined by site/build.py. Draws glyphs as SVG in the page's ink colour (currentColor), either clean
+// glyphbyte.dev page script. Expects GLYPHS (spec/glyphs.json), inlined by site/build.py. Draws glyphs as SVG in the page's ink colour (currentColor), either clean
 // like the reference renderer or with a steady hand-drawn wobble, and wires the interactive parts of the
 // landing page: the hero row, the byte builder and the copy buttons. Every part is optional: a page
 // without the element simply skips it.
@@ -108,43 +107,24 @@
     return on.length ? `${name}, ${on.length === 1 ? 'dot' : 'dots'} ${on.join(', ')}` : `${name}, no dots`;
   }
 
-  function parseEntry(raw) {
-    const v = raw.trim().replace(/^nostr:/i, '');
-    if (/^(npub|note|nevent|nprofile|naddr)1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+$/i.test(v)) {
-      try { const d = decodeEntity(v); return { hex: d.hex, type: d.type }; } catch (e) { return { hex: '', error: 'That does not decode: ' + e.message }; }
-    }
-    const h = v.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
-    return { hex: h.length % 2 ? h.slice(0, -1) : h };
-  }
-
-  // ------------------------------------------------------------------ hero: type anything, see its glyphs
+  // ------------------------------------------------------------------ hero: a link goes to the reader; an example row floats
   const hero = $('#heroRow');
   if (hero) {
-    const input = $('#heroInput'), note = $('#heroNote'), list = $('#heroList');
-    let n = 6, timer;
-    const render = (animate) => {
-      const { hex, type, error } = parseEntry(input.value);
-      const bytes = []; for (let i = 0; i + 1 < hex.length && bytes.length < n; i += 2) bytes.push(parseInt(hex.slice(i, i + 2), 16));
-      if (error) note.textContent = error;
-      else if (type) note.textContent = `${type === 'npub' || type === 'nprofile' ? 'Your pubkey' : type === 'naddr' ? "The author's pubkey" : 'The event id'} starts ${hex.slice(0, 2 * n)}.`;
-      else note.textContent = hex.length ? '' : 'Paste a hex id, an npub or a note.';
-      hero.closest('.stage').classList.toggle('empty', !bytes.length);
-      row(hero, bytes.length ? bytes : [], { hand: true, draw: animate && !reduced, labels: true, seed: 5 });
+    let bytes = [0x5a, 0x07, 0xc3, 0xe1, 0xb2, 0x9d];
+    const render = animate => {
+      row(hero, bytes, { hand: true, draw: animate && !reduced, seed: 5 });
+      const fb = $('#heroFallback'); if (fb) row(fb, bytes, { lw: 0.06 });
       // the crystals (site/three/crystals.js) follow the same bytes
       window.__gbBytes = bytes;
       document.dispatchEvent(new CustomEvent('gb:bytes', { detail: { bytes } }));
-      const fb = $('#heroFallback'); if (fb) row(fb, bytes, { lw: 0.06 });
-      list.innerHTML = bytes.map(b => `<li><code>${hex2(b)}</code><span>${describe(b)}</span></li>`).join('');
     };
-    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => render(true), 260); });
-    $$('#heroLen button').forEach(b => b.addEventListener('click', () => {
-      n = +b.dataset.n; $$('#heroLen button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); render(true);
-    }));
-    const shuffle = $('#heroShuffle');
-    if (shuffle) shuffle.addEventListener('click', () => {
-      const a = new Uint8Array(8); crypto.getRandomValues(a); input.value = Array.from(a, hex2).join(''); render(true);
+    $('#heroShuffle').addEventListener('click', () => { const a = new Uint8Array(6); crypto.getRandomValues(a); bytes = Array.from(a); render(true); });
+    // the link waits in the reader's Make tab; nothing is saved until the person presses Make glyphs there
+    $('#heroForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const v = $('#heroLink').value.trim();
+      location.href = '/app/' + (v ? '?link=' + encodeURIComponent(v) : '') + '#make';
     });
-    // draw the first row once it scrolls into view (it is above the fold almost everywhere)
     render(false);
     if (!reduced && 'IntersectionObserver' in window) {
       const io = new IntersectionObserver(es => { if (es[0].isIntersecting) { io.disconnect(); render(true); } }, { threshold: 0.3 });

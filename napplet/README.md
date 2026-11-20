@@ -21,7 +21,7 @@ const result = readImage(gray, width, height, models);  // { best, format, seque
 
 drawRow(canvas, await loadShapes(), [0xe8, 0xed, 0x37, 0x98, 0xc6, 0xff]);      // a v2 row to copy from
 drawRow(canvas, await loadShapes(1), [0xe8, 0xed, 0x37, 0x98, 0xc6, 0xff]);     // the same bytes in format 1
-const hits = await lookup(result.sequences.map(s => s.hex), { relay: 'wss://wheat.oslim.dev' });
+const hits = await lookup(result.sequences.map(s => s.hex));       // default relay wss://relay.onosendai.tech; LOOKUP_RELAYS lists every relay the reader asks
 ```
 
 ### Cairns
@@ -35,7 +35,7 @@ import { parseCairnText, cairnTemplate, validateCairn, generateSecretKey, signEv
 
 const { urls, content } = parseCairnText('https://example.com/menu lunch menu for table 4');
 const cairn = await signEvent(cairnTemplate(urls[0], content), generateSecretKey());
-const sent = await publishEvent(cairn);                  // { ok, message }; default relay wss://wheat.oslim.dev
+const sent = await publishEvent(cairn);                  // { ok, message }; default relay wss://relay.onosendai.tech
 const back = await lookup([cairn.id.slice(0, 12)]);     // found again by its first 6 bytes
 validateCairn(cairn);                                    // { ok, url, errors }: the spec's rules
 ```
