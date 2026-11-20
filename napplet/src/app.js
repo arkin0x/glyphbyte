@@ -5,6 +5,66 @@ if (window.top !== window) for (const a of document.querySelectorAll('a[href^="/
 const hexClean = s => s.trim().replace(/[^0-9a-fA-F]/g, '').toLowerCase();
 const toBytes = h => { const out = []; for (let i = 0; i + 1 < h.length; i += 2) out.push(parseInt(h.slice(i, i + 2), 16)); return out; };
 
+// ---------------------------------------------------------------- rows in 3D
+// Every row of glyphs the reader makes gets a rainbow edge on its right. Tap it and the drawing melts into the
+// floating glass glyphs of glyphbyte.dev, in the same box so nothing moves; the edge turns black, and tapping it
+// melts back. The 3D (site/three, three.js) loads from glyphbyte.dev on the first tap, so a napplet inside a
+// nostr shell (no network of its own) and v1 rows simply have no edge.
+const CAN_3D = window.top === window && /^https?:$/.test(location.protocol) && 'WebGLRenderingContext' in window;
+let crystalsLoad = null;
+function loadCrystals() {
+  if (!crystalsLoad) {
+    window.GLYPHS = SHAPES;   // the module reads the v2 shapes when it loads
+    crystalsLoad = import('/vendor/crystals.js').then(() => window.GBCrystals || Promise.reject(new Error('no 3D')));
+    crystalsLoad.catch(() => { document.documentElement.classList.add('no-3d'); });
+  }
+  return crystalsLoad;
+}
+const live3d = new Set();
+function glyphBox(canvas) {
+  if (canvas.parentElement && canvas.parentElement.classList.contains('gbox')) return canvas.parentElement.gb;
+  const box = document.createElement('div'); box.className = 'gbox';
+  canvas.before(box); box.appendChild(canvas);
+  const cv = document.createElement('canvas'); cv.className = 'gb3d'; cv.setAttribute('aria-hidden', 'true'); box.appendChild(cv);
+  const edge = document.createElement('button'); edge.type = 'button'; edge.className = 'gedge';
+  edge.setAttribute('aria-label', 'Show these glyphs in 3D'); edge.setAttribute('aria-pressed', 'false');
+  edge.innerHTML = '<i class="rb"></i><i class="bk"></i>'; box.appendChild(edge);
+  const gb = box.gb = { box, cv, edge, bytes: [], fmt: 2, ctl: null, on: false, busy: false };
+  edge.addEventListener('click', () => toggle3d(gb));
+  return gb;
+}
+function setGlyphRow(canvas, bytes, fmt) {
+  for (const gb of live3d) if (!gb.box.isConnected) { gb.ctl && gb.ctl.dispose(); live3d.delete(gb); }   // rows replaced by a new reading
+  const gb = glyphBox(canvas);
+  gb.bytes = bytes; gb.fmt = fmt;
+  gb.box.classList.toggle('flat-only', !CAN_3D || fmt !== 2 || !bytes.length);
+  if (gb.on) { if (fmt !== 2 || !bytes.length) toggle3d(gb); else gb.ctl && gb.ctl.setBytes(bytes); }
+}
+function sweep(gb, cls) { gb.box.classList.remove('sweep-in', 'sweep-out'); void gb.box.offsetWidth; gb.box.classList.add(cls); }
+async function toggle3d(gb) {
+  if (gb.busy) return;
+  gb.busy = true;
+  try {
+    if (!gb.on) {
+      gb.box.classList.add('loading');
+      const api = await loadCrystals();
+      gb.ctl = api.mount(gb.cv, { bytes: gb.bytes, bg: 'solid', fit: 1.14, shiftX: 0.055, bloom: 0.2, vivid: true, host: gb.box });
+      gb.box.classList.remove('loading');
+      if (!gb.ctl) throw new Error('no WebGL');
+      live3d.add(gb);
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));   // the first frame is drawn
+      gb.on = true; sweep(gb, 'sweep-in'); gb.box.classList.add('is3d');
+      gb.edge.setAttribute('aria-pressed', 'true'); gb.edge.setAttribute('aria-label', 'Show these glyphs flat');
+    } else {
+      gb.on = false; sweep(gb, 'sweep-out'); gb.box.classList.remove('is3d');
+      gb.edge.setAttribute('aria-pressed', 'false'); gb.edge.setAttribute('aria-label', 'Show these glyphs in 3D');
+      await new Promise(r => setTimeout(r, 700));   // let the fade finish before the 3D goes away
+      if (!gb.on && gb.ctl) { gb.ctl.dispose(); gb.ctl = null; live3d.delete(gb); }
+    }
+  } catch (e) { gb.box.classList.remove('loading'); gb.box.classList.add('flat-only'); }
+  gb.busy = false;
+}
+
 // three tools on tabs: read (default), draw, publish. The hash names the tool, so glyphbyte.dev/app/#publish
 // opens straight onto publishing. The matches below the tools are shared by all three.
 const TABS = { read: 'readSection', make: 'cairnSection', draw: 'bytesSection' };
@@ -60,7 +120,7 @@ function renderEncode() {
   } else { note.className = 'muted'; note.textContent = hex.length > 2 * n && n ? `drawing the first ${n} of ${hex.length / 2} bytes` : ''; }
   if (h.length < 2) { $('row').hidden = true; $('describe').innerHTML = ''; return; }
   const bytes = toBytes(h), fmt = drawFormat();
-  drawRow($('row'), shapesFor(fmt), bytes, 140); $('row').hidden = false;
+  drawRow($('row'), shapesFor(fmt), bytes, 140); $('row').hidden = false; setGlyphRow($('row'), bytes, fmt);
   $('describe').innerHTML = bytes.map(b => `<li><code>${b.toString(16).padStart(2, '0')}</code> ${describe(b, fmt)}</li>`).join('');
 }
 let timer; $('hex').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(renderEncode, 200); });
@@ -122,7 +182,7 @@ function show(d, ms) {
   }
   h += d.warnings.map(w => `<p class="warn">${w}</p>`).join('');
   $('result').innerHTML = h;
-  if (d.sequences.length) { drawRow($('bestRow'), shapesFor(d.format), toBytes(d.best), 110); runLookup(d.sequences.map(s => s.hex)); }
+  if (d.sequences.length) { drawRow($('bestRow'), shapesFor(d.format), toBytes(d.best), 110); setGlyphRow($('bestRow'), toBytes(d.best), d.format); runLookup(d.sequences.map(s => s.hex)); }
   // tapping a reading shows it drawn, in the format it was read in
   for (const b of $('result').querySelectorAll('button[data-hex]')) b.addEventListener('click', () => {
     $('hex').value = b.dataset.hex; const fr = document.querySelector(`input[name=fmt][value="${b.dataset.fmt}"]`); if (fr) fr.checked = true;
@@ -329,7 +389,7 @@ function showPublished(ev, url, found, relay) {
   $('cairnCopyId').addEventListener('click', () => copyText(ev.id));
   $('cairnCopyNevent').addEventListener('click', () => copyText(nevent(ev.id, { relays: [relay], author: ev.pubkey, kind: ev.kind })));
   $('cairnDraw').addEventListener('click', () => showTab('draw'));
-  drawRow($('cairnRow'), SHAPES, toBytes(prefix), 110);
+  drawRow($('cairnRow'), SHAPES, toBytes(prefix), 110); setGlyphRow($('cairnRow'), toBytes(prefix), 2);
   $('hex').value = ev.id;
   if (nBytes() && nBytes() < CAIRN_MIN_BYTES) { const r = document.querySelector(`input[name=nbytes][value="${CAIRN_MIN_BYTES}"]`); if (r) r.checked = true; }
   renderEncode();
