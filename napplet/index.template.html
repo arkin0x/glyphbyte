@@ -4,6 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GlyphByte reader</title>
+<meta name="description" content="Read a row of glyphs with your phone camera, or turn a link into glyphs to draw. Like QR codes you can memorize and draw.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GlyphByte">
+<meta property="og:url" content="https://glyphbyte.dev/app/">
+<meta property="og:title" content="GlyphByte reader">
+<meta property="og:description" content="Read a row of glyphs with your phone camera, or turn a link into glyphs to draw.">
+<meta property="og:image" content="https://glyphbyte.dev/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://glyphbyte.dev/og.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#f5f6fb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#06070d" media="(prefers-color-scheme: dark)">
@@ -46,8 +59,8 @@
   /* top: the mark, the three tools, the relay */
   .top { position:sticky; top:0; z-index:10; background:color-mix(in srgb, var(--bg) 72%, transparent); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); border-bottom:1px solid var(--line) }
   .top .in { max-width:780px; margin:0 auto; padding:10px 16px; display:flex; align-items:center; gap:14px }
-  .brand { display:flex; align-items:center; gap:9px; color:var(--ink); text-decoration:none; font:500 18px/1 var(--display); letter-spacing:-.04em; flex:none }
-  .brand svg { width:28px; height:28px } .brand small { font:500 11px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-left:2px }
+  .brand { display:flex; align-items:center; gap:9px; color:var(--ink); text-decoration:none; font:500 20px/1 var(--display); letter-spacing:-.04em; flex:none }
+  .brand svg { width:38px; height:38px } .brand small { font:500 11px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-left:2px }
   .tabs { display:flex; gap:2px; padding:3px; background:var(--sunk); border-radius:999px; margin-left:auto }
   .tabs button { display:flex; align-items:center; gap:7px; font:600 14px/1 var(--sans); border:0; background:transparent; color:var(--muted); padding:9px 14px; border-radius:999px; cursor:pointer }
   .tabs button .ico { width:16px; height:16px }
@@ -158,7 +171,7 @@
 <body>
 <header class="top">
   <div class="in">
-    <a class="brand" id="home" href="/" aria-label="glyphbyte.dev"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="gbp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fc6ff"/><stop offset=".35" stop-color="#6d7bff"/><stop offset=".65" stop-color="#b76bff"/><stop offset="1" stop-color="#ff6fae"/></linearGradient></defs><rect x="12" y="12" width="40" height="40" rx="3" fill="none" stroke="url(#gbp)" stroke-width="3.6"/><polyline points="25.5,40.1 25.5,31.0 32.0,23.9 38.5,31.0 38.5,40.1 25.5,40.1" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="19.2" cy="19.2" r="3.5" fill="url(#gbp)"/><circle cx="44.8" cy="19.2" r="3.5" fill="url(#gbp)"/><circle cx="44.8" cy="44.8" r="3.5" fill="url(#gbp)"/><circle cx="19.2" cy="44.8" r="3.5" fill="url(#gbp)"/></svg><span>glyphbyte</span></a>
+    <a class="brand" id="home" href="/" aria-label="glyphbyte.dev"><svg viewBox="9 9 46 46" aria-hidden="true"><defs><linearGradient id="gbp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fc6ff"/><stop offset=".35" stop-color="#6d7bff"/><stop offset=".65" stop-color="#b76bff"/><stop offset="1" stop-color="#ff6fae"/></linearGradient></defs><rect x="12" y="12" width="40" height="40" rx="3" fill="none" stroke="url(#gbp)" stroke-width="3.6"/><polyline points="25.5,40.1 25.5,31.0 32.0,23.9 38.5,31.0 38.5,40.1 25.5,40.1" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="19.2" cy="19.2" r="3.5" fill="url(#gbp)"/><circle cx="44.8" cy="19.2" r="3.5" fill="url(#gbp)"/><circle cx="44.8" cy="44.8" r="3.5" fill="url(#gbp)"/><circle cx="19.2" cy="44.8" r="3.5" fill="url(#gbp)"/></svg><span>glyphbyte</span></a>
     <nav class="tabs" role="tablist" aria-label="tools">
       <button role="tab" id="tab-read" aria-controls="readSection" aria-selected="true">{{icon:scan}}Read</button>
       <button role="tab" id="tab-make" aria-controls="cairnSection" aria-selected="false">{{icon:link}}Make</button>
@@ -189,7 +202,7 @@
   <section id="bytesSection" class="edge" role="tabpanel" aria-labelledby="tab-draw" hidden>
     <h1>Draw a code</h1>
     <p class="lede">Turn a code into glyphs to copy, with a description of each one. Draw them left to right, underline the row and start the line with a fat dot.</p>
-    <input id="hex" type="text" placeholder="a hex code, like 5a07c3e1b29d" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="code to draw">
+    <input id="hex" type="text" placeholder="a hex code, like 5e357efdbca5" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="code to draw">
     <div class="ctl">
       <div><span class="lab">Bytes</span><div class="seg mono" role="radiogroup" aria-label="bytes to draw">
         <label><input type="radio" name="nbytes" value="4"><span>4</span></label><label><input type="radio" name="nbytes" value="6" checked><span>6</span></label><label><input type="radio" name="nbytes" value="8"><span>8</span></label><label><input type="radio" name="nbytes" value="0"><span>all</span></label>

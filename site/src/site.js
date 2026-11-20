@@ -107,10 +107,11 @@
     return on.length ? `${name}, ${on.length === 1 ? 'dot' : 'dots'} ${on.join(', ')}` : `${name}, no dots`;
   }
 
-  // ------------------------------------------------------------------ hero: a link goes to the reader; an example row floats
+  // ------------------------------------------------------------------ hero: a link goes to the reader; a real row floats
+  // 5e357efdbca5: a cairn on relay.onosendai.tech and wheat.oslim.dev (published 2026-11-20) whose link is left for readers to find
   const hero = $('#heroRow');
   if (hero) {
-    let bytes = [0x5a, 0x07, 0xc3, 0xe1, 0xb2, 0x9d];
+    const bytes = [0x5e, 0x35, 0x7e, 0xfd, 0xbc, 0xa5];
     const render = animate => {
       row(hero, bytes, { hand: true, draw: animate && !reduced, seed: 5 });
       const fb = $('#heroFallback'); if (fb) row(fb, bytes, { lw: 0.06 });
@@ -118,7 +119,6 @@
       window.__gbBytes = bytes;
       document.dispatchEvent(new CustomEvent('gb:bytes', { detail: { bytes } }));
     };
-    $('#heroShuffle').addEventListener('click', () => { const a = new Uint8Array(6); crypto.getRandomValues(a); bytes = Array.from(a); render(true); });
     // the link waits in the reader's Make tab; nothing is saved until the person presses Make glyphs there
     $('#heroForm').addEventListener('submit', e => {
       e.preventDefault();

@@ -1,6 +1,9 @@
 // Crystal glyphs for glyphbyte.dev: each byte as a floating piece of dispersive glass that splits the light
 // behind it into a rainbow, catches a moving sun and flares where the light hits an edge.
 //
+// On a tablet (720 to 999 px wide) a hero canvas with data-tablet="cycle" shows one big glyph instead of the
+// row: every 3 seconds it spins hard and lands as the next byte of the row, over and over.
+//
 // Mounts on every <canvas data-crystals>. The glyph geometry comes from the global GLYPHS (spec/glyphs.json,
 // inlined by site/build.py). The bytes come from the page: window.__gbBytes at start, then every
 // `gb:bytes` event on document ({detail: {bytes: [..]}}), which site.js sends when the hero row changes.
@@ -202,6 +205,9 @@ function mount(canvas) {
   const material = glassMaterial();
   // single: one glyph laid exactly over an SVG whose viewBox is 1.8 units square (the byte builder)
   const single = canvas.dataset.crystals === 'single';
+  const tabletQuery = matchMedia('(min-width: 720px) and (max-width: 999px)');
+  let cycle = canvas.dataset.tablet === 'cycle' && tabletQuery.matches;   // one glyph that spins into the next
+  let cycleIdx = 0, cycleK = -1, swapped = false;
   const baseFor = d => canvas.dataset.bg === 'solid' ? (d ? '#10121d' : '#ffffff') : null;   // --solid in style.css
   let dark = isDark();
   scene.background = backdrop(dark, baseFor(dark));
@@ -220,7 +226,7 @@ function mount(canvas) {
   composer.addPass(new OutputPass());
 
   // ---- glyphs
-  let live = [], leaving = [], layout = { cols: 1, rows: 1 }, bytes = [];
+  let live = [], leaving = [], layout = { cols: 1, rows: 1 }, bytes = [], row = [];
   function makeGlyph(byte, i) {
     // each crystal a slightly different pale colour, so a row reads as a spectrum
     const mat = material.clone(), hue = single ? (byte >> 4) / 16 : (i / Math.max(1, bytes.length)) * 0.85 + 0.52;
@@ -251,13 +257,26 @@ function mount(canvas) {
     // fit the camera to the arrangement, with room to float
     const bw = cols * pitch + 0.6, bh = rows * pitch + 0.6, vfov = THREE.MathUtils.degToRad(camera.fov);
     const distH = (bh / 2) / Math.tan(vfov / 2), distW = (bw / 2) / (Math.tan(vfov / 2) * aspect);
-    camera.position.set(0, 0, single ? 0.9 / Math.tan(vfov / 2) : Math.max(distH, distW) * 1.32);
+    camera.position.set(0, 0, single ? 0.9 / Math.tan(vfov / 2) : Math.max(distH, distW) * (cycle ? 0.95 : 1.32));
     camera.lookAt(0, 0, 0);
     sparks.material.uniforms.uSize.value.set(bw * 0.6, bh * 0.6);
   }
-  function setBytes(next) {
+  function setBytes(next, force = false) {
     next = (next || []).slice(0, 16);
-    if (next.length === bytes.length && next.every((b, i) => b === bytes[i])) return;
+    if (!force && next.length === row.length && next.every((b, i) => b === row[i])) return;
+    row = next; cycleIdx = 0;
+    show(cycle ? row.slice(0, 1) : row);
+  }
+  // swap the glyph in place, mid-spin: no rise, no fade, the spin hides the change
+  function swapTo(byte) {
+    const old = live[0];
+    if (old) { world.remove(old); old.userData.mat.dispose(); }
+    bytes = [byte];
+    const g = makeGlyph(byte, 0);
+    g.userData.born = -1e9; g.userData.phase = old ? old.userData.phase : g.userData.phase; g.userData.home = old ? old.userData.home : undefined;
+    live = [g];
+  }
+  function show(next) {
     bytes = next;
     for (const g of live) { if (single) { world.remove(g); g.userData.mat.dispose(); } else { g.userData.target = 0; leaving.push(g); } }
     live = bytes.map((b, i) => makeGlyph(b, i));
@@ -277,6 +296,10 @@ function mount(canvas) {
     place(); kick();
   }
   new ResizeObserver(resize).observe(host);
+  tabletQuery.addEventListener('change', () => {
+    const c = canvas.dataset.tablet === 'cycle' && tabletQuery.matches;
+    if (c !== cycle) { cycle = c; if (!c) bloom.strength = dark ? 0.6 : 0.38; setBytes(row, true); }
+  });
   new IntersectionObserver(es => { visible = es[0].isIntersecting; kick(); }, { threshold: 0 }).observe(host);
   document.addEventListener('visibilitychange', kick);
   addEventListener('pointermove', e => {
@@ -295,15 +318,27 @@ function mount(canvas) {
     const still = reducedMotion.matches, t = still ? 0 : now / 1000;
     pointer.lerp(still ? pointer.set(0, 0) : pointerTarget, 0.05);
     let moving = !still;
+    // cycle: hold for 2.3 s, then two full turns in 0.7 s; at the edge-on moment the glyph becomes the next byte
+    let spin = 0, spinPulse = 0;
+    if (cycle && !still && row.length > 1 && live.length) {
+      const tt = now / 1000, k = Math.floor(tt / 3), p = tt - k * 3;
+      if (k !== cycleK) { cycleK = k; swapped = false; }
+      if (p > 2.3) {
+        const s = Math.min(1, (p - 2.3) / 0.7), e = s < 0.5 ? 4 * s * s * s : 1 - Math.pow(-2 * s + 2, 3) / 2;
+        spin = e * Math.PI * 4; spinPulse = Math.sin(Math.PI * s);
+        if (!swapped && e >= 0.625) { swapped = true; cycleIdx = (cycleIdx + 1) % row.length; swapTo(row[cycleIdx]); }
+      }
+    }
+    if (cycle) bloom.strength = (dark ? 0.6 : 0.38) + spinPulse * 0.9;
     live.forEach((g, i) => {
       const u = g.userData, age = now / 1000 - u.born;
       u.s = still ? 1 : single ? 0.82 + 0.18 * ease(age / 0.35) : ease(age / 0.9);
       if (u.s < 1) moving = true;
-      g.scale.setScalar(Math.max(0.001, u.s));
+      g.scale.setScalar(Math.max(0.001, u.s * (1 - spinPulse * 0.1)));
       const home = u.home || new THREE.Vector3();
       const a = single ? 0.3 : 1;   // the builder's glyph floats less, so its dots stay under the corners you tap
       g.position.set(home.x, home.y + Math.sin(t * 0.8 + u.phase) * 0.07 * a - (single ? 0 : (1 - u.s) * 0.6), home.z + Math.sin(t * 0.55 + u.phase) * 0.12 * a);
-      g.rotation.set((Math.sin(t * 0.5 + u.phase) * 0.14 - pointer.y * 0.28) * a, (Math.sin(t * 0.37 + u.phase * 1.3) * 0.22 + pointer.x * 0.4) * a + (1 - u.s) * u.spin, Math.sin(t * 0.3 + u.phase) * 0.04 * a);
+      g.rotation.set((Math.sin(t * 0.5 + u.phase) * 0.14 - pointer.y * 0.28) * a, (Math.sin(t * 0.37 + u.phase * 1.3) * 0.22 + pointer.x * 0.4) * a + (1 - u.s) * u.spin + spin, Math.sin(t * 0.3 + u.phase) * 0.04 * a);
     });
     leaving = leaving.filter(g => {
       const s = g.scale.x * Math.pow(0.0008, dt * 2.2);
@@ -329,4 +364,7 @@ function mount(canvas) {
   else { setBytes(window.__gbBytes || [0xe8, 0xed, 0x37, 0x98, 0xc6, 0xff]); document.addEventListener('gb:bytes', e => setBytes(e.detail.bytes)); }
 }
 
-document.querySelectorAll('canvas[data-crystals]').forEach(mount);
+// start after the page has painted and gone idle: compiling the glass shaders can hold the main thread for a
+// moment, and the drawn rows and text should never wait for the 3D
+const start = () => document.querySelectorAll('canvas[data-crystals]').forEach(mount);
+if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout: 1200 }); else setTimeout(start, 200);

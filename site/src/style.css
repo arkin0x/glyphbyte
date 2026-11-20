@@ -73,16 +73,17 @@ code, kbd, pre, .mono { font-family:var(--mono); font-size:.88em }
 /* ------------------------------------------------------------------ top bar */
 .topbar { position:sticky; top:0; z-index:40; border-bottom:1px solid transparent; transition:border-color .25s, background .25s }
 .topbar.scrolled { background:color-mix(in srgb, var(--bg) 70%, transparent); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); border-bottom-color:var(--line) }
-.topbar .wrap { display:flex; align-items:center; gap:24px; height:68px }
-.brand { display:flex; align-items:center; gap:10px; color:var(--ink); text-decoration:none; font-family:var(--display); font-weight:500; font-size:20px; letter-spacing:-.04em }
+.topbar .wrap { display:flex; align-items:center; gap:24px; height:76px }
+.brand { display:flex; align-items:center; gap:12px; color:var(--ink); text-decoration:none; font-family:var(--display); font-weight:500; font-size:24px; letter-spacing:-.04em }
 .brand:hover { color:var(--ink) }
-.brand svg { width:30px; height:30px }
+.brand svg { width:44px; height:44px }
+.foot .brand { font-size:20px } .foot .brand svg { width:32px; height:32px }
 .nav { display:flex; align-items:center; gap:2px; margin-left:auto }
 .nav a { color:var(--ink-2); text-decoration:none; font-size:15px; padding:8px 13px; border-radius:999px }
 .nav a:hover { color:var(--ink); background:var(--sunk) }
 .nav a[aria-current] { color:var(--ink); font-weight:600 }
 .nav .btn { margin-left:10px }
-@media (max-width:760px) { .nav a.opt { display:none } .topbar .wrap { gap:12px } }
+@media (max-width:760px) { .nav a.opt { display:none } .topbar .wrap { gap:12px; height:68px } .brand { font-size:21px; gap:10px } .brand svg { width:38px; height:38px } }
 
 /* ------------------------------------------------------------------ buttons and small controls */
 .btn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:9px; font:600 15px/1 var(--sans); padding:14px 20px; border-radius:999px; border:1px solid var(--line-2); background:var(--surface); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); color:var(--ink); text-decoration:none; cursor:pointer; white-space:nowrap; transition:transform .2s, background .2s, border-color .2s, box-shadow .2s }
@@ -102,7 +103,7 @@ code, kbd, pre, .mono { font-family:var(--mono); font-size:.88em }
 .iconbtn:active { transform:rotate(180deg) }
 .copy .ok-mark { display:none } .copy.done .ok-mark { display:inline } .copy.done .copy-mark { display:none } .copy.done { color:var(--ok); border-color:var(--ok) }
 .eyebrow { display:inline-flex; align-items:center; gap:10px; font:500 12.5px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--ink-2) }
-.eyebrow::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--prism); box-shadow:0 0 12px rgba(150,110,255,.8) }
+.eyebrow::before { content:""; flex:none; width:8px; height:8px; border-radius:50%; background:var(--prism); box-shadow:0 0 12px rgba(150,110,255,.8) }
 
 /* ------------------------------------------------------------------ sections */
 .section { padding:clamp(60px, 8vw, 108px) 0 }
@@ -125,6 +126,8 @@ code, kbd, pre, .mono { font-family:var(--mono); font-size:.88em }
 .crystal-host { position:relative; height:clamp(320px, 84vw, 600px); margin:0 -24px;
   -webkit-mask:radial-gradient(closest-side, #000 72%, transparent); mask:radial-gradient(closest-side, #000 72%, transparent) }
 @media (max-width:520px) { .crystal-host { margin:0 -16px } }
+/* tablet: the text and one big spinning glyph side by side (crystals.js, data-tablet="cycle") */
+@media (min-width:720px) and (max-width:999px) { .hero-grid { grid-template-columns:minmax(0, 7fr) minmax(0, 5fr) } .crystal-host { height:auto; min-height:420px; align-self:stretch; margin:0 -24px 0 -12px } }
 @media (min-width:1000px) { .crystal-host { margin:0 -60px 0 -20px; height:620px } }
 .crystal-host canvas { position:absolute; inset:0; width:100%; height:100%; display:block; opacity:0; transition:opacity 1.2s }
 .crystal-host.has-3d canvas { opacity:1 }
@@ -361,3 +364,6 @@ th { color:var(--muted); font-weight:600; font-size:13px; background:var(--sunk)
 .nf h1 { font-size:clamp(40px, 6vw, 64px); margin-bottom:16px }
 .nf p { color:var(--ink-2); max-width:44ch; margin:0 auto 26px }
 .nf .btns { justify-content:center }
+
+/* last, so it wins over .eyebrow above */
+@media (max-width:520px) { .eyebrow { letter-spacing:.05em; font-size:11px } }

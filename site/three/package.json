@@ -1,13 +1,15 @@
 {
   "name": "glyphbyte-site-3d",
   "private": true,
-  "description": "The crystal glyphs on glyphbyte.dev. `npm run build` bundles crystals.js with three.js into site/src/vendor/crystals.js, which is committed, so the site build itself needs no Node.",
+  "description": "The crystal glyphs on glyphbyte.dev. `npm run build` bundles crystals.js with three.js into site/src/vendor/crystals.js; `npm run og` renders the social images into site/src/og/. Both outputs are committed, so the site build itself needs no Node.",
   "type": "module",
   "scripts": {
-    "build": "esbuild crystals.js --bundle --minify --format=esm --target=es2020 --legal-comments=eof --outfile=../src/vendor/crystals.js"
+    "build": "esbuild crystals.js --bundle --minify --format=esm --target=es2020 --legal-comments=eof --outfile=../src/vendor/crystals.js",
+    "og": "node render-og.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.10",
+    "playwright-core": "1.56.1",
     "three": "0.187.0"
   }
 }

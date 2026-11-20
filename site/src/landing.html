@@ -2,7 +2,7 @@
   <div class="wrap">
     <div class="hero-grid">
       <div>
-        <span class="eyebrow">Links you can draw</span>
+        <span class="eyebrow">Like QR codes you can memorize and draw</span>
         <h1>Anything online.<br><span class="prism-text">In six glyphs.</span></h1>
         <p class="lead">Any page, file or link on the internet can be found with about six little hand-drawn glyphs.<a class="fn" href="#found">*</a> Chalk them on a sidewalk, sketch them on a sign or jot them in a notebook, and any phone camera brings it back.</p>
         <div class="btns">
@@ -11,13 +11,13 @@
         </div>
         <div class="hero-meta">
           <span>{{icon:pen-line}}Any pen or chalk</span>
-          <span>{{icon:cpu}}Reads on your phone</span>
+          <span>{{icon:cpu}}Your photos never leave this tab</span>
           <span>{{icon:shield-check}}Free, no account</span>
         </div>
         <p class="footnote"><a href="#found">*</a> GlyphByte saves the link as a cairn, a tiny public record the glyphs point to. <a href="#found">How links are found</a></p>
       </div>
       <div class="crystal-host" data-crystal-host aria-hidden="true">
-        <canvas data-crystals></canvas>
+        <canvas data-crystals data-tablet="cycle"></canvas>
         <div class="fallback"><svg id="heroFallback"></svg></div>
       </div>
     </div>
@@ -28,8 +28,8 @@
         <label class="field">{{icon:link}}<input id="heroLink" name="link" type="url" inputmode="url" placeholder="Paste a link, like https://example.com/menu" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="A link to turn into glyphs"></label>
         <button class="btn primary" type="submit">Make my glyphs{{icon:arrow-right}}</button>
       </form>
-      <div class="canvas"><svg id="heroRow" role="img" aria-label="An example row of six glyphs"></svg></div>
-      <div class="stage-foot"><p class="stage-note">Every link gets six glyphs like these. This row is only an example.</p><button type="button" class="iconbtn" id="heroShuffle" aria-label="show another example">{{icon:shuffle}}</button></div>
+      <div class="canvas"><svg id="heroRow" role="img" aria-label="Six glyphs that open a real link"></svg></div>
+      <div class="stage-foot"><p class="stage-note">These six glyphs open a real link. Point the reader at your screen to find out where they go.</p><a class="btn small" href="/app/">{{icon:camera}}Read them</a></div>
     </div>
   </div>
 </section>
@@ -46,7 +46,7 @@
         <div class="art">
           <div class="hits" aria-hidden="true">
             <div class="match">{{icon:link}}example.com/menu</div>
-            <svg data-row="5a07c3e1b29d" data-seed="2" style="width:100%"></svg>
+            <svg data-row="5e357efdbca5" data-seed="2" style="width:100%"></svg>
           </div>
         </div>
         <span class="num">01</span>
@@ -54,7 +54,7 @@
         <p>Paste a link, or write a short note, and get six glyphs back. Each one is a little picture in a square with a few dots in the corners.</p>
       </article>
       <article class="step card">
-        <div class="art"><svg data-row="5a07c3" data-hand data-animate data-seed="4" aria-hidden="true"></svg></div>
+        <div class="art"><svg data-row="5e357e" data-hand data-animate data-seed="4" aria-hidden="true"></svg></div>
         <span class="num">02</span>
         <h3>Draw</h3>
         <p>Copy them with any pen, marker or chalk, left to right. Underline the row and start the line with a fat dot. Wobbly is fine.</p>
@@ -170,7 +170,7 @@
         <p>When you make glyphs, GlyphByte saves your link or note as a cairn: a tiny public record on nostr, an open network of independent servers called relays. The six glyphs are the start of that record's id, which is all the reader needs to find it. Nobody can change or take down a cairn once it is made, including you, so check it first.</p>
         <div class="btns" style="margin-top:22px"><a class="btn primary" href="/app/#make">{{icon:link}}Turn a link into glyphs</a><a class="btn" href="https://github.com/arkin0x/glyphbyte/blob/main/spec/CAIRN.md">How cairns work</a></div>
       </div>
-      <div class="chalk"><svg data-row="5a07c3e1b29d" data-hand data-animate data-seed="9" aria-label="An example row of six glyphs"></svg></div>
+      <div class="chalk"><svg data-row="5e357efdbca5" data-hand data-animate data-seed="9" aria-label="An example row of six glyphs"></svg></div>
     </div>
   </div>
 </section>
@@ -219,7 +219,7 @@
 <span class="k">const</span> models = <span class="k">await</span> loadBundledModels();
 <span class="k">const</span> gray = toGray(img.data, w, h);
 <span class="k">const</span> read = readImage(gray, w, h, models);
-<span class="c">// read.best is the likeliest reading, e.g. '5a07c3e1b29d'</span>
+<span class="c">// read.best is the likeliest reading, e.g. '5e357efdbca5'</span>
 <span class="k">const</span> hits = <span class="k">await</span> lookup(read.sequences.map(s =&gt; s.hex));</code></pre>
           <button class="iconbtn copy" data-copy="#code-js" aria-label="copy">{{icon:copy}}</button>
           <p><code>npm install glyphbyte</code>. The same package renders rows to draw from and publishes cairns.</p>
@@ -229,14 +229,14 @@
 pip install git+https://github.com/arkin0x/glyphbyte
 
 glyphbyte decode photo.jpg          <span class="c"># prints the likely readings</span>
-glyphbyte encode 5a07c3e1b29d --out row.png</code></pre>
+glyphbyte encode 5e357efdbca5 --out row.png</code></pre>
           <button class="iconbtn copy" data-copy="#code-py" aria-label="copy">{{icon:copy}}</button>
           <p>The Python package trains the model, renders the test vectors and runs the benchmark.</p>
         </div>
         <div class="panel" role="tabpanel" id="tab-relay" aria-labelledby="t-relay" hidden>
 <pre id="code-relay"><code>[<span class="s">"REQ"</span>, <span class="s">"gb"</span>,
-  {<span class="s">"ids"</span>: [<span class="s">"5a07c3e1b29d"</span>]},
-  {<span class="s">"authors"</span>: [<span class="s">"5a07c3e1b29d"</span>], <span class="s">"kinds"</span>: [0]}]</code></pre>
+  {<span class="s">"ids"</span>: [<span class="s">"5e357efdbca5"</span>]},
+  {<span class="s">"authors"</span>: [<span class="s">"5e357efdbca5"</span>], <span class="s">"kinds"</span>: [0]}]</code></pre>
           <button class="iconbtn copy" data-copy="#code-relay" aria-label="copy">{{icon:copy}}</button>
           <p>Prefix matching needs a relay that still supports it. <b>grain</b> does, for any length; strfry and khatru currently do not. The reader publishes cairns to <code>wss://relay.onosendai.tech</code>, looks up on it and on <code>wss://wheat.oslim.dev</code>, and tests any relay you give it.</p>
         </div>

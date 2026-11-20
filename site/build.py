@@ -36,8 +36,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SRC, DIST = os.path.join(HERE, "src"), os.path.join(HERE, "dist")
 NAPPLET, SPEC = os.path.join(ROOT, "napplet"), os.path.join(ROOT, "spec")
-SITE_DESCRIPTION = ("Any page, file or link on the internet can be found with about six hand-drawn glyphs. Chalk them "
-                    "on a sidewalk or a sign, and any phone camera brings it back.")
+SITE_ORIGIN = "https://glyphbyte.dev"
+SITE_DESCRIPTION = ("Like QR codes you can memorize and draw: any page, file or link on the internet can be found with "
+                    "about six hand-drawn glyphs, and any phone camera brings it back.")
 
 
 def read(path):
@@ -80,7 +81,7 @@ def glyphs():
     return {k: g[k] for k in ("icon_scale", "dot_offset", "dot_radius", "icons")}
 
 
-def mark_svg(size=None, page=False):
+def mark_svg(size=None, page=False, square=False):
     """The glyphbyte mark: byte 0x0f, the house with all four corner dots, in a frame of split light."""
     g = glyphs()
     house = next(i for i in g["icons"] if i["name"] == "house")
@@ -90,9 +91,11 @@ def mark_svg(size=None, page=False):
     roof = "".join(f'<polyline points="{pts(st)}" fill="none" stroke="{ink}" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"/>' for st in house["strokes"])
     dots = "".join(f'<circle cx="{32 + dx * g["dot_offset"] * 40:.1f}" cy="{32 + dy * g["dot_offset"] * 40:.1f}" r="{g["dot_radius"] * 40 * 1.1:.1f}" fill="url(#gbp)"/>'
                    for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1)))
-    bg = '<rect width="64" height="64" rx="16" fill="#f5f6fb"/>' if page else ""
+    bg = ('<rect width="64" height="64" fill="#f5f6fb"/>' if square else '<rect width="64" height="64" rx="16" fill="#f5f6fb"/>') if page else ""
     dim = f' width="{size}" height="{size}"' if size else ""
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"{dim} aria-hidden="true"><defs><linearGradient id="gbp" x1="0" y1="0" x2="1" y2="1">'
+    # on the page the mark is cropped close, so it reads big; an app icon (square) keeps a margin for the OS mask
+    box = "6 6 52 52" if square else "0 0 64 64" if page else "9 9 46 46"
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{box}"{dim} aria-hidden="true"><defs><linearGradient id="gbp" x1="0" y1="0" x2="1" y2="1">'
             '<stop offset="0" stop-color="#3fc6ff"/><stop offset=".35" stop-color="#6d7bff"/><stop offset=".65" stop-color="#b76bff"/><stop offset="1" stop-color="#ff6fae"/></linearGradient></defs>'
             f'{bg}<rect x="12" y="12" width="40" height="40" rx="3" fill="none" stroke="url(#gbp)" stroke-width="3.6"/>{roof}{dots}</svg>')
 
@@ -114,14 +117,14 @@ def scripts(crystals=False):
     return "\n".join(out)
 
 
-def page(fragment, title, description, body_class, crystals=False, nav_spec=False, **fields):
+def page(fragment, title, description, body_class, crystals=False, nav_spec=False, path="/", **fields):
     """Fill site/src/<fragment> into site/src/shell.html with the shared CSS and scripts inlined."""
     main = read(os.path.join(SRC, fragment))
     for key, value in fields.items():
         main = main.replace("{{" + key + "}}", value)
     doc = read(os.path.join(SRC, "shell.html"))
     for key, value in {"TITLE": title, "DESCRIPTION": description, "CLASS": body_class, "CSS": read(os.path.join(SRC, "style.css")).strip(),
-                       "BRAND": mark_svg(), "NAV_SPEC": ' aria-current="page"' if nav_spec else "", "SCRIPTS": scripts(crystals), "MAIN": main.strip()}.items():
+                       "BRAND": mark_svg(), "URL": SITE_ORIGIN + path, "ORIGIN": SITE_ORIGIN, "NAV_SPEC": ' aria-current="page"' if nav_spec else "", "SCRIPTS": scripts(crystals), "MAIN": main.strip()}.items():
         doc = doc.replace("{{" + key + "}}", value)
     doc = icons(doc)
     left = re.findall(r"{{[A-Za-z_:-]+}}", doc)
@@ -168,14 +171,30 @@ def build():
     write(os.path.join(DIST, "index.html"), page(
         "landing.html", "GlyphByte: anything online in six glyphs", SITE_DESCRIPTION, "landing", crystals=True))
     write(os.path.join(DIST, "404.html"), page(
-        "404.html", "Not found · GlyphByte", "This page does not exist.", "notfound"))
+        "404.html", "Not found · GlyphByte", "This page does not exist.", "notfound", path="/404.html"))
     vector_links = ", ".join(f'<a href="/spec/vectors/{html.escape(n)}">{html.escape(n)}</a>' for n in vectors)
     spec_html, spec_toc = render_spec()
     write(os.path.join(DIST, "spec", "index.html"), page(
         "spec.html", "GlyphByte specification", "The GlyphByte specification: the byte layout, the alphabet, "
-        "how to draw a glyph and a row, how readers work, and how a row is looked up.", "spec", nav_spec=True,
+        "how to draw a glyph and a row, how readers work, and how a row is looked up.", "spec", nav_spec=True, path="/spec/",
         SPEC_HTML=spec_html, SPEC_TOC=spec_toc, VECTOR_LINKS=vector_links))
     write(os.path.join(DIST, "favicon.svg"), mark_svg(page=True) + "\n")
+    # social images and app icons: rendered by site/og/render.mjs into site/src/og/ (committed)
+    og_dir = os.path.join(SRC, "og")
+    for name in sorted(os.listdir(og_dir)) if os.path.isdir(og_dir) else []:
+        copy(os.path.join(og_dir, name), os.path.join(DIST, name))
+    write(os.path.join(DIST, "site.webmanifest"), json.dumps({
+        "name": "GlyphByte", "short_name": "GlyphByte", "description": SITE_DESCRIPTION, "start_url": "/app/", "scope": "/",
+        "display": "standalone", "background_color": "#f5f6fb", "theme_color": "#f5f6fb",
+        "icons": [{"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
+                  {"src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml"}]}, indent=1) + "\n")
+    # the page the banner is rendered from, and the square icon the app icons are rendered from
+    card = read(os.path.join(HERE, "og", "card.html"))
+    for key, value in {"CSS": read(os.path.join(SRC, "style.css")).strip(), "BRAND": mark_svg(),
+                       "GLYPHS": json.dumps(glyphs(), separators=(",", ":"))}.items():
+        card = card.replace("{{" + key + "}}", value)
+    write(os.path.join(DIST, "og-card", "index.html"), card)
+    write(os.path.join(DIST, "og-card", "icon.svg"), mark_svg(page=True, square=True) + "\n")
     copy(os.path.join(SRC, "htaccess"), os.path.join(DIST, ".htaccess"))
 
     fingerprint(DIST)
