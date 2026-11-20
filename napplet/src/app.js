@@ -48,6 +48,9 @@ async function toggle3d(gb) {
     if (!gb.on) {
       gb.box.classList.add('loading');
       const api = await loadCrystals();
+      // a fresh canvas every time: going flat hands the WebGL context back, and a canvas whose context was
+      // released can never get one again (reusing it failed silently and hid the edge on the second tap)
+      const fresh = gb.cv.cloneNode(false); gb.cv.replaceWith(fresh); gb.cv = fresh;
       gb.ctl = api.mount(gb.cv, { bytes: gb.bytes, bg: 'solid', fit: 1.14, shiftX: 0.055, bloom: 0.2, vivid: true, host: gb.box });
       gb.box.classList.remove('loading');
       if (!gb.ctl) throw new Error('no WebGL');
