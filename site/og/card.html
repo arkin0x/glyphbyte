@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>GlyphByte card</title>
+<!-- The Open Graph banner (1200 x 630), rendered by site/three/render-og.mjs (npm run og) into site/src/og/. Uses the real
+     crystals and fonts; build.py serves it at /og-card/ only so the renderer can load it. -->
+<style>
+{{CSS}}
+html, body { width:1200px; height:630px; overflow:hidden; margin:0 }
+body::before { animation:none }
+.card { position:relative; width:1200px; height:630px; display:grid; grid-template-columns:640px 560px; align-items:center }
+.text { padding:0 0 0 76px; position:relative; z-index:2 }
+.text .brand { font-size:34px; gap:16px; margin-bottom:54px }
+.text .brand svg { width:60px; height:60px }
+.text h1 { font-size:86px; line-height:.98; margin:0 0 30px }
+.text .eyebrow { font-size:17px; letter-spacing:.12em }
+.text .url { margin-top:30px; font:500 22px/1 var(--mono); color:var(--ink-2) }
+.crystal-host { height:630px; margin:0; -webkit-mask:radial-gradient(closest-side, #000 74%, transparent); mask:radial-gradient(closest-side, #000 74%, transparent) }
+@media (min-width:1000px) { .crystal-host { margin:0; height:630px } }
+</style>
+</head>
+<body class="landing">
+<div class="card">
+  <div class="text">
+    <div class="brand">{{BRAND}}<span>glyphbyte</span></div>
+    <h1>Anything online.<br><span class="prism-text">In six glyphs.</span></h1>
+    <span class="eyebrow">Like QR codes you can memorize and draw</span>
+    <div class="url">glyphbyte.dev</div>
+  </div>
+  <div class="crystal-host" data-crystal-host aria-hidden="true"><canvas data-crystals></canvas></div>
+</div>
+<script>window.GLYPHS = {{GLYPHS}}; window.__gbBytes = [0x5e, 0x35, 0x7e, 0xfd, 0xbc, 0xa5];</script>
+<script type="module" src="/vendor/crystals.js"></script>
+</body>
+</html>

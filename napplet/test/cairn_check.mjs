@@ -36,6 +36,10 @@ for (const [text, urls, content] of TEXT) {
     const v = validateCairn(cairnTemplate(url, got.content));
     check(v.ok && v.url === url, `valid cairn for ${url} from ${JSON.stringify(text)}`, v.errors);
   }
+  if (!got.urls.length && !got.blank && !contentUrls(got.content).length) {   // no link: a text cairn of the text itself
+    const v = validateCairn(cairnTemplate('', got.content));
+    check(v.ok && v.url === '' && v.text === got.content, `valid text cairn from ${JSON.stringify(text)}`, v.errors);
+  }
 }
 
 // the spec's rules, one by one
@@ -48,7 +52,13 @@ const CASES = [
   [T([['r', R]], `https://other.example ${R}`), true, 'several URLs, one equals r'],
   [T([['r', R]], 'https://other.example lunch'), false, 'content URL that is not r'],
   [T([['r', R]], `${R}. lunch`), false, 'punctuation glued to the URL: tokens compare whole'],
-  [T([]), false, 'no r tag'],
+  [T([]), false, 'no r tag and no text'],
+  [T([], ' \n '), false, 'text cairn of whitespace only'],
+  [T([], 'Table 4 is reserved'), true, 'text cairn'],
+  [T([['alt', 'Cairn: Table 4 is reserved']], 'Table 4 is reserved'), true, 'text cairn with alt'],
+  [T([['alt', 'a note']], 'Table 4 is reserved'), false, 'text cairn alt without the Cairn: form'],
+  [T([['alt', 'Cairn: https://x.org']], 'Table 4'), false, 'text cairn alt with a link'],
+  [T([], 'see https://x.org'), false, 'text cairn with a link'],
   [T([['r', R], ['r', 'https://b.example']]), false, 'two r tags'],
   [T([['r', 'not a url']]), false, 'r is not an absolute URL'],
   [T([['r', R], ['alt', 'Cairn: https://b.example']]), false, 'alt with another URL'],
@@ -63,6 +73,8 @@ for (const [text, blank] of [['\u200b', true], ['\u0007\u0001', true], [' \n\t '
   check(parseCairnText(text).blank === blank, `blank for ${JSON.stringify(text)}`);
 check(same(contentUrls('a https://x.org b http://y.org mailto:z', 'mailto:me'), ['https://x.org', 'http://y.org', 'mailto:z']), 'contentUrls');
 check(same(cairnTemplate(R, 'x', 1790000000), { kind: 1738, created_at: 1790000000, content: 'x', tags: [['r', R], ['alt', `Cairn: ${R}`]] }), 'cairnTemplate');
+check(same(cairnTemplate('', 'two\nlines', 1790000000), { kind: 1738, created_at: 1790000000, content: 'two\nlines', tags: [['alt', 'Cairn: two lines']] }), 'cairnTemplate for a text cairn');
+check(cairnTemplate('', 'x'.repeat(200)).tags[0][1].length === 'Cairn: '.length + 80, 'text cairn alt kept to 80 characters');
 
 console.log(failures ? `${failures} failed` : `all passed (${TEXT.length} texts, ${CASES.length} rules)`);
 process.exit(failures ? 1 : 0);

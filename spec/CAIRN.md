@@ -1,13 +1,13 @@
 NIP-XX
 ======
 
-Cairns: URLs findable by event id prefix
-----------------------------------------
+Cairns: links and short texts findable by event id prefix
+---------------------------------------------------------
 
 `draft` `optional`
 
-This NIP defines `kind:1738`, a **cairn**: a regular event whose only job is to carry one URL, so
-that the URL can be found again from the first few bytes of the event's id. A cairn is the
+This NIP defines `kind:1738`, a **cairn**: a regular event whose only job is to carry one URL or a
+short text, so that it can be found again from the first few bytes of the event's id. A cairn is the
 nostr equivalent of a stack of stones on a trail: anyone can build one anywhere, and it points
 the way to somewhere else.
 
@@ -19,9 +19,9 @@ Resource Locators (URL)*.
 A nostr event id is 32 bytes. Its first 6 to 8 bytes are already almost certainly unique among
 all the events on a relay, and a few bytes are short enough to carry by other means than a
 link: drawn as [GlyphByte](https://glyphbyte.dev) glyphs on paper, chalk or a wall, read aloud,
-or typed by hand. A cairn turns any URL into such an event, so any URL can travel as a handful of
-bytes: publish a cairn for the URL, take the leading bytes of its id, and anyone holding those
-bytes can ask a relay for the event and follow the URL.
+or typed by hand. A cairn turns any URL, or a short text, into such an event, so it can travel as a
+handful of bytes: publish a cairn, take the leading bytes of its id, and anyone holding those bytes
+can ask a relay for the event and follow the URL or read the text.
 
 Cairns get their own kind so that they never appear in anyone's feed (unlike `kind:1` notes),
 carry no social meaning (unlike `kind:17` reactions to a website, [NIP-25](25.md)), and never change
@@ -29,6 +29,9 @@ once published (unlike `kind:39701` web bookmarks, [NIP-B0](B0.md), whose id cha
 edit and would break every copy of its prefix).
 
 ## Event format
+
+A cairn is either a **link cairn**, which carries one URL in an `r` tag, or a **text cairn**, which
+has no `r` tag and carries its text in the content.
 
 ```jsonc
 {
@@ -42,22 +45,39 @@ edit and would break every copy of its prefix).
 }
 ```
 
-### `r` tag (required)
+```jsonc
+{
+  "kind": 1738,
+  "content": "Table 4 is reserved for the Okafor party at 7.",
+  "tags": [
+    ["alt", "Cairn: Table 4 is reserved for the Okafor party at 7."] // recommended
+  ],
+  // ...other fields
+}
+```
 
-Exactly one `r` tag ([NIP-24](24.md): a reference to a web URL). Its value is **the URL** of the
+### `r` tag (link cairns)
+
+At most one `r` tag ([NIP-24](24.md): a reference to a web URL). Its value is **the URL** of the
 cairn, an absolute URI, stored exactly as the publisher gave it: no normalization, so that query
 strings, fragments and letter case survive unchanged. The `r` tag is the only part of a cairn that
 a reader opens or displays as the destination.
 
-A cairn with no `r` tag, or with more than one, is invalid.
+A cairn with more than one `r` tag is invalid. A cairn with none is a text cairn.
 
 ### `content`
 
-Free text for people, usually the URL followed by a short comment. The content MAY omit the URL
-entirely, and MAY be empty.
+In a link cairn: free text for people, usually the URL followed by a short comment. The content MAY
+omit the URL entirely, and MAY be empty. If the content contains URLs, at least one of them MUST
+equal the `r` URL exactly.
 
-If the content contains URLs, at least one of them MUST equal the `r` URL exactly. For this rule
-the content is split into tokens at ASCII whitespace only (space, tab, line feed, form feed and
+In a text cairn: the text itself, which is what the cairn carries. It MUST contain at least one
+character that is not whitespace, and MUST NOT contain any URL. A text that contains a link is
+published as a link cairn instead. Publishers SHOULD keep text cairns short (a few hundred
+characters): they are meant to be read on a phone in front of the place they were drawn, and relays
+may refuse large events.
+
+For these rules the content is split into tokens at ASCII whitespace only (space, tab, line feed, form feed and
 carriage return; no other Unicode space separates tokens), and a URL in the content is any token
 that begins with `http://` or `https://`, or with the scheme of the `r` URL followed by `:`.
 Publishers SHOULD put a space or a line break on both sides of a URL in the content, so that
@@ -69,9 +89,10 @@ this kind: many show the content of an unknown event, and the URL in it stays cl
 
 ### `alt` tag (recommended)
 
-A human-readable description for clients that do not know this kind, of the exact form
-`Cairn: <URL>`, where `<URL>` equals the `r` URL exactly. A cairn whose `alt` tag is present but
-does not have this form is invalid.
+A human-readable description for clients that do not know this kind. In a link cairn it has the
+exact form `Cairn: <URL>`, where `<URL>` equals the `r` URL exactly. In a text cairn it is `Cairn: `
+followed by the start of the text (publishers SHOULD keep it to one line of at most 80 characters),
+and it MUST NOT contain a URL. A cairn whose `alt` tag is present but breaks these rules is invalid.
 
 ### Other tags (optional)
 
@@ -88,8 +109,8 @@ withdrawn with a [NIP-09](09.md) deletion request.
 
 Any key may publish a cairn, including a fresh key made for that one cairn: a browser extension or
 a button on an ordinary website can create one for a visitor without any nostr account. Before
-publishing, a client MAY query `{"kinds": [1738], "#r": ["<URL>"]}` and reuse an existing cairn for
-the same URL instead of creating another.
+publishing a link cairn, a client MAY query `{"kinds": [1738], "#r": ["<URL>"]}` and reuse an
+existing cairn for the same URL instead of creating another.
 
 The prefix of the event id is what people carry. Clients SHOULD present at least the first
 **6 bytes** (12 hex characters) of the id, and MAY present more.
@@ -120,8 +141,9 @@ A reader resolving a prefix:
    start with the prefix.
 3. MUST show every valid match, never pick one silently, and MUST NOT open a URL without the
    person's action.
-4. MUST display the destination from the `r` tag, with its host shown prominently, and never a
-   destination taken from the content.
+4. MUST display the destination of a link cairn from the `r` tag, with its host shown prominently,
+   and never a destination taken from the content. A text cairn has no destination: readers show
+   its text as plain text.
 5. MUST refuse to open `javascript:`, `data:`, `vbscript:` and `file:` URLs, and SHOULD show any
    scheme other than `https:` explicitly.
 6. MAY mark a cairn as **published by its domain** when the cairn's pubkey is the root identity of

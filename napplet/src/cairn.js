@@ -1,5 +1,5 @@
-// Cairns (kind 1738, spec/CAIRN.md): a regular event that carries one URL, so that the URL can be
-// found again from the first bytes of the event's id. This module builds a cairn from what a person
+// Cairns (kind 1738, spec/CAIRN.md): a regular event that carries one URL (a link cairn, r tag) or a
+// short text (a text cairn, no r tag), so that it can be found again from the first bytes of its id. This module builds a cairn from what a person
 // typed and checks the validity rules every reader applies; signing is in sign.js.
 
 export const CAIRN_KIND = 1738;
@@ -16,20 +16,28 @@ export function contentUrls(content, rUrl = '') {
 const isAbsoluteUri = s => { try { new URL(s); return /^[a-z][a-z0-9+.-]*:/i.test(s); } catch (err) { return false; } };
 const isWebUrl = s => { try { const u = new URL(s); return (u.protocol === 'http:' || u.protocol === 'https:') && !!u.hostname; } catch (err) { return false; } };
 
-// Is this event a valid cairn? {ok, url, errors}. Checks the shape rules of spec/CAIRN.md: kind,
-// exactly one r tag holding an absolute URL, the content rule, the alt rule. The id and signature
-// are verifyEvent's job (sign.js).
+// Is this event a valid cairn? {ok, url, text, errors}: a link cairn gives its url, a text cairn its text
+// (url ''). Checks the shape rules of spec/CAIRN.md: kind, at most one r tag holding an absolute URL, the
+// content rule, the alt rule. The id and signature are verifyEvent's job (sign.js).
 export function validateCairn(ev) {
-  const errors = [], tags = (ev && Array.isArray(ev.tags)) ? ev.tags : [];
+  const errors = [], tags = (ev && Array.isArray(ev.tags)) ? ev.tags : [], content = String((ev && ev.content) || '');
   if (!ev || ev.kind !== CAIRN_KIND) errors.push(`the kind is not ${CAIRN_KIND}`);
-  const r = tags.filter(t => t[0] === 'r');
-  if (r.length !== 1) errors.push(`a cairn has exactly one r tag, this has ${r.length}`);
-  const url = r.length === 1 && r[0][1] != null ? String(r[0][1]) : '';
-  if (r.length === 1 && !isAbsoluteUri(url)) errors.push('the r tag is not an absolute URL');
-  const inContent = contentUrls(ev && ev.content, url);
-  if (url && inContent.length && !inContent.includes(url)) errors.push('the content has URLs but none of them equals the r URL');
-  if (tags.some(t => t[0] === 'alt' && t[1] !== `Cairn: ${url}`)) errors.push('the alt tag is not "Cairn: " followed by the r URL');
-  return { ok: !errors.length, url: errors.length ? null : url, errors };
+  const r = tags.filter(t => t[0] === 'r'), alts = tags.filter(t => t[0] === 'alt');
+  if (r.length > 1) errors.push(`a cairn has at most one r tag, this has ${r.length}`);
+  if (r.length === 1) {   // a link cairn
+    const url = r[0][1] != null ? String(r[0][1]) : '';
+    if (!isAbsoluteUri(url)) errors.push('the r tag is not an absolute URL');
+    const inContent = contentUrls(content, url);
+    if (url && inContent.length && !inContent.includes(url)) errors.push('the content has URLs but none of them equals the r URL');
+    if (alts.some(t => t[1] !== `Cairn: ${url}`)) errors.push('the alt tag is not "Cairn: " followed by the r URL');
+    return { ok: !errors.length, url: errors.length ? null : url, text: content, errors };
+  }
+  if (r.length === 0) {   // a text cairn
+    if (!content.replace(/[\t\n\f\r ]+/g, '')) errors.push('a text cairn has no text');
+    if (contentUrls(content).length) errors.push('a text cairn cannot contain a link (a text with a link is a link cairn)');
+    if (alts.some(t => typeof t[1] !== 'string' || !t[1].startsWith('Cairn: ') || contentUrls(t[1]).length)) errors.push('the alt tag is not "Cairn: " followed by text without a link');
+  }
+  return { ok: !errors.length, url: errors.length ? null : '', text: errors.length ? null : content, errors };
 }
 
 // "https://x.org/a)." -> ["https://x.org/a", ")."]: sentence punctuation stuck to the end of a link.
@@ -82,7 +90,10 @@ export function parseCairnText(text) {
   return { urls, content, blank: !content.replace(INVISIBLE, '') };
 }
 
-// the unsigned cairn for a URL (one of parseCairnText's urls) and its content
+// the unsigned cairn for a URL (one of parseCairnText's urls) and its content; with no URL, a text cairn
+// that carries the content itself, its alt the start of the text on one line
 export function cairnTemplate(url, content = '', createdAt = Math.floor(Date.now() / 1000)) {
-  return { kind: CAIRN_KIND, created_at: createdAt, content, tags: [['r', url], ['alt', `Cairn: ${url}`]] };
+  if (url) return { kind: CAIRN_KIND, created_at: createdAt, content, tags: [['r', url], ['alt', `Cairn: ${url}`]] };
+  const line = Array.from(String(content).replace(/\s+/g, ' ').trim()), alt = line.length > 80 ? line.slice(0, 79).join('') + '…' : line.join('');
+  return { kind: CAIRN_KIND, created_at: createdAt, content, tags: [['alt', `Cairn: ${alt}`]] };
 }

@@ -1,87 +1,246 @@
 <section class="hero">
-  <h1>One drawn glyph is one byte.</h1>
-  <p class="lead">Draw the first bytes of a nostr event id or pubkey on any surface with any pen, chalk or mower. Each byte is a square frame holding one of sixteen upright icons and up to four corner dots: the icon is the first hex digit, the dots are the second. A phone reads the row back on the device, and a relay resolves the bytes to the event or the profile they name.</p>
-  <div class="row"><a class="btn primary" href="/app/">Open the reader</a><a class="btn" href="/spec/">Read the spec</a></div>
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow">Like QR codes you can memorize and draw</span>
+        <h1>Anything online.<br><span class="prism-text">In six glyphs.</span></h1>
+        <p class="lead">Any text, file or link on the internet can be found by six little hand-drawn glyphs and a camera app.<a class="fn" href="#found">*</a> Chalk them on a sidewalk, sketch them on a sign or jot them in a notebook, and any phone camera brings it back.</p>
+        <div class="btns">
+          <a class="btn primary" href="/app/#make">{{icon:link}}Turn a link into glyphs</a>
+          <a class="btn" href="/app/">{{icon:camera}}Read a row</a>
+        </div>
+        <div class="hero-meta">
+          <span>{{icon:pen-line}}Any pen or chalk</span>
+          <span>{{icon:cpu}}Your photos never leave this tab</span>
+          <span>{{icon:shield-check}}Free, no account</span>
+        </div>
+        <p class="footnote"><a href="#found">*</a> GlyphByte saves the link as a cairn, a tiny public record the glyphs point to. <a href="#found">How links are found</a></p>
+      </div>
+      <div class="crystal-host" data-crystal-host aria-hidden="true">
+        <canvas data-crystals data-tablet="cycle"></canvas>
+        <div class="fallback"><svg id="heroFallback"></svg></div>
+      </div>
+    </div>
+
+    <div class="stage glass edge">
+      <p class="stage-title">Try it</p>
+      <form class="stage-top" id="heroForm" action="/app/" method="get">
+        <label class="field">{{icon:link}}<input id="heroLink" name="link" type="url" inputmode="url" placeholder="Paste a link, like https://example.com/menu" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="A link to turn into glyphs"></label>
+        <button class="btn primary" type="submit">Make my glyphs{{icon:arrow-right}}</button>
+      </form>
+      <div class="canvas"><svg id="heroRow" role="img" aria-label="Six glyphs that open a real link"></svg></div>
+      <div class="stage-foot"><p class="stage-note">These six glyphs open a real link. Point the reader at your screen to find out where they go.</p><a class="btn small" href="/app/">{{icon:camera}}Read them</a></div>
+    </div>
+  </div>
 </section>
 
-<section>
-  <h2>How it works</h2>
-  <ol class="steps">
-    <li>
-      <h3>Draw</h3>
-      <p>Take the first six bytes of an id or a pubkey. For each byte draw a square frame, the icon for its first hex digit upright in the middle, and the dots for its second hex digit in the corners. Draw them left to right, underline the whole row, and put a fat dot at the start of the line.</p>
-      <figure>
-        <img class="rowimg" src="/img/row-{{ROW_HEX}}.png" width="{{ROW_W}}" height="{{ROW_H}}" alt="Six framed glyphs in a row above an underline that starts with a fat dot">
-        <figcaption><code>{{ROW_HEX}}</code> as the reference renderer draws it, one byte per frame:</figcaption>
-      </figure>
-      <ol class="glyphs">{{ROW_GLYPHS}}</ol>
-    </li>
-    <li>
-      <h3>Read</h3>
-      <p>Open the reader on a phone and take a photo. It finds the frames, the underline and the dot, straightens each frame, and reads the icon and each corner dot with a small neural network, all in JavaScript on the device. The underline tells it which way is up, and the icons check it: each has a top, so a photo taken sideways or upside down reads the same, even without an underline.</p>
-      <p>Where a glyph is unclear the reader keeps the alternatives instead of guessing, and returns the most probable whole readings, ranked. A missing glyph is never dropped silently, because that would shift every byte after it.</p>
-    </li>
-    <li>
-      <h3>Look up</h3>
-      <p>The bytes are a prefix. The reader asks a relay for every candidate reading at once, as an event id prefix and as a pubkey prefix, and shows what comes back with the author's profile. You confirm which one you meant. A wrong candidate matches nothing, which is why there is no checksum.</p>
-    </li>
-  </ol>
-  <h3>How well does it work</h3>
-  <p>On the synthetic benchmark in <a href="https://github.com/arkin0x/glyphbyte/blob/main/BENCH.md">BENCH.md</a> (200 scenes of pen and marker drawings with random handwriting severity, perspective, any camera roll, lighting, blur and JPEG on photographed backdrops) the reference reader finds 89% of the frames, reads 95% of the bytes correctly where the frame count matched, and gets the whole row right as its first answer 63% of the time; the smaller model that runs in the browser gets 62%. With chalk on pavement and paths in crop fields mixed in, whole rows drop to 45%: grainy strokes still break frames apart. Real handwriting so far: rows in coloured chalk on a sidewalk read exactly, found by their colour where in gray they barely differ from the concrete. Faint chalk whose colour differs from the surface but whose brightness does not, and rows drawn in two colours, are still weak, and that is the next thing to improve.</p>
+<section class="section" id="how">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">How it works</span>
+      <h2>Make it. Draw it. <span class="prism-text">Snap it.</span></h2>
+      <p>No printer, no app to install and no account. Just a link, something to draw with, and a phone.</p>
+    </div>
+    <div class="steps">
+      <article class="step card">
+        <div class="art">
+          <div class="hits" aria-hidden="true">
+            <div class="match">{{icon:link}}example.com/menu</div>
+            <svg data-row="5e357efdbca5" data-seed="2" style="width:100%"></svg>
+          </div>
+        </div>
+        <span class="num">01</span>
+        <h3>Make</h3>
+        <p>Paste a link, or write a short note, and get six glyphs back. Each one is a little picture in a square with a few dots in the corners.</p>
+      </article>
+      <article class="step card">
+        <div class="art"><svg data-row="5e357e" data-hand data-animate data-seed="4" aria-hidden="true"></svg></div>
+        <span class="num">02</span>
+        <h3>Draw</h3>
+        <p>Copy them with any pen, marker or chalk, left to right. Underline the row and start the line with a fat dot. Wobbly is fine.</p>
+      </article>
+      <article class="step card">
+        <div class="art">
+          <div class="hits" aria-hidden="true">
+            <div class="phone-card"><span class="k">This row opens</span><b>example.com</b><span class="u">https://example.com/menu</span><i>Open</i></div>
+          </div>
+        </div>
+        <span class="num">03</span>
+        <h3>Snap</h3>
+        <p>Point a phone at the row. GlyphByte reads it right on the phone and shows the link and the website it goes to, or the note. Nothing opens until you tap.</p>
+      </article>
+    </div>
+  </div>
 </section>
 
-<section>
-  <h2>The alphabet</h2>
-  <div class="table-wrap"><table>
-    <thead><tr><th>hex</th><th>icon</th><th>hex</th><th>icon</th></tr></thead>
-    <tbody>
-      <tr><td>0</td><td>house</td><td>8</td><td>pie</td></tr>
-      <tr><td>1</td><td>heart</td><td>9</td><td>tree</td></tr>
-      <tr><td>2</td><td>drop</td><td>a</td><td>plus</td></tr>
-      <tr><td>3</td><td>moon</td><td>b</td><td>flag</td></tr>
-      <tr><td>4</td><td>crown</td><td>c</td><td>x</td></tr>
-      <tr><td>5</td><td>arrow</td><td>d</td><td>bolt</td></tr>
-      <tr><td>6</td><td>box</td><td>e</td><td>star</td></tr>
-      <tr><td>7</td><td>triangle</td><td>f</td><td>fish</td></tr>
-    </tbody>
-  </table></div>
-  <p>The second hex digit is the sum of the corner dots, clockwise from the top-left: <b>8</b> top-left, <b>4</b> top-right, <b>2</b> bottom-right, <b>1</b> bottom-left. So <code>e8</code> is a star with one dot top-left, <code>50</code> an arrow with no dots, <code>ff</code> a fish with all four. Sixteen icons times sixteen dot patterns is 256: every byte is exactly one drawing.</p>
-  <figure>
-    <img class="sheet" src="/sheet.svg" width="1176" height="1096" alt="The GlyphByte sheet: all 256 glyphs, sixteen icons down, sixteen dot patterns across">
-    <figcaption>All 256 glyphs. The row is the icon, the first hex digit; the column is the dots, the second.</figcaption>
-  </figure>
-  <div class="row"><a class="btn" href="/sheet.svg">Print the sheet</a></div>
-  <p>Rows in the first alphabet (format 1, 2026-09-22: sixteen pictograms, rotated, outline or filled, in square or circle frames) still read: the reader tries both formats on every photo and says which one it found. The reader's glyph switch still draws format 1, and its sheet is <a href="/spec/glyphs-v1.svg">here</a>.</p>
+<section class="section" id="alphabet">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">The alphabet</span>
+      <h2>Sixteen pictures. Four dots. <span class="prism-text">That's all.</span></h2>
+      <p>Each glyph is one picture plus up to four corner dots, which makes 256 different glyphs. Six in a row are enough to tell one link apart from trillions of others. Pick a picture and tap the corners.</p>
+    </div>
+    <div class="builder">
+      <div class="bglyph card edge">
+        <div class="bglyph-art"><div class="bstack" data-crystal-host><canvas data-crystals="single" data-bg="solid" aria-hidden="true"></canvas><svg id="builderGlyph" role="group" aria-label="The glyph. Tap a corner to add or remove its dot."></svg></div></div>
+        <div class="readout">
+          <div class="byte mono" id="bByte" aria-live="polite"></div>
+          <div class="bin" id="bBin"></div>
+          <div class="words" id="bWords"></div>
+        </div>
+        <dl class="math">
+          <dt>Picture</dt><dd><span class="mono hi" id="bHi"></span> is the <span id="bName"></span></dd>
+          <dt>Dots</dt><dd class="mono lo" id="bSum"></dd>
+        </dl>
+        <div class="btns"><button type="button" class="btn small" id="bRandom">{{icon:shuffle}}Random glyph</button></div>
+      </div>
+      <div class="icons" id="iconGrid" aria-label="The sixteen pictures"></div>
+    </div>
+    <div class="sheet-strip card">
+      <p><b>All 256 glyphs on one page.</b> Print it out.</p>
+      <div class="btns"><a class="btn small" href="/sheet.svg">{{icon:printer}}Printable sheet</a></div>
+    </div>
+  </div>
 </section>
 
-<section>
-  <h2>Draw a row</h2>
-  <ul>
-    <li><b>Frame first.</b> Draw a square. Keep the frames about the same size along the row, with a gap of roughly a third of a frame between them.</li>
-    <li><b>Icon in the middle,</b> upright, about half the frame wide, touching nothing. Keep the box and the x small.</li>
-    <li><b>Corner dots</b> are filled blobs about a sixth of the frame across. A dot must touch neither the frame nor the icon, or it becomes part of that line.</li>
-    <li><b>Keep points pointy.</b> The house's roof, the crown's points and the triangle's corners are what separate them from the box.</li>
-    <li><b>Underline the row</b> with one stroke a little below the frames, extending past the first and last frame. The line tells the reader which way is up.</li>
-    <li><b>Fat start dot:</b> a solid dot at the start end of the underline, about a quarter of a frame across. The dot tells the reader where to begin; without it the row has two readings, forward and reversed.</li>
-    <li><b>Six bytes</b> is the recommended length for an event id or pubkey prefix; eight for something meant to stay unambiguous for years; four only where the relay is small.</li>
-  </ul>
+<section class="section" id="draw">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Drawing</span>
+      <h2>Draw a row that <span class="prism-text">reads.</span></h2>
+      <p>Neat handwriting is not needed. The reader cares about six things, and they all come naturally after one row.</p>
+    </div>
+    <div class="guide">
+      <div class="diagram card"><svg id="guideRow" role="img" aria-label="A row of three glyphs with six numbered parts: the frame, the picture, a corner dot, the gap, the underline and the start dot"></svg></div>
+      <ol class="rules">
+        <li><div><b>Square frames</b><span>All about the same size along the row.</span></div></li>
+        <li><div><b>Picture upright in the middle</b><span>About half the frame wide and touching nothing. Keep the box and the x small.</span></div></li>
+        <li><div><b>Dots in the corners</b><span>Filled blobs about a sixth of the frame across, clear of the frame and the picture.</span></div></li>
+        <li><div><b>A gap between frames</b><span>Roughly a third of a frame.</span></div></li>
+        <li><div><b>An underline</b><span>One stroke a little below the row and past both ends. It tells the reader which way is up.</span></div></li>
+        <li><div><b>A fat start dot</b><span>A quarter of a frame across, where the row begins. Without it a row reads both ways.</span></div></li>
+      </ol>
+    </div>
+    <div class="pairs">
+      <article class="pair card">
+        <h3>Dots touch nothing</h3>
+        <div class="duo">
+          <figure class="yes"><svg data-mistake="dots-ok" aria-hidden="true"></svg><figcaption>{{icon:check}}clear</figcaption></figure>
+          <figure class="no"><svg data-mistake="dots-touch" aria-hidden="true"></svg><figcaption>{{icon:x}}touching</figcaption></figure>
+        </div>
+        <p>A dot that touches the frame becomes part of the frame, and the glyph changes.</p>
+      </article>
+      <article class="pair card">
+        <h3>Points stay pointy</h3>
+        <div class="duo">
+          <figure class="yes"><svg data-mistake="roof-ok" aria-hidden="true"></svg><figcaption>{{icon:check}}house</figcaption></figure>
+          <figure class="no"><svg data-mistake="roof-flat" aria-hidden="true"></svg><figcaption>{{icon:x}}box?</figcaption></figure>
+        </div>
+        <p>The roof of the house, the points of the crown and the corners of the triangle are what tell them apart from the box.</p>
+      </article>
+      <article class="pair card">
+        <h3>The start dot is fat</h3>
+        <div class="duo">
+          <figure class="yes"><svg data-mistake="start-ok" aria-hidden="true"></svg><figcaption>{{icon:check}}fat</figcaption></figure>
+          <figure class="no"><svg data-mistake="start-thin" aria-hidden="true"></svg><figcaption>{{icon:x}}thin</figcaption></figure>
+        </div>
+        <p>A thin dot looks like the end of the line. Make it obviously bigger than the corner dots.</p>
+      </article>
+    </div>
+  </div>
 </section>
 
-<section>
-  <h2>Look it up</h2>
-  <p>The reader sends every candidate reading in one request, as an <code>ids</code> prefix and as an <code>authors</code> prefix for kind 0 profiles:</p>
-<pre><code>["REQ", "gb", {"ids": ["{{ROW_HEX}}"]}, {"authors": ["{{ROW_HEX}}"], "kinds": [0]}]</code></pre>
-  <p>Prefix matching in <code>ids</code> and <code>authors</code> was part of the first NIP-01 and was later removed from the text, so it needs a relay that still supports it. As of 2026-09 <b>grain</b> honours prefixes of any length in both fields; <b>strfry</b> and <b>khatru</b> currently do not (strfry answers <code>CLOSED</code>, khatru returns nothing). The reader defaults to <code>wss://wheat.oslim.dev</code>, a grain relay, and tests whichever relay you enter once, by fetching one event and asking for it again by an 8-character prefix, then tells you when a relay rejects or ignores partial queries.</p>
-  <p>Results show the author's profile and which candidate they matched, and the person confirms which one they meant. A prefix is a pointer, not a proof: the resolved full id or pubkey is the reference, never the drawn bytes.</p>
+<section class="section" id="places">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Where it goes</span>
+      <h2>Leave a link <span class="prism-text">in the world.</span></h2>
+      <p>A drawn row is a link you can make with whatever is in your pocket. Anything that holds a mark can hold one.</p>
+    </div>
+    <div class="places">
+      <article class="place card"><div class="ico">{{icon:map-pin}}</div><h3>Walls and sidewalks</h3><p>Chalk six glyphs and anyone who passes can open the link behind them. Coloured chalk reads best.</p></article>
+      <article class="place card"><div class="ico">{{icon:sticker}}</div><h3>Stickers and signs</h3><p>A row fits on a sticker, a poster, a menu or the back of a business card, drawn by hand or printed.</p></article>
+      <article class="place card"><div class="ico">{{icon:notebook-pen}}</div><h3>Notebooks and letters</h3><p>Write a link in a margin or a card, and whoever holds the paper can open it years later.</p></article>
+      <article class="place card"><div class="ico">{{icon:tractor}}</div><h3>Any size at all</h3><p>Glyphs have no fixed scale. A row works the same in a margin, on a garage door or mown into a field.</p></article>
+    </div>
+    <div class="cairn" id="found">
+      <div>
+        <span class="eyebrow">How links are found</span>
+        <h3 style="margin:16px 0 14px">No company in the middle.</h3>
+        <p>When you make glyphs, GlyphByte saves your link or note as a cairn: a tiny public record on nostr, an open network of independent servers called relays. The six glyphs are the start of that record's id, which is all the reader needs to find it. Nobody can change or take down a cairn once it is made, including you, so check it first.</p>
+        <div class="btns" style="margin-top:22px"><a class="btn primary" href="/app/#make">{{icon:link}}Turn a link into glyphs</a><a class="btn" href="https://github.com/arkin0x/glyphbyte/blob/main/spec/CAIRN.md">How cairns work</a></div>
+      </div>
+      <div class="chalk"><svg data-row="5e357efdbca5" data-hand data-animate data-seed="9" aria-label="An example row of six glyphs"></svg></div>
+    </div>
+  </div>
 </section>
 
-<section>
-  <h2>Get it</h2>
-  <ul>
-    <li><a href="/spec/">The specification</a>, with the 256 test vectors, the icon strokes and the printable sheet.</li>
-    <li><a href="https://github.com/arkin0x/glyphbyte">github.com/arkin0x/glyphbyte</a>: the Python reference implementation, the JavaScript reader and this site.</li>
-    <li>JavaScript: <a href="https://www.npmjs.com/package/glyphbyte"><code>glyphbyte</code> on npm</a>, dependency-free. <code>npm install glyphbyte</code> gives you the reader, the row renderer, the relay lookup, and cairn publishing.</li>
-    <li>Python: <code>pip install git+https://github.com/arkin0x/glyphbyte</code> for now (numpy, OpenCV, onnxruntime). <code>glyphbyte decode photo.jpg</code> prints the bytes; <code>glyphbyte encode HEX --out row.png</code> renders a row to copy from.</li>
-  </ul>
-  <p>The whole reader runs in the browser: the detector, the network weights and the icon shapes are inline in one page, and nothing leaves the device except the relay queries you can see on the page, and what you publish. The same file is also a napplet (NIP-5D) that a nostr shell can load in a sandboxed iframe.</p>
+<section class="section" id="numbers">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Honest numbers</span>
+      <h2>How well it reads <span class="prism-text">today.</span></h2>
+      <p>Measured on 200 test photos of pen and marker rows with messy handwriting, odd angles, poor light, blur and busy backgrounds.</p>
+    </div>
+    <div class="stats">
+      <div class="stat card"><div class="v">89<small>%</small></div><div class="k">of drawn frames found</div><div class="bar"><i style="width:89%"></i></div></div>
+      <div class="stat card"><div class="v">95<small>%</small></div><div class="k">of glyphs read right when every frame was found</div><div class="bar"><i style="width:95%"></i></div></div>
+      <div class="stat card"><div class="v">63<small>%</small></div><div class="k">of whole rows right on the first guess, before the lookup sorts out the rest</div><div class="bar"><i style="width:63%"></i></div></div>
+      <div class="stat card"><div class="v">0</div><div class="k">photos leave your phone. Only the lookup does.</div><div class="bar"><i style="width:100%"></i></div></div>
+    </div>
+    <p class="fine">When a glyph is unclear the reader keeps every likely reading and looks them all up at once. Wrong readings match nothing, so the right link still comes back. Chalk on rough pavement is harder: grainy strokes break frames apart, and whole rows drop to 45%. Rows in coloured chalk on a sidewalk read exactly. Faint chalk and rows in two colours are the next things to improve. Details in <a href="https://github.com/arkin0x/glyphbyte/blob/main/BENCH.md">BENCH.md</a>.</p>
+  </div>
+</section>
+
+<section class="section" id="build">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Build with it</span>
+      <h2>Open, small and <span class="prism-text">dependency-free.</span></h2>
+      <p>GlyphByte is an open specification with 256 test vectors and a reader with no dependencies that runs anywhere a canvas does. Under the hood a row is the first bytes of a nostr event id or public key, looked up on relays that answer id prefixes, so the reader also opens nostr profiles and notes, and is itself a single-file napplet.</p>
+    </div>
+    <div class="dev">
+      <ul class="links">
+        <li><a href="/spec/">{{icon:book-open}}<div><b>Specification</b><span>Byte layout, drawing and reading rules, relay lookup</span></div><span class="go">{{icon:arrow-right}}</span></a></li>
+        <li><a href="https://www.npmjs.com/package/glyphbyte">{{icon:package}}<div><b>npm: glyphbyte</b><span>Reader, renderer, relay lookup and cairns</span></div><span class="go">{{icon:arrow-right}}</span></a></li>
+        <li><a href="https://github.com/arkin0x/glyphbyte">{{icon:terminal}}<div><b>Source code</b><span>Python reference, JavaScript reader and this site</span></div><span class="go">{{icon:arrow-right}}</span></a></li>
+        <li><a href="/app/#draw">{{icon:pen-line}}<div><b>Draw any id</b><span>Hex, npub, note, nevent, nprofile or naddr as glyphs</span></div><span class="go">{{icon:arrow-right}}</span></a></li>
+      </ul>
+      <div class="code card">
+        <div class="tabs" role="tablist">
+          <button role="tab" aria-selected="true" aria-controls="tab-js" id="t-js">JavaScript</button>
+          <button role="tab" aria-selected="false" aria-controls="tab-py" id="t-py">Python</button>
+          <button role="tab" aria-selected="false" aria-controls="tab-relay" id="t-relay">Relay query</button>
+        </div>
+        <div class="panel" role="tabpanel" id="tab-js" aria-labelledby="t-js">
+<pre id="code-js"><code><span class="k">import</span> { readImage, toGray, loadBundledModels, lookup }
+  <span class="k">from</span> <span class="s">'glyphbyte'</span>;
+
+<span class="k">const</span> models = <span class="k">await</span> loadBundledModels();
+<span class="k">const</span> gray = toGray(img.data, w, h);
+<span class="k">const</span> read = readImage(gray, w, h, models);
+<span class="c">// read.best is the likeliest reading, e.g. '5e357efdbca5'</span>
+<span class="k">const</span> hits = <span class="k">await</span> lookup(read.sequences.map(s =&gt; s.hex));</code></pre>
+          <button class="iconbtn copy" data-copy="#code-js" aria-label="copy">{{icon:copy}}</button>
+          <p><code>npm install glyphbyte</code>. The same package renders rows to draw from and publishes cairns.</p>
+        </div>
+        <div class="panel" role="tabpanel" id="tab-py" aria-labelledby="t-py" hidden>
+<pre id="code-py"><code><span class="c"># the reference implementation: numpy, OpenCV, onnxruntime</span>
+pip install git+https://github.com/arkin0x/glyphbyte
+
+glyphbyte decode photo.jpg          <span class="c"># prints the likely readings</span>
+glyphbyte encode 5e357efdbca5 --out row.png</code></pre>
+          <button class="iconbtn copy" data-copy="#code-py" aria-label="copy">{{icon:copy}}</button>
+          <p>The Python package trains the model, renders the test vectors and runs the benchmark.</p>
+        </div>
+        <div class="panel" role="tabpanel" id="tab-relay" aria-labelledby="t-relay" hidden>
+<pre id="code-relay"><code>[<span class="s">"REQ"</span>, <span class="s">"gb"</span>,
+  {<span class="s">"ids"</span>: [<span class="s">"5e357efdbca5"</span>]},
+  {<span class="s">"authors"</span>: [<span class="s">"5e357efdbca5"</span>], <span class="s">"kinds"</span>: [0]}]</code></pre>
+          <button class="iconbtn copy" data-copy="#code-relay" aria-label="copy">{{icon:copy}}</button>
+          <p>Prefix matching needs a relay that still supports it. <b>grain</b> does, for any length; strfry and khatru currently do not. The reader publishes cairns to <code>wss://relay.onosendai.tech</code>, looks up on it and on <code>wss://wheat.oslim.dev</code>, and tests any relay you give it.</p>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>

@@ -48,16 +48,16 @@ def build(weights_path, manifest_path, out_path, weights_v1=None, manifest_v1=No
         commit = "unknown"
     stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M") + " " + commit
     html = html.replace("/*__APP__*/", app).replace("/*__BUILD__*/", stamp)
-    # the site's own footer, so the reader and the pages under glyphbyte.dev can never disagree
-    shell = open(os.path.join(HERE, "..", "site", "src", "shell.html")).read()
-    footer = re.search(r"<footer>.*?</footer>", shell, re.S).group(0)
-    html = html.replace("/*__FOOTER__*/", footer)
+    # {{icon:name}} -> an inline Lucide icon from the site's set (site/src/icons.json)
+    icons_path = os.path.join(HERE, "..", "site", "src", "icons.json")
+    icons = json.load(open(icons_path)) if os.path.exists(icons_path) else {}
+    html = re.sub(r"{{icon:([a-z0-9-]+)}}", lambda m: f'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">{icons.get(m.group(1), "")}</svg>', html)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     open(out_path, "w").write(html)
     # a core-only script for headless tests (no DOM)
     with open(os.path.join(os.path.dirname(out_path), "glyphbyte-core.js"), "w") as f:
         f.write(signer + "\n" + core + "\nconst SHAPES = " + json.dumps(shapes) + ";\nconst SHAPES_V1 = " + json.dumps(shapes_v1) +
-                ";\nglobalThis.GlyphByte = { toGray, readImage, detect, describe, unpack, SYMBOLS, SYMBOLS_V1, turnedV1, loadWeights, classify, modelFormat, SHAPES, SHAPES_V1, lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay, publishEvent, DEFAULT_RELAY, npub, note, nevent, naddr, decodeEntity, generateSecretKey, schnorrPublicKey, schnorrSign, schnorrVerify, eventId, signEvent, verifyEvent, CAIRN_KIND, CAIRN_MIN_BYTES, contentUrls, validateCairn, parseCairnText, cairnTemplate };\n")
+                ";\nglobalThis.GlyphByte = { toGray, readImage, detect, describe, unpack, SYMBOLS, SYMBOLS_V1, turnedV1, loadWeights, classify, modelFormat, SHAPES, SHAPES_V1, lookup, buildFilters, matchPrefix, fetchProfiles, probeRelay, publishEvent, DEFAULT_RELAY, LOOKUP_RELAYS, npub, note, nevent, naddr, decodeEntity, generateSecretKey, schnorrPublicKey, schnorrSign, schnorrVerify, eventId, signEvent, verifyEvent, CAIRN_KIND, CAIRN_MIN_BYTES, contentUrls, validateCairn, parseCairnText, cairnTemplate };\n")
     print(f"wrote {out_path} ({os.path.getsize(out_path) / 1e6:.2f} MB)")
 
 
