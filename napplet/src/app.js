@@ -168,7 +168,7 @@ async function runLookup(candidates) {
   let h = '';
   if (r.error) h += `<p class="warn">Could not reach the lookup server: ${esc(r.error)}</p>`;
   for (const n of r.notices) h += `<p class="warn">server: ${esc(n)}</p>`;
-  if (!r.events.length && !r.error) h += `<p class="muted">Nothing found for ${candidates.length > 1 ? `any of the ${candidates.length} readings` : 'that row'}. Check the glyphs, or try another photo.</p>`;
+  if (!r.events.length && !r.error) h += `<p class="muted">Nothing found for ${candidates.length > 1 ? `any of the ${candidates.length} readings` : 'those glyphs'}. Check them, or try another photo.</p>`;
   const seenPk = new Set(), items = [];
   for (const ev of r.events.filter(e => e.kind === CAIRN_KIND).sort((a, b) => b.created_at - a.created_at)) items.push(ev);
   for (const ev of r.events.filter(e => e.kind === 0).sort((a, b) => b.created_at - a.created_at)) { if (!seenPk.has(ev.pubkey)) { seenPk.add(ev.pubkey); items.push(ev); } }
